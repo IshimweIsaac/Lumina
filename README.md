@@ -4,31 +4,36 @@
 
 Lumina is a statically typed, declarative, and reactive programming language engineered in Rust, designed specifically for modeling complex state-driven systems. Unlike traditional imperative languages where state transitions are manually coordinated, Lumina employs a continuous evaluation model. Domain entities are defined with intrinsic storage and derived mathematical relationships. Reactive rule cascades autonomously compute state changes, temporal triggers enforce duration and interval-based logic, and invariant assertions ensure computational consistency. The resulting execution model provides a robust framework for asynchronous and deterministic system state resolution, suitable for both embedded logic and high-level behavioral orchestration.
 
+---
+
 ## 1. Introduction
 
 Modern software architecture frequently struggles with the synchronization of distributed state and the unintended consequences of imperative control flow across varying subsystems. Lumina mitigates these systemic challenges by inverting the control paradigm. Instead of explicitly instructing the system *when* and *how* to update context, developers declare the inherent relationships between properties and the subsequent reactive triggers that must fire upon specific state variations.
 
-### 1.1 Key Paradigms
-*   **Declarative Entity Modeling**: Fields are partitioned into basal and derived categories. Derived fields (`:=`) maintain a strictly guaranteed relationship with their dependencies through continuous topological re-evaluation.
+### 1.1 Key Features in v1.3
+*   **Declarative Entity Modeling**: Fields are partitioned into basal and derived categories. Derived fields (`:=`) maintain a strictly guaranteed relationship with their dependencies through continuous topological re-evaluation using Kahn's algorithm.
 *   **Deterministic Reactive Automata**: State mutations are constrained to atomic intervals. The runtime leverages a directed acyclic evaluation graph to cascade variable updates without triggering divergent recursion limits.
 *   **Temporal Logic Triggers**: The inclusion of `for` and `every` reactive clauses enables the execution of interval-based and sustained-duration logic, natively offloading manual timer management to the runtime orchestrator.
 *   **Robust Boundary and Type Checking**: Compile-time semantic analysis combined with runtime bounds constraints (`@range`) minimizes invalid state allocations.
+*   **Self-Healing Snapshots**: Before every state-changing operation, the runtime takes a deep-copy snapshot. If anything fails (like a recursion limit breach or range violation), the snapshot is restored instantly, guaranteeing a stable state without crashing.
+
+---
 
 ## 2. Architecture and Execution Model
 
-The Lumina compiler and runtime (`lumina-cli`) are implemented in Rust, exploiting zero-cost abstractions and strict memory safety guarantees. The underlying virtual machine utilizes a snapshot-and-rollback transactional mechanism for state updates, preserving atomicity in event application.
+The Lumina compiler and runtime pipeline is implemented in Rust, exploiting zero-cost abstractions and strict memory safety guarantees. Every `.lum` program flows through this exact 4-stage pipeline:
 
-### 2.1 Toolchain Components
-*   `lumina-lexer`: A high-throughput deterministic finite automaton tokenizer powered by `logos`.
-*   `lumina-parser`: A hybrid recursive-descent and Pratt parser optimized for context-free grammar evaluation and operator precedence.
-*   `lumina-analyzer`: Constructs a dependency graph, enforces static type safety, and detects circular dependency vectors before runtime.
-*   `lumina-runtime`: The core evaluation substrate handling state allocation, rule execution, and temporal scheduling.
+1.  **`lumina-lexer`**: A high-throughput deterministic finite automaton tokenizer powered by `logos` that generates `Vec<SpannedToken>`.
+2.  **`lumina-parser`**: A hybrid recursive-descent and Pratt parser optimized for context-free grammar evaluation and operator precedence (`Ast`).
+3.  **`lumina-analyzer`**: Constructs a dependency graph natively as flat `u32` `NodeId` arrays, enforces static type safety, and validates evaluation order statically.
+4.  **`lumina-runtime`**: The core Snapshot VM (`Evaluator`) handling state allocation, `becomes` edge-transition detection, and temporal scheduling.
 
-## 3. Language Specification
+---
 
-### 3.1 Entity Schemas
+## 3. Language Specification (v1.3 Example)
 
-Entities define the polymorphic structure of state contexts within the runtime environment.
+### 3.1 Entity Schemas & Initialization
+Entities define the polymorphic structure of state contexts.
 
 ```lua
 entity Moto {
@@ -40,135 +45,129 @@ entity Moto {
   
   -- Derived fields autonomously calculate their value topologically
   isLowBattery := battery < 20
-  isAvailable  := not isBusy and battery > 15
-}
-```
-
-### 3.2 Polymorphic Initialization and Instantiation
-
-Instantiation within Lumina requires the explicit declaration of non-derived fields. Derived fields are structurally computed immediately upon object allocation.
-
-```lua
-let transport = Moto { battery: 80, isBusy: false, status: "available" }
-```
-
-### 3.3 Rule Cascades and Forward Chaining
-
-The control logic in Lumina relies upon the `rule` keyword, evaluating preconditions incrementally.
-
-```lua
-rule "Low Power Heuristics" {
-  when Moto.isLowBattery becomes true
-  then show "SYSTEM ALERT: Battery reserves have dropped below structural thresholds."
-}
-```
-
-The trigger modifier `becomes` ensures rule execution operates strictly on edge transitions (low to high), minimizing computational redundancy during steady-state sequences.
-
-### 3.4 Temporal Semantics
-
-Lumina provides native capabilities for evaluating sustained conditions and periodic intervals.
-
-```lua
-rule "Thermodynamic Cooldown Constraint" {
-  when Sensor.isHot becomes true for 30 s
-  then show "Diagnostic: Thermal mitigation failed. Temperature remains sustained over timeframe."
+  isCritical   := battery < 5
 }
 
-rule "Diagnostic Telemetry Interval" {
+-- Instantiate with explicit basal fields (derived fields compute automatically)
+let moto1 = Moto { battery: 80, isBusy: false, status: "available" }
+```
+
+### 3.2 Rule Cascades & Temporal Semantics
+Control logic relies upon the `rule` keyword. The `becomes` modifier ensures rules execute strictly on edge transitions, minimizing computational redundancy.
+
+```lua
+-- Fires exactly once when the condition transitions from false to true
+rule "Critical Battery" {
+  when Moto.isCritical becomes true
+  then update moto1.status to "maintenance"
+  then show "CRITICAL: Moto pulled from service"
+}
+
+-- Fires after the condition holds continuously for the duration
+rule "Auto-lock idle bike" {
+  when Moto.isBusy becomes false for 15 m
+  then update moto1.status to "locked"
+}
+
+-- Fires unconditionally on a scheduled recurring interval
+rule "Fleet heartbeat" {
   every 1 h
-  then show "Transmitting hourly systemic telemetry."
+  then show "Fleet check running..."
 }
 ```
 
-### 3.5 Primitive Types and Operators
+---
 
-| Type Classification | Permitted Inputs |
-|---------------------|------------------|
-| `Number`            | 64-bit IEEE 754 Floating-Point Precision (`42`, `3.14159`) |
-| `Text`              | UTF-8 encoded String Literals (`"Diagnostic Start"`) |
-| `Boolean`           | `true`, `false` |
+## 4. Compilation and Usage
 
-**Operators**:
-Lumina supports a full spectrum of Boolean algebra and arithmetic operators (`+`, `-`, `*`, `/`, `==`, `!=`, `>`, `<`, `>=`, `<=`, `and`, `or`, `not`), as well as the specialized state transition operator (`becomes`). String interpolation is intrinsically supported natively (e.g., `"{entity.variable}"`).
+### Prerequisites
+* Rust Toolchain (`rustc` >= 1.70.0)
+* Cargo Build Manager
 
-## 4. Compilation and Environmental Configuration
-
-### 4.1 System Prerequisites
-*   Rust Toolchain (`rustc` >= 1.70.0)
-*   Cargo Build Manager
-
-### 4.2 Installation
-
-**Quick Install (Linux/macOS)**
-
-The simplest way to install the Lumina toolchain locally is via our installation script, which orchestrates the downloading, compilation, and PATH provisioning automatically.
-
+### 4.1 Command Line Interface (CLI)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/bodyempire/Lumina/main/install.sh | bash
-```
+# Build the CLI
+cargo build --release -p lumina-cli
 
-**Building from Source**
-
-If you prefer to compile manually:
-
-```bash
-# Clone the repository and compile the target binary
-git clone https://github.com/bodyempire/Lumina.git
-cd Lumina
-cargo build --release --bin lumina-cli
-
-# Symlink the binary into the global execution path
-cp target/release/lumina-cli ~/.local/bin/lumina
-```
-
-### 4.3 Command Line Interface (CLI)
-```bash
 # Execute abstract syntax tree evaluation
-lumina run target_program.lum
+cargo run --bin lumina -- run tests/spec/fleet.lum
 
-# Perform static analysis and dependency validation
-lumina check target_program.lum
+# Perform static analysis and dependency validation without executing
+cargo run --bin lumina -- check tests/spec/fleet.lum
 
-# Initiate interactive Read-Eval-Print Loop (REPL)
-lumina repl
+# REPL (Note: State persistence is limited in v1.3; full persistence coming in v1.4)
+cargo run --bin lumina -- repl
 ```
 
-## 5. System Interoperability (FFI)
+---
 
-Lumina implements a Foreign Function Interface (FFI) permitting native linkage and execution from external environments such as Python or C via a cross-platform shared library.
+## 5. Using Lumina from Python (C FFI)
 
+Lumina implements a highly secure, memory-safe Foreign Function Interface (FFI) allowing native linkage and execution from external environments via a shared library.
+
+### 5.1 FFI Setup
+```bash
+# 1. Build the shared library (produces liblumina_ffi.so / .dylib / .dll)
+cargo build --release -p lumina-ffi
+
+# 2. Add target/release to your LD_LIBRARY_PATH (or run Python from the repo root)
+```
+
+### 5.2 Python `lumina_py` Wrapper Example
 ```python
-from lumina_py import LuminaRuntime
+from crates.lumina_ffi.lumina_py import LuminaRuntime
 
-# Initialize runtime and parse logical schema
+# Load a Lumina script from source string
 rt = LuminaRuntime.from_source("""
 entity Iterator { index: Number }
-let Iterator = Iterator { index: 0 }
+let my_iter = Iterator { index: 0 }
 """)
 
-# Apply extrinsic variables and export delta state
-rt.apply_event("Iterator", "index", 42)
-print(rt.export_state())
+# Apply extrinsic variables explicitly into the evaluation engine
+result = rt.apply_event("my_iter", "index", 42)
+
+# Export the entire topological system state as a JSON dictionary
+print(rt.export_state()["instances"]["my_iter"]["fields"]["index"]) # 42
 ```
 
-## 6. WebAssembly Integration
+---
 
-For sandboxed and distributed deployments, Lumina cross-compiles to WebAssembly (`wasm32-unknown-unknown`), operating robustly within the V8 Javascript execution environment.
+## 6. WebAssembly Integration (Playground)
+
+Lumina cross-compiles to WebAssembly (`wasm32-unknown-unknown`), operating inside standard JavaScript runtimes for browser experiences.
 
 ```bash
+# Build WASM package
+cargo install wasm-pack
+rustup target add wasm32-unknown-unknown
 cd crates/lumina-wasm
 wasm-pack build --target web --out-dir pkg --release
+
+# Serve the locally built WASM playground
+cd ../..
+python3 -m http.server 8080
+# Open http://localhost:8080/playground/index.html
 ```
+*(Note: System-native timers are approximate inside the WASM target; native CLI builds utilize precise `std::time::Instant`.)*
 
-## 7. Quality Assurance and Testing
+---
 
-The repository maintains a rigorous test suite covering lexer validation, structural parsing, AST transformations, and runtime semantic execution.
+## 7. Known Limitations (Targeted for v1.4)
+The current v1.3 spec formally notes these boundaries, which define the scope for future versions:
+*   **External Entities:** Syntax is parsed but `Supabase` and `Docker` adapters are not yet implemented.
+*   **Functions & Lists:** `fn` pure functions and `List<T>` types are lexically parsed but not executed by the runtime.
+*   **REPL State Persistence:** The v1.3 REPL rebuilds state on every input; multi-line rule retention will arrive in v1.4.
+*   **Source Context in Diagnostics:** Errors display codes (e.g., `L003`) and lines, but lack precise column-caret highlighting.
 
+---
+
+## 8. Development & Testing
+Before committing to the codebase, read our detailed [CONTRIBUTING.md](./CONTRIBUTING.md) guide which outlines the strict memory safety, topological ordering rules, and `apply_update` snapshot invariants that define the engine.
+
+Run the full specification regression suite before every PR:
 ```bash
 cargo test --workspace
 ```
 
 ## License
-
 This software and associated documentation files are distributed under the MIT License. Reference [`LICENSE`](LICENSE) for complete legal stipulations.
