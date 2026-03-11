@@ -1,75 +1,105 @@
-# Extended Backus-Naur Form (EBNF) Specification
+# Extended Backus-Naur Form (EBNF) Specification (v1.3)
 
-This document defines the formal grammar for the Lumina programming language.
+This document contains the complete formal language grammar of the Lumina programming language, conforming to version 1.3 specifications.
 
-## Tokens & Terminals
-
+## Global Program Structure
 ```ebnf
-IDENTIFIER  ::= [a-zA-Z_] [a-zA-Z0-9_]*
-NUMBER      ::= [0-9]+ ("." [0-9]+)?
-TEXT_STRING ::= '"' [^"]* '"'
-BOOLEAN     ::= "true" | "false"
+program ::= statement* EOF
 
-COMMENT     ::= "--" [^\n]* "\n"
+statement ::= entity_decl
+            | let_stmt
+            | rule_decl
+            | action_stmt
+            | external_decl
+            | NEWLINE
 ```
 
-## Top Level Declarations
-
+## Entity and Composition Forms
 ```ebnf
-Program ::= Declaration*
+entity_decl ::= 'entity' IDENT '{' NEWLINE field* '}'
 
-Declaration ::= EntityDecl | RuleDecl | LetDecl | UpdateDecl | ShowDecl
+field ::= metadata* stored_field | metadata* derived_field
+stored_field ::= IDENT ':' type NEWLINE
+derived_field ::= IDENT ':=' expr NEWLINE
 
-EntityDecl ::= "entity" IDENTIFIER "{" EntityField* "}"
+metadata ::= '@doc' STRING NEWLINE
+           | '@range' NUMBER 'to' NUMBER NEWLINE
+           | '@affects' IDENT (',' IDENT)* NEWLINE
 
-EntityField ::= (MetadataDecl)* IDENTIFIER (":" Type | ":=" Expression)
-
-MetadataDecl ::= "@doc" TEXT_STRING | "@range" Expression "to" Expression
-
-Type ::= "Number" | "Text" | "Boolean"
+type ::= 'Text' | 'Number' | 'Boolean' | IDENT
 ```
 
-## Flow and Rules
-
+## Abstract Values and Creation
 ```ebnf
-RuleDecl ::= "rule" TEXT_STRING "{" TriggerClause ActionClause "}"
+let_stmt ::= 'let' IDENT '=' (expr | entity_init) NEWLINE
 
-TriggerClause ::= WhenClause | EveryClause
-
-WhenClause ::= "when" Expression "becomes" Expression (TemporalModifier)?
-EveryClause ::= "every" NUMBER TimeScale
-
-TemporalModifier ::= "for" NUMBER TimeScale
-TimeScale ::= "ms" | "s" | "m" | "h" | "d"
-
-ActionClause ::= "then" Statement
+entity_init ::= IDENT '{' NEWLINE (IDENT ':' expr NEWLINE)* '}'
 ```
 
-## Instantiations
-
+## Rules and Temporal Logic
 ```ebnf
-LetDecl ::= "let" IDENTIFIER "=" IDENTIFIER "{" FieldInitializer ("," FieldInitializer)* "}"
-FieldInitializer ::= IDENTIFIER ":" Expression
+rule_decl ::= 'rule' STRING '{' NEWLINE
+              ( 'when' condition NEWLINE
+              | 'every' duration NEWLINE )
+              ('then' action NEWLINE)+ 
+              '}'
 
-UpdateDecl ::= "update" MemberAccess "to" Expression
-ShowDecl ::= "show" Expression
+condition ::= entity_condition | expr
+entity_condition::= IDENT '.' IDENT ('becomes' expr)? ('for' duration)?
+
+duration ::= NUMBER ('s' | 'm' | 'h' | 'd')
 ```
 
-## Expressions
-
+## External Entities
 ```ebnf
-Expression ::= LogicalOrExpr
+external_decl ::= 'external' 'entity' IDENT '{' NEWLINE
+                  field*
+                  sync_config
+                  '}'
 
-LogicalOrExpr ::= LogicalAndExpr ("or" LogicalAndExpr)*
-LogicalAndExpr ::= EqualityExpr ("and" EqualityExpr)*
-EqualityExpr ::= RelationalExpr (("==" | "!=") RelationalExpr)*
-RelationalExpr ::= AdditiveExpr (("<" | "<=" | ">" | ">=") AdditiveExpr)*
-AdditiveExpr ::= MultiplicativeExpr (("+" | "-") MultiplicativeExpr)*
-MultiplicativeExpr ::= UnaryExpr (("*" | "/") UnaryExpr)*
+sync_config ::= 'sync' ':' STRING NEWLINE
+              'on' ':' STRING NEWLINE
+              ('poll_interval' ':' duration NEWLINE)?
+```
 
-UnaryExpr ::= ("not" | "-" | "+") UnaryExpr | PrimaryExpr
+## Runtime Actions
+```ebnf
+action ::= show_action
+         | update_action
+         | create_action
+         | delete_action
 
-PrimaryExpr ::= NUMBER | TEXT_STRING | BOOLEAN | MemberAccess | "(" Expression ")"
+show_action ::= 'show' expr
+update_action ::= 'update' field_access 'to' expr
+create_action ::= 'create' IDENT '{' NEWLINE (IDENT ':' expr NEWLINE)* '}'
+delete_action ::= 'delete' IDENT
+```
 
-MemberAccess ::= IDENTIFIER ("." IDENTIFIER)+
+## Expressions (Pratt Operator Precedence)
+```ebnf
+expr ::= or_expr
+
+or_expr ::= and_expr ('or' and_expr)*
+and_expr ::= not_expr ('and' not_expr)*
+not_expr ::= 'not' not_expr | cmp_expr
+cmp_expr ::= add_expr (cmp_op add_expr)?
+add_expr ::= mul_expr (('+' | '-') mul_expr)*
+mul_expr ::= unary_expr (('*' | '/' | 'mod') unary_expr)*
+unary_expr ::= '-' primary | primary
+
+primary ::= NUMBER | STRING | BOOL | IDENT | field_access
+          | '(' expr ')'
+          | if_expr
+
+if_expr ::= 'if' expr 'then' expr ('else' 'if' expr 'then' expr)* 'else' expr
+field_access ::= IDENT ('.' IDENT)+
+cmp_op ::= '==' | '!=' | '>' | '<' | '>=' | '<='
+```
+
+## Token Terminals
+```ebnf
+STRING ::= '"' (char | '{' expr '}')* '"'
+IDENT ::= LETTER (LETTER | DIGIT | '_')*
+NUMBER ::= DIGIT+ ('.' DIGIT+)?
+BOOL ::= 'true' | 'false'
 ```
