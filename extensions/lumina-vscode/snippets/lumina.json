@@ -1,0 +1,55 @@
+{
+    "Entity declaration": {
+        "prefix": "entity",
+        "body": [
+            "entity ${1:Name} {",
+            "\t${2:field}: ${3:Number}",
+            "\t${4:derived} := ${5:expr}",
+            "}"
+        ],
+        "description": "Declare a Lumina entity"
+    },
+    "Rule when becomes": {
+        "prefix": "rwhen",
+        "body": [
+            "rule ${1:Name} when ${2:Entity}.${3:field} becomes ${4:true} {",
+            "\t${5:show \"fired\"}",
+            "}"
+        ],
+        "description": "Rule triggered by state transition"
+    },
+    "Rule when becomes for": {
+        "prefix": "rfor",
+        "body": [
+            "rule ${1:Name} when ${2:Entity}.${3:field} becomes ${4:true} for ${5:5}s {",
+            "\t${6:show \"sustained\"}",
+            "}"
+        ],
+        "description": "Rule triggered after sustained condition"
+    },
+    "Rule every": {
+        "prefix": "revery",
+        "body": [
+            "rule ${1:Name} every ${2:30}s {",
+            "\t${3:show \"tick\"}",
+            "}"
+        ],
+        "description": "Rule triggered on a fixed interval"
+    },
+    "Let binding": {
+        "prefix": "let",
+        "body": [
+            "let ${1:name} = ${2:Entity} { ${3:field}: ${4:value} }"
+        ],
+        "description": "Create an entity instance"
+    },
+    "Function declaration": {
+        "prefix": "fn",
+        "body": [
+            "fn ${1:name}(${2:param}: ${3:Number}) -> ${4:Number} {",
+            "\t${5:expr}",
+            "}"
+        ],
+        "description": "Pure function declaration (v1.4)"
+    }
+}

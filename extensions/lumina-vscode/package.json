@@ -1,0 +1,41 @@
+{
+    "name": "lumina-language",
+    "displayName": "Lumina",
+    "description": "Lumina (.lum) language support - syntax highlighting and snippets",
+    "version": "0.1.0",
+    "publisher": "isaac-ishimwe",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "lumina",
+                "aliases": [
+                    "Lumina",
+                    "lum"
+                ],
+                "extensions": [
+                    ".lum"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "lumina",
+                "scopeName": "source.lumina",
+                "path": "./syntaxes/lumina.tmLanguage.json"
+            }
+        ],
+        "snippets": [
+            {
+                "language": "lumina",
+                "path": "./snippets/lumina.json"
+            }
+        ]
+    }
+}
