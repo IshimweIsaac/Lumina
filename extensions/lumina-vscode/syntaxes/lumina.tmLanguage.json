@@ -1,0 +1,78 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Lumina",
+    "scopeName": "source.lumina",
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#numbers"
+        },
+        {
+            "include": "#booleans"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#types"
+        },
+        {
+            "include": "#operators"
+        },
+        {
+            "include": "#metadata"
+        }
+    ],
+    "repository": {
+        "comments": {
+            "name": "comment.line.double-dash.lumina",
+            "match": "--.*$"
+        },
+        "strings": {
+            "name": "string.quoted.double.lumina",
+            "begin": "\"",
+            "end": "\"",
+            "patterns": [
+                {
+                    "name": "meta.interpolation.lumina",
+                    "begin": "\\\\{",
+                    "end": "\\\\}",
+                    "patterns": [
+                        {
+                            "include": "$self"
+                        }
+                    ]
+                }
+            ]
+        },
+        "numbers": {
+            "name": "constant.numeric.lumina",
+            "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        },
+        "booleans": {
+            "name": "constant.language.lumina",
+            "match": "\\b(true|false)\\b"
+        },
+        "keywords": {
+            "name": "keyword.control.lumina",
+            "match": "\\b(entity|rule|when|becomes|for|every|let|show|update|to|create|delete|if|then|else|and|or|not|is|external|sync|on|fn|import)\\b"
+        },
+        "types": {
+            "name": "storage.type.lumina",
+            "match": "\\b(Number|Text|Boolean)\\b"
+        },
+        "operators": {
+            "name": "keyword.operator.lumina",
+            "match": ":=|->|==|!=|>=|<=|>|<|\\+|-|\\*|/|%|\\.|:"
+        },
+        "metadata": {
+            "name": "storage.modifier.lumina",
+            "match": "@(range|doc|affects)"
+        }
+    }
+}
