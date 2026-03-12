@@ -31,6 +31,7 @@ pub enum Token {
     #[token("Number")]   KwTypeNumber,
     #[token("Boolean")]  KwTypeBoolean,
     #[token("fn")]       KwFn,
+    #[token("import")]   Import,
 
     // ── Operators & punctuation ────────────────────────────
     #[token(":=")]  ColonEq,
@@ -64,6 +65,13 @@ pub enum Token {
         Some(s[1..s.len()-1].to_string())
     })]
     Text(String),
+
+    // ── Interpolation (post-processed) ─────────────────────
+    InterpStringStart,
+    InterpPart(String),
+    InterpExprStart,
+    InterpExprEnd,
+    InterpStringEnd,
 
     // ── Identifiers ────────────────────────────────────────
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]

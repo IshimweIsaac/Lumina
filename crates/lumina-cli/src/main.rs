@@ -9,6 +9,10 @@ use lumina_analyzer::analyze;
 use lumina_runtime::engine::Evaluator;
 use lumina_diagnostics::DiagnosticRenderer;
 
+mod loader;
+use crate::loader::ModuleLoader;
+use std::path::Path;
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -65,12 +69,15 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
 fn cmd_run(args: &[String]) {
     let (path, source) = read_file(args);
 
-    let program = parse(&source).unwrap_or_else(|e| {
-        eprintln!("Parse error: {e}");
-        std::process::exit(1);
-    });
+    let program = match ModuleLoader::load(Path::new(&path)) {
+        Ok(p) => p,
+        Err(msg) => {
+            eprintln!("{}", msg);
+            std::process::exit(1);
+        }
+    };
 
-    let analyzed = analyze(program, &source, &path).unwrap_or_else(|errors| {
+    let analyzed = analyze(program, &source, &path, true).unwrap_or_else(|errors| {
         eprintln!("{}", DiagnosticRenderer::render_all(&errors));
         std::process::exit(1);
     });
@@ -91,12 +98,15 @@ fn cmd_run(args: &[String]) {
 fn cmd_check(args: &[String]) {
     let (path, source) = read_file(args);
 
-    let program = parse(&source).unwrap_or_else(|e| {
-        eprintln!("Parse error: {e}");
-        std::process::exit(1);
-    });
+    let program = match ModuleLoader::load(Path::new(&path)) {
+        Ok(p) => p,
+        Err(msg) => {
+            eprintln!("{}", msg);
+            std::process::exit(1);
+        }
+    };
 
-    match analyze(program, &source, &path) {
+    match analyze(program, &source, &path, true) {
         Ok(_) => {
             let basename = std::path::Path::new(&path)
                 .file_name().unwrap_or_default()

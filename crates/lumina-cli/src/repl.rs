@@ -69,7 +69,7 @@ impl ReplSession {
             Err(e) => return ReplResult::Error(format!("full history parse error: {}", e)),
         };
 
-        let analyzed = match analyze(full_program, &self.full_history, "<repl>") {
+        let analyzed = match analyze(full_program, &self.full_history, "<repl>", true) {
             Ok(a) => a,
             Err(diags) => return ReplResult::Error(DiagnosticRenderer::render_all(&diags)),
         };

@@ -9,8 +9,9 @@ pub use analyzer::{Analyzer, AnalyzerError, AnalyzedProgram};
 use lumina_parser::ast::Program;
 use lumina_diagnostics::{Diagnostic, SourceLocation, extract_line};
 
-pub fn analyze(program: Program, source: &str, filename: &str) -> Result<AnalyzedProgram, Vec<Diagnostic>> {
-    let analyzer = Analyzer::new();
+pub fn analyze(program: Program, source: &str, filename: &str, allow_imports: bool) -> Result<AnalyzedProgram, Vec<Diagnostic>> {
+    let mut analyzer = Analyzer::new();
+    analyzer.allow_imports = allow_imports;
     match analyzer.analyze(program) {
         Ok(analyzed) => Ok(analyzed),
         Err(raw_errors) => {

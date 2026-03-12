@@ -23,7 +23,7 @@ impl LuminaRuntime {
         let program = parse(source)
             .map_err(|e| JsValue::from_str(&format!("Parse error: {e}")))?;
 
-        let analyzed = analyze(program, source, "<WASM>")
+        let analyzed = analyze(program, source, "<WASM>", false)
             .map_err(|errors| {
                 JsValue::from_str(&DiagnosticRenderer::render_all(&errors))
             })?;
@@ -106,7 +106,7 @@ impl LuminaRuntime {
     pub fn check(source: &str) -> String {
         match parse(source) {
             Err(e) => format!("Parse error: {e}"),
-            Ok(program) => match analyze(program, source, "<WASM>") {
+            Ok(program) => match analyze(program, source, "<WASM>", false) {
                 Err(errors) => DiagnosticRenderer::render_all(&errors),
                 Ok(_) => String::new(),
             }
