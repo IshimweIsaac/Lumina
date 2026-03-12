@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 lumina-lexer = { path = "../lumina-lexer" }
 lumina-parser = { path = "../lumina-parser" }
+lumina-diagnostics = { path = "../lumina-diagnostics" }
