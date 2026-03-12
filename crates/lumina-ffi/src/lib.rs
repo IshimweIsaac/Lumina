@@ -75,7 +75,7 @@ pub extern "C" fn lumina_create(source: *const c_char) -> *mut LuminaRuntime {
         }
     };
 
-    let analyzed = match analyze(program, false) {
+    let analyzed = match analyze(program, src, "<FFI>", false) {
         Ok(a) => a,
         Err(errors) => {
             let msg = errors.iter()

@@ -46,6 +46,44 @@ impl Evaluator {
         }
     }
 
+    /// Creates an empty evaluator with no entities, rules, or instances.
+    /// Used by the REPL - statements are added one at a time via exec_statement().
+    pub fn new_empty() -> Self {
+        Self {
+            schema: Schema::new(),
+            graph: DependencyGraph::new(),
+            rules: Vec::new(),
+            store: EntityStore::new(),
+            snapshots: SnapshotStack::new(),
+            env: HashMap::new(),
+            instances: HashMap::new(),
+            derived_exprs: HashMap::new(),
+            functions: HashMap::new(),
+            timers: TimerHeap::new(),
+            depth: 0,
+            fired_this_cycle: HashSet::new(),
+            output: Vec::new(),
+        }
+    }
+
+    /// Describe all declared entities as a human-readable string.
+    /// Used by :schema REPL command.
+    pub fn describe_schema(&self) -> String {
+        if self.schema.entities.is_empty() {
+            return "(no entities declared)".into();
+        }
+        self.schema.entities.iter()
+            .map(|(name, ent)| {
+                let fields = ent.fields.iter()
+                    .map(|(n, f)| format!("{}: {:?}", n, f.ty))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("entity {} {{ {} }}", name, fields)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     pub fn register_derived(&mut self, entity: &str, field: &str, expr: Expr) {
         self.derived_exprs.insert((entity.to_string(), field.to_string()), expr);
     }
@@ -580,7 +618,7 @@ mod tests {
 
     fn build_eval(source: &str) -> Evaluator {
         let program = lumina_parser::parse(source).expect("parse failed");
-        let analyzed = lumina_analyzer::analyze(program, true).expect("analysis failed");
+        let analyzed = lumina_analyzer::analyze(program, source, "<runtime-test>", true).expect("analysis failed");
         let mut rules = Vec::new();
         let mut derived = HashMap::new();
         for stmt in &analyzed.program.statements {
