@@ -140,11 +140,23 @@ impl Parser {
                 Ok(Statement::Action(self.parse_action()?))
             }
             Token::KwFn       => self.parse_fn_decl(),
+            Token::Import     => self.parse_import(),
             _ => Err(ParseError::new(
                 format!("unexpected token: {:?}", self.current()),
                 self.current_span(),
             )),
         }
+    }
+
+    fn parse_import(&mut self) -> Result<Statement, ParseError> {
+        let span = self.current_span();
+        self.expect(&Token::Import)?;
+        // Expect a string literal as the path
+        let path = match self.current().clone() {
+            Token::Text(s) => { let p = s.clone(); self.advance(); p }
+            _ => return Err(ParseError::new("expected string path after import", self.current_span())),
+        };
+        Ok(Statement::Import(ImportDecl { path, span }))
     }
 
     // ── entity ────────────────────────────────────────────

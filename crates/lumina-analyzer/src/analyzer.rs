@@ -23,7 +23,9 @@ pub struct AnalyzedProgram {
 pub struct Analyzer {
     schema: Schema,
     graph:  DependencyGraph,
-    errors: Vec<AnalyzerError>,
+    pub errors: Vec<AnalyzerError>,
+    pub allow_imports: bool,
+    locals: HashMap<String, LuminaType>,
     pub fn_defs: HashMap<String, FnDecl>,
 }
 
@@ -33,6 +35,8 @@ impl Analyzer {
             schema: Schema::new(),
             graph: DependencyGraph::new(),
             errors: Vec::new(),
+            allow_imports: true,
+            locals: HashMap::new(),
             fn_defs: HashMap::new(),
         }
     }
@@ -67,6 +71,15 @@ impl Analyzer {
                         });
                     } else {
                         self.fn_defs.insert(decl.name.clone(), decl.clone());
+                    }
+                }
+                Statement::Import(decl) => {
+                    if !self.allow_imports {
+                        self.errors.push(AnalyzerError {
+                            code: "L018",
+                            message: "import is not supported in single-file (WASM) mode".to_string(),
+                            span: decl.span,
+                        });
                     }
                 }
                 _ => {}

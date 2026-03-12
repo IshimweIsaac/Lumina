@@ -22,7 +22,7 @@ impl LuminaRuntime {
         let program = parse(source)
             .map_err(|e| JsValue::from_str(&format!("Parse error: {e}")))?;
 
-        let analyzed = analyze(program)
+        let analyzed = analyze(program, false)
             .map_err(|errors| {
                 let msgs: Vec<String> = errors.iter()
                     .map(|e| format!("[{}] {} (line {})", e.code, e.message, e.span.line))
@@ -108,7 +108,7 @@ impl LuminaRuntime {
     pub fn check(source: &str) -> String {
         match parse(source) {
             Err(e) => format!("Parse error: {e}"),
-            Ok(program) => match analyze(program) {
+            Ok(program) => match analyze(program, false) {
                 Err(errors) => errors.iter()
                     .map(|e| format!("[{}] {} (line {})", e.code, e.message, e.span.line))
                     .collect::<Vec<_>>()

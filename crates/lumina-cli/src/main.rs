@@ -5,6 +5,10 @@ use lumina_parser::ast::*;
 use lumina_analyzer::analyze;
 use lumina_runtime::engine::Evaluator;
 
+mod loader;
+use crate::loader::ModuleLoader;
+use std::path::Path;
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -59,14 +63,17 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
 }
 
 fn cmd_run(args: &[String]) {
-    let (_, source) = read_file(args);
+    let (file, _) = read_file(args);
 
-    let program = parse(&source).unwrap_or_else(|e| {
-        eprintln!("Parse error: {e}");
-        std::process::exit(1);
-    });
+    let program = match ModuleLoader::load(Path::new(&file)) {
+        Ok(p) => p,
+        Err(msg) => {
+            eprintln!("{}", msg);
+            std::process::exit(1);
+        }
+    };
 
-    let analyzed = analyze(program).unwrap_or_else(|errors| {
+    let analyzed = analyze(program, true).unwrap_or_else(|errors| {
         for e in &errors {
             eprintln!("[{}] {} (line {})", e.code, e.message, e.span.line);
         }
@@ -87,16 +94,19 @@ fn cmd_run(args: &[String]) {
 }
 
 fn cmd_check(args: &[String]) {
-    let (path, source) = read_file(args);
+    let (file, _) = read_file(args);
 
-    let program = parse(&source).unwrap_or_else(|e| {
-        eprintln!("Parse error: {e}");
-        std::process::exit(1);
-    });
+    let program = match ModuleLoader::load(Path::new(&file)) {
+        Ok(p) => p,
+        Err(msg) => {
+            eprintln!("{}", msg);
+            std::process::exit(1);
+        }
+    };
 
-    match analyze(program) {
+    match analyze(program, true) {
         Ok(_) => {
-            let basename = std::path::Path::new(&path)
+            let basename = std::path::Path::new(&file)
                 .file_name().unwrap_or_default()
                 .to_string_lossy();
             println!("✓ {} — no errors found", basename);
@@ -145,7 +155,7 @@ fn cmd_repl() {
 
                 match parse(&accumulated_source) {
                     Err(e) => eprintln!("Parse error: {e}"),
-                    Ok(program) => match analyze(program) {
+                    Ok(program) => match analyze(program, true) {
                         Err(errors) => {
                             for e in &errors {
                                 eprintln!("[{}] {}", e.code, e.message);

@@ -9,6 +9,14 @@ pub struct Program {
     pub span: Span,
 }
 
+impl Program {
+    pub fn imports(&self) -> impl Iterator<Item = &ImportDecl> {
+        self.statements.iter().filter_map(|s| {
+            if let Statement::Import(i) = s { Some(i) } else { None }
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Statement {
     Entity(EntityDecl),
@@ -17,6 +25,7 @@ pub enum Statement {
     Rule(RuleDecl),
     Action(Action),
     Fn(FnDecl),
+    Import(ImportDecl),
 }
 
 // ── Function declaration ───────────────────────────────────────────────────
@@ -35,6 +44,12 @@ pub struct FnParam {
     pub name:  String,
     pub type_: LuminaType,
     pub span:  Span,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportDecl {
+    pub path: String,
+    pub span: Span,
 }
 
 // ── Entity declaration ─────────────────────────────────────────────────────

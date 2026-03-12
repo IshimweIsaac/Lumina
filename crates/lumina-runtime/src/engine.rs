@@ -251,6 +251,7 @@ impl Evaluator {
                 Ok(())
             }
             Statement::Action(a) => { self.exec_action(a)?; Ok(()) }
+            Statement::Import(_) => Ok(())
         }
     }
 
@@ -566,7 +567,7 @@ mod tests {
 
     fn build_eval(source: &str) -> Evaluator {
         let program = lumina_parser::parse(source).expect("parse failed");
-        let analyzed = lumina_analyzer::analyze(program).expect("analysis failed");
+        let analyzed = lumina_analyzer::analyze(program, true).expect("analysis failed");
         let mut rules = Vec::new();
         let mut derived = HashMap::new();
         for stmt in &analyzed.program.statements {
