@@ -2,8 +2,9 @@
     "name": "lumina-language",
     "displayName": "Lumina",
     "description": "Lumina (.lum) language support - syntax highlighting and snippets",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "publisher": "isaac-ishimwe",
+    "icon": "icon.png",
     "engines": {
         "vscode": "^1.75.0"
     },
@@ -21,6 +22,10 @@
                 "extensions": [
                     ".lum"
                 ],
+                "icon": {
+                    "light": "./icon16.svg",
+                    "dark": "./icon16.svg"
+                },
                 "configuration": "./language-configuration.json"
             }
         ],

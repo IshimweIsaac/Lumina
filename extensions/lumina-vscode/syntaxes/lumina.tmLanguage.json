@@ -7,6 +7,17 @@
             "include": "#comments"
         },
         {
+            "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+            "name": "entity.name.function.lumina"
+        },
+        {
+            "match": "\\b(fn|entity|rule)\\b\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+            "captures": {
+                "1": { "name": "storage.type.lumina" },
+                "2": { "name": "entity.name.function.lumina" }
+            }
+        },
+        {
             "include": "#strings"
         },
         {
@@ -20,6 +31,12 @@
         },
         {
             "include": "#types"
+        },
+        {
+            "include": "#members"
+        },
+        {
+            "include": "#variables"
         },
         {
             "include": "#operators"
@@ -39,13 +56,21 @@
             "end": "\"",
             "patterns": [
                 {
+                    "name": "constant.character.escape.lumina",
+                    "match": "\\\\."
+                },
+                {
                     "name": "meta.interpolation.lumina",
-                    "begin": "\\\\{",
-                    "end": "\\\\}",
+                    "begin": "\\{",
+                    "beginCaptures": {
+                        "0": { "name": "punctuation.section.embedded.begin.lumina" }
+                    },
+                    "end": "\\}",
+                    "endCaptures": {
+                        "0": { "name": "punctuation.section.embedded.end.lumina" }
+                    },
                     "patterns": [
-                        {
-                            "include": "$self"
-                        }
+                        { "include": "$self" }
                     ]
                 }
             ]
@@ -59,19 +84,51 @@
             "match": "\\b(true|false)\\b"
         },
         "keywords": {
-            "name": "keyword.control.lumina",
-            "match": "\\b(entity|rule|when|becomes|for|every|let|show|update|to|create|delete|if|then|else|and|or|not|is|external|sync|on|fn|import)\\b"
+            "patterns": [
+                {
+                    "name": "keyword.control.lumina",
+                    "match": "\\b(if|then|else|let|import|external|sync|on|is|and|or|not)\\b"
+                },
+                {
+                    "name": "storage.type.lumina",
+                    "match": "\\b(entity|fn|rule)\\b"
+                },
+                {
+                    "name": "keyword.other.reactive.lumina",
+                    "match": "\\b(when|becomes|for|every)\\b"
+                },
+                {
+                    "name": "keyword.other.action.lumina",
+                    "match": "\\b(show|update|to|create|delete)\\b"
+                }
+            ]
         },
         "types": {
-            "name": "storage.type.lumina",
-            "match": "\\b(Number|Text|Boolean)\\b"
+            "patterns": [
+                {
+                    "name": "storage.type.primitive.lumina",
+                    "match": "\\b(Number|Text|Boolean)\\b"
+                },
+                {
+                    "name": "entity.name.type.lumina",
+                    "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+                }
+            ]
+        },
+        "members": {
+            "match": "\\b([a-z][a-zA-Z0-9_]*)\\s*(?=:)",
+            "name": "variable.other.member.lumina"
+        },
+        "variables": {
+            "match": "\\b[a-z][a-zA-Z0-9_]*\\b",
+            "name": "variable.other.lumina"
         },
         "operators": {
             "name": "keyword.operator.lumina",
             "match": ":=|->|==|!=|>=|<=|>|<|\\+|-|\\*|/|%|\\.|:"
         },
         "metadata": {
-            "name": "storage.modifier.lumina",
+            "name": "variable.parameter.metadata.lumina",
             "match": "@(range|doc|affects)"
         }
     }
