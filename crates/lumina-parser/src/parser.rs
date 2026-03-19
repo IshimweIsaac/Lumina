@@ -566,6 +566,13 @@ impl Parser {
                 }
                 Ok(Expr::InterpolatedString(segments))
             }
+            Token::KwPrev => {
+                self.advance(); // consume "prev"
+                self.expect(&Token::LParen)?;
+                let field = self.expect_ident("field name")?;
+                self.expect(&Token::RParen)?;
+                Ok(Expr::Prev { field, span })
+            }
             Token::KwTrue  => { self.advance(); Ok(Expr::Bool(true)) }
             Token::KwFalse => { self.advance(); Ok(Expr::Bool(false)) }
             Token::Ident(ref name) => {

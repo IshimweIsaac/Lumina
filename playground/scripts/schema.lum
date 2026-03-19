@@ -1,0 +1,8 @@
+-- schema.lum
+-- This file defines our data structures
+
+entity Thermostat {
+    temp: Number
+    target: Number
+    status := if temp < target then "Heating" else "Idle"
+}

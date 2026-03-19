@@ -7,6 +7,7 @@ pub fn condition_is_met(
     evaluator: &Evaluator,
     condition: &Condition,
     instance_name: &str,
+    check_transition: bool,
 ) -> Result<bool, RuntimeError> {
     let current = evaluator.eval_expr(&condition.expr, Some(instance_name))?;
 
@@ -16,6 +17,9 @@ pub fn condition_is_met(
             let target = evaluator.eval_expr(target_expr, Some(instance_name))?;
             if current != target {
                 return Ok(false);
+            }
+            if !check_transition {
+                return Ok(true);
             }
             // Transition check: at least one field must have changed since last commit
             if let Some(instance) = evaluator.store.get(instance_name) {

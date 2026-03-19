@@ -32,6 +32,7 @@ pub enum Token {
     #[token("Boolean")]  KwTypeBoolean,
     #[token("fn")]       KwFn,
     #[token("import")]   Import,
+    #[token("prev")]     KwPrev,
 
     // ── Operators & punctuation ────────────────────────────
     #[token(":=")]  ColonEq,

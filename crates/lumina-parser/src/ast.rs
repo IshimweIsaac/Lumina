@@ -253,6 +253,10 @@ pub enum Expr {
         index: Box<Expr>,
         span:  Span,
     },
+    Prev {
+        field: String,
+        span:  Span,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

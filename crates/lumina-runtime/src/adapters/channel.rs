@@ -34,3 +34,4 @@ impl LuminaAdapter for ChannelAdapter {
         }
     }
 }
+

@@ -29,6 +29,7 @@ pub struct Analyzer {
     locals: HashMap<String, LuminaType>,
     pub fn_defs: HashMap<String, FnDecl>,
     pub instances: HashMap<String, LuminaType>,
+    in_prev_context: bool,
 }
 
 impl Analyzer {
@@ -41,6 +42,7 @@ impl Analyzer {
             locals: HashMap::new(),
             fn_defs: HashMap::new(),
             instances: HashMap::new(),
+            in_prev_context: false,
         }
     }
 
@@ -149,6 +151,7 @@ impl Analyzer {
             name: decl.name.clone(),
             fields,
             is_external,
+            sync_on: None,
         });
     }
 
@@ -190,6 +193,7 @@ impl Analyzer {
             name: decl.name.clone(),
             fields,
             is_external: true,
+            sync_on: if decl.sync_path.is_empty() { None } else { Some(decl.sync_path.clone()) },
         });
     }
 
@@ -334,6 +338,7 @@ impl Analyzer {
                 self.check_fn_body(list, locals, span);
                 self.check_fn_body(index, locals, span);
             }
+            Expr::Prev { .. } => {}
             _ => {}
         }
     }
@@ -615,6 +620,37 @@ impl Analyzer {
                     }),
                 }
             }
+            Expr::Prev { field, span } => {
+                if self.in_prev_context {
+                    return Err(AnalyzerError {
+                        code: "L025",
+                        message: "Nested prev() expressions are not allowed".to_string(),
+                        span: *span,
+                    });
+                }
+                
+                let entity_name = entity_ctx.ok_or_else(|| AnalyzerError {
+                    code: "L001",
+                    message: "prev() can only be used within an entity context".to_string(),
+                    span: *span,
+                })?;
+                
+                let field_schema = self.schema.get_field(entity_name, field).ok_or_else(|| AnalyzerError {
+                    code: "L010",
+                    message: format!("Unknown field '{}' for prev()", field),
+                    span: *span,
+                })?;
+                
+                if field_schema.is_derived {
+                    return Err(AnalyzerError {
+                        code: "L024",
+                        message: "prev() cannot be used on derived fields".to_string(),
+                        span: *span,
+                    });
+                }
+                
+                Ok(field_schema.ty.clone())
+            }
         }
     }
 
@@ -667,6 +703,12 @@ impl Analyzer {
             Expr::Index { list, index, .. } => {
                 self.collect_dependencies(list, entity_name, target_id)?;
                 self.collect_dependencies(index, entity_name, target_id)?;
+            }
+            Expr::Prev { field, .. } => {
+                if self.schema.get_field(entity_name, field).is_some() {
+                    let dep_id = self.graph.intern(entity_name, field);
+                    self.graph.add_edge(dep_id, target_id);
+                }
             }
             _ => {}
         }
@@ -774,6 +816,19 @@ mod tests {
             span: Span::default(),
         }])?;
         Analyzer::new().analyze(program)
+    }
+
+    #[test]
+    fn test_prev_analyzer_errors() {
+        // L024: cannot use prev on derived field
+        let src1 = "entity E { val: Number d := val * 2  bad := prev(d) }";
+        let errs1 = analyze_source(src1).unwrap_err();
+        assert!(errs1.iter().any(|e| e.code == "L024"));
+
+        // L025: no nested prev (this fails at the syntax level because prev is a keyword, not an identifier)
+        let src2 = "entity E { val: Number bad := prev(prev(val)) }";
+        let errs2 = analyze_source(src2).unwrap_err();
+        assert!(errs2.iter().any(|e| e.code == "LEX/PARSE"));
     }
 
     #[test]
