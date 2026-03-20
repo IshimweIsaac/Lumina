@@ -1,0 +1,19 @@
+-- timer_demo.lum
+-- Demonstrating periodic actions
+
+entity Clock {
+    ticks: Number
+}
+
+let myClock = Clock { ticks: 0 }
+
+rule "Tick" {
+    every 1 s
+    then update myClock.ticks to myClock.ticks + 1
+    then show "Tick #{myClock.ticks} - Time is moving!"
+}
+
+rule "Stop at 5" {
+    when myClock.ticks == 5
+    then show "Reached 5 ticks. In a real system, we'd trigger an alert here!"
+}

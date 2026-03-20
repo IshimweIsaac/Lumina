@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumina — The Reactive Language for State-Driven Systems</title>
+  <meta name="description"
+    content="Lumina is a statically typed, declarative, and reactive programming language engineered in Rust for modeling complex state-driven systems. Full documentation, examples, and guides." />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav class="nav" id="nav">
+    <div class="nav__container">
+      <a href="#" class="nav__brand">
+        <img src="/logo.png" alt="Lumina" class="nav__logo" />
+        <span class="nav__name">Lumina</span>
+        <span class="nav__version">v1.5</span>
+      </a>
+      <div class="nav__links" id="nav-links">
+        <a href="#features" class="nav__link">Features</a>
+        <a href="/docs.html" class="nav__link">Documentation</a>
+        <a href="/docs.html#examples" class="nav__link">Examples</a>
+        <a href="#ecosystem" class="nav__link">Ecosystem</a>
+        <a href="#install" class="nav__link">Install</a>
+      </div>
+      <div class="nav__actions">
+        <a href="https://github.com/IshimweIsaac/Lumina" target="_blank" class="nav__link nav__github">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+          </svg>
+        </a>
+        <a href="#install" class="btn btn--primary btn--sm">Get Started</a>
+      </div>
+      <button class="nav__burger" id="nav-burger"
+        aria-label="Toggle menu"><span></span><span></span><span></span></button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="hero__bg">
+      <div class="hero__glow hero__glow--1"></div>
+      <div class="hero__glow hero__glow--2"></div>
+      <div class="hero__grid"></div>
+    </div>
+    <div class="hero__container">
+      <div class="hero__content reveal">
+        <div class="hero__badge"><span class="hero__badge-dot"></span>Open Source · Built in Rust · v1.5</div>
+        <h1 class="hero__title">Declare your logic.<br /><span class="gradient-text">Let Lumina react.</span></h1>
+        <p class="hero__subtitle">A statically typed, declarative, and reactive programming language for modeling
+          complex state-driven systems. Define relationships, write rules the runtime handles the rest.</p>
+        <div class="hero__actions">
+          <a href="#install" class="btn btn--primary btn--lg"><svg width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>Install Lumina</a>
+          <a href="/docs.html" class="btn btn--outline btn--lg"><svg width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+            </svg>Read Docs</a>
+        </div>
+      </div>
+      <div class="hero__code reveal reveal--delay-1">
+        <div class="code-window">
+          <div class="code-window__header">
+            <div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div><span class="code-window__filename">fleet.lum</span>
+          </div>
+          <pre class="code-window__body"><code class="language-lumina">entity Moto {
+  battery: Number
+  status:  Text
+
+  -- Derived fields compute automatically
+  isCritical  := battery < 5
+  isAvailable := not isBusy and battery > 15
+}
+
+rule "Critical Battery" {
+  when Moto.isCritical becomes true
+  then update Moto.status to "maintenance"
+  then show "ALARM: {Moto.battery}%"
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section features" id="features">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__label">Core Principles</span>
+        <h2 class="section__title">Built for correctness.<br /><span class="gradient-text">Designed for clarity.</span>
+        </h2>
+        <p class="section__desc">Lumina inverts the control paradigm. Declare relationships, define constraints — the
+          runtime resolves everything deterministically.</p>
+      </div>
+      <div class="features__grid">
+        <div class="feature-card reveal">
+          <div class="feature-card__icon feature-card__icon--purple"><svg width="28" height="28" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg></div>
+          <h3 class="feature-card__title">Declarative</h3>
+          <p class="feature-card__desc">Define <em>what</em> your state should be, not <em>how</em> to get there.
+            Derived fields (<code>:=</code>) maintain guaranteed relationships through topological evaluation using
+            Kahn's algorithm.</p>
+        </div>
+        <div class="feature-card reveal reveal--delay-1">
+          <div class="feature-card__icon feature-card__icon--blue"><svg width="28" height="28" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg></div>
+          <h3 class="feature-card__title">Reactive</h3>
+          <p class="feature-card__desc">Rules fire on edge transitions via <code>becomes</code>. Temporal triggers
+            handle duration-based logic with <code>for</code> and <code>every</code>. The DAG evaluation graph cascades
+            state changes without divergent recursion.</p>
+        </div>
+        <div class="feature-card reveal reveal--delay-2">
+          <div class="feature-card__icon feature-card__icon--green"><svg width="28" height="28" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg></div>
+          <h3 class="feature-card__title">Self-Healing</h3>
+          <p class="feature-card__desc">Before every state mutation, the runtime deep-copy snapshots memory. If an
+            <code>@range</code> invariant is violated or recursion limit is breached, it rolls back instantly —
+            guaranteed stable state.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- PIPELINE -->
+  <section class="section pipeline-section" id="pipeline">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__label">Under The Hood</span>
+        <h2 class="section__title">A 5-stage pipeline<br /><span class="gradient-text">engineered in Rust.</span></h2>
+        <p class="section__desc">Every Lumina program flows through a deterministic compiler pipeline with zero-cost
+          abstractions and strict memory safety.</p>
+      </div>
+      <div class="pipeline reveal">
+        <div class="pipeline__stage">
+          <div class="pipeline__icon">1</div>
+          <h4 class="pipeline__title">Lexer</h4>
+          <p class="pipeline__desc">High-throughput DFA tokenizer via the <code>logos</code> crate. Handles string
+            interpolation mode-switching.</p>
+        </div>
+        <div class="pipeline__arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg></div>
+        <div class="pipeline__stage">
+          <div class="pipeline__icon">2</div>
+          <h4 class="pipeline__title">Parser</h4>
+          <p class="pipeline__desc">Hybrid recursive-descent & Pratt parsing with full operator precedence.</p>
+        </div>
+        <div class="pipeline__arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg></div>
+        <div class="pipeline__stage">
+          <div class="pipeline__icon">3</div>
+          <h4 class="pipeline__title">Module Loader</h4>
+          <p class="pipeline__desc">Resolves <code>import</code> statements with circular dependency detection and AST
+            merging.</p>
+        </div>
+        <div class="pipeline__arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg></div>
+        <div class="pipeline__stage">
+          <div class="pipeline__icon">4</div>
+          <h4 class="pipeline__title">Analyzer</h4>
+          <p class="pipeline__desc">Dependency graph construction via Kahn's algorithm, static type safety, and
+            <code>@range</code> invariant checks.
+          </p>
+        </div>
+        <div class="pipeline__arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg></div>
+        <div class="pipeline__stage pipeline__stage--accent">
+          <div class="pipeline__icon">5</div>
+          <h4 class="pipeline__title">Runtime</h4>
+          <p class="pipeline__desc">Snapshot VM with state allocation, <code>becomes</code> edge detection, temporal
+            scheduling, and self-healing rollback.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ECOSYSTEM -->
+  <section class="section ecosystem-section" id="ecosystem">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__label">Ecosystem</span>
+        <h2 class="section__title">Integrates everywhere<br /><span class="gradient-text">your systems run.</span></h2>
+      </div>
+      <div class="ecosystem__grid reveal">
+        <div class="ecosystem__card">
+          <div class="ecosystem__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg></div>
+          <h4>WebAssembly</h4>
+          <p>Run Lumina programs directly in the browser via <code>wasm-pack</code> and <code>wasm-bindgen</code>.</p>
+        </div>
+        <div class="ecosystem__card">
+          <div class="ecosystem__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg></div>
+          <h4>VS Code Extension</h4>
+          <p>Syntax highlighting, snippets, bracket matching, and LSP (v1.5) for <code>.lum</code> files.</p>
+        </div>
+        <div class="ecosystem__card">
+          <div class="ecosystem__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg></div>
+          <h4>FFI — C / Python / Go</h4>
+          <p>Stable C ABI via <code>liblumina_ffi.so</code>. Python wrapper via <code>ctypes</code>, Go wrapper via
+            <code>cgo</code>.
+          </p>
+        </div>
+        <div class="ecosystem__card">
+          <div class="ecosystem__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+            </svg></div>
+          <h4>External Adapters</h4>
+          <p>MQTT, HTTP Poll, Rust Channel, File Watch, and Static adapters for real-world data sources.</p>
+        </div>
+        <div class="ecosystem__card">
+          <div class="ecosystem__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+            </svg></div>
+          <h4>Module System</h4>
+          <p>Multi-file projects with <code>import</code>, dependency resolution, circular import detection, and AST
+            merging.</p>
+        </div>
+        <div class="ecosystem__card">
+          <div class="ecosystem__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg></div>
+          <h4>Language Server (LSP)</h4>
+          <p>Real-time diagnostics, hover tooltips, go-to-definition, completion, and document symbols.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section class="section install-section" id="install">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__label">Quick Start</span>
+        <h2 class="section__title">Up and running<br /><span class="gradient-text">in seconds.</span></h2>
+      </div>
+      <div class="install__grid reveal">
+        <div class="install__card">
+          <div class="install__step">1</div>
+          <h4 class="install__title">Clone & Build</h4>
+          <p class="install__desc">Requires Rust toolchain (rustc ≥ 1.70.0)</p>
+          <div class="install__terminal">
+            <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
+            <pre class="install__terminal-body"><code><span class="prompt">$</span> git clone https://github.com/IshimweIsaac/Lumina.git
+<span class="prompt">$</span> cd Lumina
+<span class="prompt">$</span> cargo build --release -p lumina-cli</code></pre><button class="install__copy"
+              data-copy="git clone https://github.com/IshimweIsaac/Lumina.git && cd Lumina && cargo build --release -p lumina-cli"
+              aria-label="Copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+              </svg></button>
+          </div>
+        </div>
+        <div class="install__card">
+          <div class="install__step">2</div>
+          <h4 class="install__title">Write Your First Program</h4>
+          <p class="install__desc">Create a <code>.lum</code> file</p>
+          <div class="install__terminal">
+            <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
+            <pre class="install__terminal-body"><code class="language-lumina">entity App { name: Text }
+let app = App { name: "Lumina" }
+show "Hello, {app.name}!"</code></pre>
+          </div>
+        </div>
+        <div class="install__card">
+          <div class="install__step">3</div>
+          <h4 class="install__title">Run It</h4>
+          <p class="install__desc">Execute with the Lumina CLI</p>
+          <div class="install__terminal">
+            <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
+            <pre class="install__terminal-body"><code><span class="prompt">$</span> cargo run -p lumina-cli -- run hello.lum
+<span class="output">Hello, Lumina!</span>
+
+<span class="prompt">$</span> cargo run -p lumina-cli -- check hello.lum
+<span class="output">✓ No errors found.</span>
+
+<span class="prompt">$</span> cargo run -p lumina-cli -- repl
+<span class="output">>>> </span><span class="comment">interactive session</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__top">
+        <div class="footer__brand"><img src="/logo.png" alt="Lumina" class="footer__logo" /><span
+            class="footer__name">Lumina</span>
+          <p class="footer__tagline">Describe what is true. Lumina figures out what to do.</p>
+        </div>
+        <div class="footer__links-group">
+          <div class="footer__col">
+            <h5 class="footer__heading">Language</h5><a href="#features" class="footer__link">Features</a><a
+              href="/docs.html" class="footer__link">Documentation</a><a href="/docs.html#examples"
+              class="footer__link">Examples</a><a href="#install" class="footer__link">Installation</a>
+          </div>
+          <div class="footer__col">
+            <h5 class="footer__heading">Ecosystem</h5><a href="#pipeline" class="footer__link">Architecture</a><a
+              href="#ecosystem" class="footer__link">Integrations</a><a href="https://github.com/IshimweIsaac/Lumina"
+              class="footer__link" target="_blank">GitHub</a>
+          </div>
+          <div class="footer__col">
+            <h5 class="footer__heading">Community</h5><a
+              href="https://github.com/IshimweIsaac/Lumina/blob/main/CONTRIBUTING.md" class="footer__link"
+              target="_blank">Contributing</a><a href="https://github.com/IshimweIsaac/Lumina/issues" class="footer__link"
+              target="_blank">Issues</a><a href="https://github.com/IshimweIsaac/Lumina/blob/main/LICENSE"
+              class="footer__link" target="_blank">MIT License</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <p>&copy; 2026 Lumina. Designed and authored by Isaac Ishimwe. Engineered in Rust with ❤️</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/main.js"></script>
+</body>
+
+</html>

@@ -8,6 +8,8 @@ use crate::snapshot::{SnapshotStack, PropResult, FiredEvent, RollbackResult, Dia
 use crate::RuntimeError;
 use crate::rules;
 use crate::timers::TimerHeap;
+use crate::adapter::LuminaAdapter;
+use crate::fleet::FleetState;
 
 pub const MAX_DEPTH: usize = 100;
 
@@ -22,12 +24,24 @@ pub struct Evaluator {
     pub derived_exprs: HashMap<(String, String), Expr>,
     pub functions: HashMap<String, FnDecl>,
     pub timers:    TimerHeap,
+    pub adapters:  Vec<Box<dyn LuminaAdapter>>,
+    pub prev_store: Option<EntityStore>,
+    pub fleet_state: FleetState,
+    prev_fleet_any: HashMap<(String, String), bool>,
+    prev_fleet_all: HashMap<(String, String), bool>,
     depth:         usize,
     fired_this_cycle: HashSet<String>,
     output:        Vec<String>,
 }
-
 impl Evaluator {
+    pub fn get_output(&self) -> &[String] {
+        &self.output
+    }
+
+    pub fn clear_output(&mut self) {
+        self.output.clear();
+    }
+
     pub fn new(schema: Schema, graph: DependencyGraph, rules: Vec<RuleDecl>) -> Self {
         let mut timers = TimerHeap::new();
         timers.register_every_rules(&rules);
@@ -40,6 +54,11 @@ impl Evaluator {
             derived_exprs: HashMap::new(),
             functions: HashMap::new(),
             timers,
+            adapters: Vec::new(),
+            prev_store: None,
+            fleet_state: FleetState::new(),
+            prev_fleet_any: HashMap::new(),
+            prev_fleet_all: HashMap::new(),
             depth: 0,
             fired_this_cycle: HashSet::new(),
             output: Vec::new(),
@@ -60,6 +79,11 @@ impl Evaluator {
             derived_exprs: HashMap::new(),
             functions: HashMap::new(),
             timers: TimerHeap::new(),
+            adapters: Vec::new(),
+            prev_store: None,
+            fleet_state: FleetState::new(),
+            prev_fleet_any: HashMap::new(),
+            prev_fleet_all: HashMap::new(),
             depth: 0,
             fired_this_cycle: HashSet::new(),
             output: Vec::new(),
@@ -86,6 +110,11 @@ impl Evaluator {
 
     pub fn register_derived(&mut self, entity: &str, field: &str, expr: Expr) {
         self.derived_exprs.insert((entity.to_string(), field.to_string()), expr);
+    }
+
+    /// Register an external entity adapter.
+    pub fn register_adapter(&mut self, a: Box<dyn LuminaAdapter>) {
+        self.adapters.push(a);
     }
 
     pub fn drain_output(&mut self) -> Vec<String> {
@@ -249,6 +278,23 @@ impl Evaluator {
                     return Err(RuntimeError::R004 { index: idx, len: list_val.len() });
                 }
                 Ok(list_val[idx].clone())
+            }
+            Expr::Prev { field, .. } => {
+                let inst_name = ctx.ok_or(RuntimeError::R001 { instance: "global".into() })?;
+                
+                // First check prev_store
+                if let Some(prev) = &self.prev_store {
+                    if let Some(instance) = prev.get(inst_name) {
+                        return instance.get(field).cloned()
+                            .ok_or(RuntimeError::R005 { instance: inst_name.to_string(), field: field.clone() });
+                    }
+                }
+                
+                // Fallback to current store if prev_store is not set (e.g. initialization)
+                let instance = self.store.get(inst_name)
+                    .ok_or(RuntimeError::R001 { instance: inst_name.to_string() })?;
+                instance.get(field).cloned()
+                    .ok_or(RuntimeError::R005 { instance: inst_name.to_string(), field: field.clone() })
             }
         }
     }
@@ -434,6 +480,11 @@ impl Evaluator {
             return Err(RuntimeError::R003 { depth: self.depth });
         }
 
+        // Capture pre-update state for `prev()` expressions
+        if self.depth == 1 {
+            self.prev_store = Some(self.store.clone());
+        }
+
         let snap = self.snapshots.take(&self.store);
         self.snapshots.push(snap);
 
@@ -460,10 +511,31 @@ impl Evaluator {
             }
         }
 
+        // Capture old Boolean value for fleet tracking
+        let old_bool = self.store.get(instance_name)
+            .and_then(|inst| inst.get(field_name))
+            .and_then(|v| if let Value::Bool(b) = v { Some(*b) } else { None });
+
         // Apply
         self.store.get_mut(instance_name)
             .ok_or(RuntimeError::R001 { instance: instance_name.to_string() })?
-            .set(field_name, new_value);
+            .set(field_name, new_value.clone());
+
+        // Update fleet state for Boolean fields
+        if let Value::Bool(new_b) = &new_value {
+            let total = self.store.all_of_entity(&entity_name).count();
+            self.fleet_state.update(
+                &entity_name, field_name,
+                old_bool.unwrap_or(false), *new_b, total,
+            );
+        }
+
+        // Write-back to external entity adapters
+        for a in &mut self.adapters {
+            if a.entity_name() == entity_name {
+                a.on_write(field_name, &new_value);
+            }
+        }
 
         // Propagate derived fields
         if let Err(e) = self.propagate_derived(instance_name, &entity_name) {
@@ -490,18 +562,49 @@ impl Evaluator {
         let mut all_events = Vec::new();
         let rules_clone = self.rules.clone();
         for rule in &rules_clone {
-            if let RuleTrigger::When(condition) = &rule.trigger {
-                match rules::condition_is_met(self, condition, instance_name) {
-                    Ok(true) => {
-                        let fire_key = format!("{}::{}", rule.name, instance_name);
-                        if self.fired_this_cycle.contains(&fire_key) {
-                            continue;
+            match &rule.trigger {
+                RuleTrigger::When(condition) => {
+                    match rules::condition_is_met(self, condition, instance_name, true) {
+                        Ok(true) => {
+                            let fire_key = format!("{}::{}", rule.name, instance_name);
+                            if self.fired_this_cycle.contains(&fire_key) {
+                                continue;
+                            }
+                            if let Some(dur) = &condition.for_duration {
+                                let _ = self.timers.start_for_timer(
+                                    &rule.name, instance_name, dur.to_seconds(),
+                                );
+                            } else {
+                                self.fired_this_cycle.insert(fire_key);
+                                for action in &rule.actions {
+                                    let evts = self.exec_action(action)?;
+                                    all_events.extend(evts);
+                                }
+                                all_events.push(FiredEvent {
+                                    rule: rule.name.clone(),
+                                    instance: instance_name.to_string(),
+                                });
+                            }
                         }
-                        if let Some(dur) = &condition.for_duration {
-                            let _ = self.timers.start_for_timer(
-                                &rule.name, instance_name, dur.to_seconds(),
-                            );
-                        } else {
+                        Ok(false) => {
+                            self.timers.cancel_for_timer(&rule.name, instance_name);
+                        }
+                        Err(e) => return Err(e),
+                    }
+                }
+                RuleTrigger::Any(fc) => {
+                    let key = (fc.entity.clone(), fc.field.clone());
+                    let target = matches!(&fc.becomes, Expr::Bool(true));
+                    let now_met = if target {
+                        self.fleet_state.any_true(&fc.entity, &fc.field)
+                    } else {
+                        !self.fleet_state.all_true(&fc.entity, &fc.field)
+                    };
+                    let prev = self.prev_fleet_any.get(&key).copied().unwrap_or(false);
+                    // Edge detection: fire only on rising edge
+                    if now_met && !prev {
+                        let fire_key = format!("{}::fleet_any", rule.name);
+                        if !self.fired_this_cycle.contains(&fire_key) {
                             self.fired_this_cycle.insert(fire_key);
                             for action in &rule.actions {
                                 let evts = self.exec_action(action)?;
@@ -509,15 +612,39 @@ impl Evaluator {
                             }
                             all_events.push(FiredEvent {
                                 rule: rule.name.clone(),
-                                instance: instance_name.to_string(),
+                                instance: "fleet".to_string(),
                             });
                         }
                     }
-                    Ok(false) => {
-                        self.timers.cancel_for_timer(&rule.name, instance_name);
-                    }
-                    Err(e) => return Err(e),
+                    self.prev_fleet_any.insert(key, now_met);
                 }
+                RuleTrigger::All(fc) => {
+                    let key = (fc.entity.clone(), fc.field.clone());
+                    let target = matches!(&fc.becomes, Expr::Bool(true));
+                    let now_met = if target {
+                        self.fleet_state.all_true(&fc.entity, &fc.field)
+                    } else {
+                        !self.fleet_state.any_true(&fc.entity, &fc.field)
+                    };
+                    let prev = self.prev_fleet_all.get(&key).copied().unwrap_or(false);
+                    // Edge detection: fire only on rising edge
+                    if now_met && !prev {
+                        let fire_key = format!("{}::fleet_all", rule.name);
+                        if !self.fired_this_cycle.contains(&fire_key) {
+                            self.fired_this_cycle.insert(fire_key);
+                            for action in &rule.actions {
+                                let evts = self.exec_action(action)?;
+                                all_events.extend(evts);
+                            }
+                            all_events.push(FiredEvent {
+                                rule: rule.name.clone(),
+                                instance: "fleet".to_string(),
+                            });
+                        }
+                    }
+                    self.prev_fleet_all.insert(key, now_met);
+                }
+                RuleTrigger::Every(_) => {} // handled in tick()
             }
         }
         Ok(all_events)
@@ -574,6 +701,35 @@ impl Evaluator {
     pub fn tick(&mut self) -> Result<Vec<FiredEvent>, RollbackResult> {
         let mut all_events = vec![];
 
+        // ── Poll external entity adapters ──────────────────────────
+        let updates: Vec<(String, String, Value)> = self.adapters
+            .iter_mut()
+            .flat_map(|a| {
+                let name = a.entity_name().to_string();
+                std::iter::from_fn(move || {
+                    a.poll().map(|(f, v)| (name.clone(), f, v))
+                }).collect::<Vec<_>>()
+            }).collect();
+
+        for (entity, field, value) in updates {
+            if let Some(inst_name) = self.store.find_instance_of(&entity) {
+                // sync_on filtering: only propagate if the field matches sync_on
+                // (or if no sync_on is set). Non-sync fields are still stored.
+                if let Some(entity_schema) = self.schema.get_entity(&entity) {
+                    if let Some(ref sync_field) = entity_schema.sync_on {
+                        if &field != sync_field {
+                            // Store the value without triggering propagation
+                            if let Some(inst) = self.store.get_mut(&inst_name) {
+                                inst.set(&field, value);
+                            }
+                            continue;
+                        }
+                    }
+                }
+                let _ = self.apply_update(&inst_name, &field, value);
+            }
+        }
+
         // ── Fire elapsed `for` timers ──────────────────────────────────
         let elapsed = self.timers.drain_elapsed_for_timers();
         for timer in elapsed {
@@ -583,7 +739,7 @@ impl Evaluator {
             if let Some(rule) = rule {
                 if let RuleTrigger::When(condition) = &rule.trigger {
                     let still_true = rules::condition_is_met(
-                        self, condition, &timer.instance_name
+                        self, condition, &timer.instance_name, false
                     ).unwrap_or(false);
                     if still_true {
                         let snap = self.snapshots.take(&self.store);
@@ -875,5 +1031,78 @@ mod tests {
 
         let events = ev.apply_update("S", "active", Value::Bool(true)).unwrap();
         assert!(events.iter().all(|e| e.rule != "activate"));
+    }
+
+    #[test]
+    fn test_adapter_poll_triggers_rule() {
+        // Guide §28.5 Step 8: external entity + StaticAdapter, push value, verify rule fires
+        let src = "entity Sensor {\n  reading: Number\n  isCritical := reading > 90\n}\nrule \"overheat\" {\n  when Sensor.isCritical becomes true\n  then show \"overheating\"\n}";
+        let mut ev = build_eval(src);
+        let mut fields = HashMap::new();
+        fields.insert("reading".into(), Value::Number(50.0));
+        fields.insert("isCritical".into(), Value::Bool(false));
+        ev.store.insert("Sensor", Instance::new("Sensor", fields));
+
+        // Register a StaticAdapter and push a critical reading
+        let mut adapter = crate::adapters::static_adapter::StaticAdapter::new("Sensor");
+        adapter.push("reading", Value::Number(95.0));
+        ev.register_adapter(Box::new(adapter));
+
+        // tick() should poll the adapter and fire the overheat rule
+        let result = ev.tick();
+        assert!(result.is_ok());
+        // After tick, reading should be updated
+        assert_eq!(
+            ev.store.get("Sensor").unwrap().get("reading"),
+            Some(&Value::Number(95.0))
+        );
+        // isCritical should have been recomputed
+        assert_eq!(
+            ev.store.get("Sensor").unwrap().get("isCritical"),
+            Some(&Value::Bool(true))
+        );
+    }
+
+    #[test]
+    fn test_unregistered_entity_ignored() {
+        // Guide §28.5 Step 9: entities without a registered adapter are silently ignored
+        let src = "entity Sensor {\n  reading: Number\n}";
+        let mut ev = build_eval(src);
+
+        // Register adapter for an entity that has no instance in the store
+        let mut adapter = crate::adapters::static_adapter::StaticAdapter::new("UnknownEntity");
+        adapter.push("value", Value::Number(42.0));
+        ev.register_adapter(Box::new(adapter));
+
+        // tick() should not panic or error
+        let result = ev.tick();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_prev_value_access() {
+        let src = r#"
+entity Battery {
+  level: Number
+  drop := prev(level) - level
+}
+        "#;
+        let mut ev = build_eval(src);
+        
+        let mut fields = HashMap::new();
+        fields.insert("level".into(), Value::Number(100.0));
+        fields.insert("drop".into(), Value::Number(0.0)); // Initial
+        
+        ev.store.insert("batt1", Instance::new("Battery", fields));
+        ev.store.commit_all(); // Commit baseline state
+        
+        // Update level to 90
+        ev.apply_update("batt1", "level", Value::Number(90.0)).unwrap();
+        
+        // Check derived drop
+        assert_eq!(
+            ev.store.get("batt1").unwrap().get("drop"),
+            Some(&Value::Number(10.0)) // 100 - 90
+        );
     }
 }

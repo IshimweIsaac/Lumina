@@ -13,4 +13,15 @@ Thumbs.db
 
 # Temporary
 /tmp/
+# Python
 __pycache__/
+*.pyc
+venv/
+.env
+
+# Javascript
+node_modules/
+dist/
+.npm
+package-lock.json (if not tracked)
+

@@ -1,0 +1,14 @@
+-- loop_test.lum
+-- Demonstrating "loops" in a reactive language
+
+entity Counter {
+    count: Number
+}
+
+let c = Counter { count: 10 }
+
+rule "Decrement Loop" {
+    when c.count > 0
+    then show "Looping! Current count: {c.count}"
+    then update c.count to c.count - 1
+}

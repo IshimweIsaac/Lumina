@@ -1,0 +1,15 @@
+entity Environment {
+    temperature: Number
+    humidity: Number
+    soilMoisture: Number
+}
+
+entity Actuators {
+    fanOn: Boolean
+    waterValveOpen: Boolean
+}
+
+entity SystemStatus {
+    lastReport: Text
+    alarmActive: Boolean
+}

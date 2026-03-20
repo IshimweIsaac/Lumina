@@ -12,6 +12,7 @@ pub struct EntitySchema {
     pub name:    String,
     pub fields:  HashMap<String, FieldSchema>,
     pub is_external: bool,
+    pub sync_on: Option<String>,
 }
 
 #[derive(Debug, Clone)]

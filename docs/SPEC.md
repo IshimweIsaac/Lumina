@@ -1,6 +1,6 @@
-# Extended Backus-Naur Form (EBNF) Specification (v1.4)
+# Extended Backus-Naur Form (EBNF) Specification (v1.5)
 
-This document contains the complete formal language grammar of the Lumina programming language, conforming to version 1.4 specifications.
+This document contains the formal grammar of Lumina v1.5.
 
 ## Global Program Structure
 ```ebnf
@@ -29,7 +29,7 @@ fn_param ::= IDENT ':' type
 ```ebnf
 entity_decl ::= 'entity' IDENT '{' NEWLINE field* '}'
 
-field ::= metadata* stored_field | metadata* derived_field
+field ::= metadata* (stored_field | derived_field)
 stored_field ::= IDENT ':' type NEWLINE
 derived_field ::= IDENT ':=' expr NEWLINE
 
@@ -37,7 +37,7 @@ metadata ::= '@doc' STRING NEWLINE
            | '@range' NUMBER 'to' NUMBER NEWLINE
            | '@affects' IDENT (',' IDENT)* NEWLINE
 
-type ::= 'Text' | 'Number' | 'Boolean' | IDENT
+type ::= 'Text' | 'Number' | 'Boolean' | IDENT | type '[]'
 ```
 
 ## Abstract Values and Creation
@@ -47,21 +47,25 @@ let_stmt ::= 'let' IDENT '=' (expr | entity_init) NEWLINE
 entity_init ::= IDENT '{' NEWLINE (IDENT ':' expr NEWLINE)* '}'
 ```
 
-## Rules and Temporal Logic
+## 5. Rules and Temporal Logic
 ```ebnf
 rule_decl ::= 'rule' STRING '{' NEWLINE
               ( 'when' condition NEWLINE
               | 'every' duration NEWLINE )
               ('then' action NEWLINE)+ 
+              ('on clear' '{' action+ '}')?  (* Reserved / Roadmap *)
               '}'
 
-condition ::= entity_condition | expr
-entity_condition::= IDENT '.' IDENT ('becomes' expr)? ('for' duration)?
+condition ::= fleet_trigger | expr
+
+fleet_trigger ::= ('any' | 'all') IDENT '.' IDENT 'becomes' expr ('for' duration)?
+
+expr ::= or_expr ('becomes' expr)? ('for' duration)?
 
 duration ::= NUMBER ('s' | 'm' | 'h' | 'd')
 ```
 
-## External Entities
+## 6. External Entities
 ```ebnf
 external_decl ::= 'external' 'entity' IDENT '{' NEWLINE
                   field*
@@ -69,24 +73,26 @@ external_decl ::= 'external' 'entity' IDENT '{' NEWLINE
                   '}'
 
 sync_config ::= 'sync' ':' STRING NEWLINE
-              'on' ':' STRING NEWLINE
+              'on' ':' ("realtime" | "poll" | "webhook") NEWLINE
               ('poll_interval' ':' duration NEWLINE)?
 ```
 
-## Runtime Actions
+## 7. Runtime Actions
 ```ebnf
 action ::= show_action
          | update_action
          | create_action
          | delete_action
+         | alert_action   (* Reserved / Roadmap *)
 
 show_action ::= 'show' expr
-update_action ::= 'update' field_access 'to' expr
+update_action ::= 'update' IDENT '.' IDENT 'to' expr
 create_action ::= 'create' IDENT '{' NEWLINE (IDENT ':' expr NEWLINE)* '}'
 delete_action ::= 'delete' IDENT
+alert_action ::= 'alert' ... (* Reserved / Roadmap *)
 ```
 
-## Expressions (Pratt Operator Precedence)
+## 8. Expressions (Pratt Operator Precedence)
 ```ebnf
 expr ::= or_expr
 
@@ -98,18 +104,35 @@ add_expr ::= mul_expr (('+' | '-') mul_expr)*
 mul_expr ::= unary_expr (('*' | '/' | 'mod') unary_expr)*
 unary_expr ::= '-' primary | primary
 
-primary ::= NUMBER | STRING | BOOL | IDENT | field_access
+primary ::= NUMBER | STRING | BOOL | IDENT | field_access | prev_expr
           | '(' expr ')'
           | if_expr
           | call_expr
+          | list_literal
+          | index_expr
 
-if_expr ::= 'if' expr 'then' expr ('else' 'if' expr 'then' expr)* 'else' expr
-field_access ::= IDENT ('.' IDENT)+
+prev_expr ::= 'prev' '(' IDENT ')'
+list_literal ::= '[' (expr (',' expr)*)? ']'
+index_expr ::= primary '[' expr ']'
+
+if_expr ::= 'if' expr 'then' expr 'else' expr
+field_access ::= primary '.' IDENT
 call_expr ::= IDENT '(' (expr (',' expr)*)? ')'
 cmp_op ::= '==' | '!=' | '>' | '<' | '>=' | '<='
 ```
 
-## Token Terminals
+---
+
+## 9. v1.5 Roadmap Keywords (Reserved)
+The following keywords are reserved for upcoming features and are not yet active in the core grammar:
+*   `aggregate`, `over` (for Chapter 32 aggregate blocks)
+*   `alert`, `severity`, `source` (for structured signals)
+*   `cooldown` (for rule rate-limiting)
+*   `on clear` (for recovery actions)
+
+---
+
+## 10. Token Terminals
 ```ebnf
 STRING ::= '"' (interpolated_content)* '"'
 interpolated_content ::= char | '{' expr '}'

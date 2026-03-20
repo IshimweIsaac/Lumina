@@ -175,6 +175,15 @@ pub extern "C" fn lumina_tick(runtime: *mut LuminaRuntime) -> *mut c_char {
 }
 
 #[no_mangle]
+pub extern "C" fn lumina_get_messages(runtime: *mut LuminaRuntime) -> *mut c_char {
+    if runtime.is_null() { return std::ptr::null_mut(); }
+    let rt = unsafe { &mut *runtime };
+    let messages: Vec<String> = rt.evaluator.get_output().to_vec();
+    rt.evaluator.clear_output();
+    to_c_string(&serde_json::to_string(&messages).unwrap_or_default())
+}
+
+#[no_mangle]
 pub extern "C" fn lumina_last_error(runtime: *const LuminaRuntime) -> *mut c_char {
     if runtime.is_null() {
         // Check thread-local for creation errors

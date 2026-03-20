@@ -39,19 +39,22 @@ _lib.lumina_create.restype       = ctypes.c_void_p
 
 _lib.lumina_apply_event.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
                                      ctypes.c_char_p, ctypes.c_char_p]
-_lib.lumina_apply_event.restype  = ctypes.c_char_p
+_lib.lumina_apply_event.restype  = ctypes.c_void_p
 
 _lib.lumina_export_state.argtypes = [ctypes.c_void_p]
-_lib.lumina_export_state.restype  = ctypes.c_char_p
+_lib.lumina_export_state.restype  = ctypes.c_void_p
 
 _lib.lumina_tick.argtypes        = [ctypes.c_void_p]
-_lib.lumina_tick.restype         = ctypes.c_char_p
+_lib.lumina_tick.restype         = ctypes.c_void_p
 
 _lib.lumina_last_error.argtypes  = [ctypes.c_void_p]
-_lib.lumina_last_error.restype   = ctypes.c_char_p
+_lib.lumina_last_error.restype   = ctypes.c_void_p
 
-_lib.lumina_free_string.argtypes = [ctypes.c_char_p]
+_lib.lumina_free_string.argtypes = [ctypes.c_void_p]
 _lib.lumina_free_string.restype  = None
+
+_lib.lumina_get_messages.argtypes = [ctypes.c_void_p]
+_lib.lumina_get_messages.restype  = ctypes.c_void_p
 
 _lib.lumina_destroy.argtypes     = [ctypes.c_void_p]
 _lib.lumina_destroy.restype      = None
@@ -73,37 +76,56 @@ class LuminaRuntime:
         with open(path, "r") as f:
             return cls.from_source(f.read())
 
+    def _ffi_call(self, func, *args):
+        raw_ptr = func(self._handle, *args)
+        if raw_ptr is None:
+            return None
+        
+        # Cast to void_p first so we can free it later
+        ptr = ctypes.cast(raw_ptr, ctypes.c_char_p)
+        value = ptr.value.decode("utf-8") if ptr.value else None
+        
+        # Free the Rust-allocated string
+        _lib.lumina_free_string(raw_ptr)
+        return value
+
     def apply_event(self, instance: str, field: str, value) -> dict:
         value_json = json.dumps(value).encode("utf-8")
-        raw = _lib.lumina_apply_event(
-            self._handle,
+        result_str = self._ffi_call(
+            _lib.lumina_apply_event,
             instance.encode("utf-8"),
             field.encode("utf-8"),
             value_json,
         )
-        if raw is None:
+        if result_str is None:
             raise RuntimeError("lumina_apply_event returned null")
-        result = raw.decode("utf-8")
-        if result.startswith("ERROR:"):
-            diag = json.loads(result[6:])
+        if result_str.startswith("ERROR:"):
+            diag_str = result_str[6:]
+            diag = json.loads(diag_str)
             raise RuntimeError(f"Lumina rollback: {diag['message']}\nFix: {diag['suggested_fix']}")
-        return json.loads(result)
+        return json.loads(result_str)
 
     def export_state(self) -> dict:
-        raw = _lib.lumina_export_state(self._handle)
-        if raw is None:
+        result_str = self._ffi_call(_lib.lumina_export_state)
+        if result_str is None:
             raise RuntimeError("lumina_export_state returned null")
-        return json.loads(raw.decode("utf-8"))
+        return json.loads(result_str)
 
     def tick(self) -> list:
-        raw = _lib.lumina_tick(self._handle)
-        if raw is None:
+        result_str = self._ffi_call(_lib.lumina_tick)
+        if result_str is None:
             return []
-        result = raw.decode("utf-8")
-        if result.startswith("ERROR:"):
-            diag = json.loads(result[6:])
+        if result_str.startswith("ERROR:"):
+            diag_str = result_str[6:]
+            diag = json.loads(diag_str)
             raise RuntimeError(f"Lumina tick rollback: {diag['message']}")
-        return json.loads(result)
+        return json.loads(result_str)
+
+    def get_messages(self) -> list:
+        result_str = self._ffi_call(_lib.lumina_get_messages)
+        if not result_str:
+            return []
+        return json.loads(result_str)
 
     def __del__(self):
         if self._handle:
