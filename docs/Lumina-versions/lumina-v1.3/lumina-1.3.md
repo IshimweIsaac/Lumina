@@ -237,13 +237,13 @@ This is the only spec feature that is documented but not implemented.
 
 The following are v1.4 and later features. They are not in the lexer, parser, analyzer, or runtime. Do not reference them when working with v1.3 code.
 
-- fn - pure function declarations
-- return - function return statement
-- import / from - module system
-- List&lt;T&gt; - typed list with aggregation
-- Enhanced error messages with source context and carets
-- REPL v2 with persistent state
-- VS Code extension
+* fn - pure function declarations
+* return - function return statement
+* import / from - module system
+* List&lt;T&gt; - typed list with aggregation
+* Enhanced error messages with source context and carets
+* REPL v2 with persistent state
+* VS Code extension
 
 **Section 4**
 
@@ -440,22 +440,22 @@ Before adding any feature, read this section. Every feature addition must follow
 
 # **7.1 Adding a New Keyword**
 
-- Add the token variant to Token enum in lumina-lexer/src/token.rs
-- Add the logos pattern to the lexer in lumina-lexer/src/lib.rs
-- Add an AST node to lumina-parser/src/ast.rs
-- Add parsing logic in lumina-parser/src/parser.rs
-- Add type-checking in lumina-analyzer/src/analyzer.rs
-- Add evaluation in lumina-runtime/src/engine.rs
-- Add at least 2 tests: one that parses correctly, one that analyzes correctly
+* Add the token variant to Token enum in lumina-lexer/src/token.rs
+* Add the logos pattern to the lexer in lumina-lexer/src/lib.rs
+* Add an AST node to lumina-parser/src/ast.rs
+* Add parsing logic in lumina-parser/src/parser.rs
+* Add type-checking in lumina-analyzer/src/analyzer.rs
+* Add evaluation in lumina-runtime/src/engine.rs
+* Add at least 2 tests: one that parses correctly, one that analyzes correctly
 
 # **7.2 Adding a New Action**
 
-- Add a variant to the Action enum in lumina-parser/src/ast.rs
-- Add parsing in the parse_action() function in the parser
-- Add analysis in the check_action() function in the analyzer
-- Add execution in exec_action() in engine.rs
-- exec_action MUST return Result&lt;Vec<FiredEvent&gt;, RuntimeError>
-- If the action mutates state: take a snapshot before, restore on error
+* Add a variant to the Action enum in lumina-parser/src/ast.rs
+* Add parsing in the parse_action() function in the parser
+* Add analysis in the check_action() function in the analyzer
+* Add execution in exec_action() in engine.rs
+* exec_action MUST return Result&lt;Vec<FiredEvent&gt;, RuntimeError>
+* If the action mutates state: take a snapshot before, restore on error
 
 # **7.3 Adding a New Error Code**
 
@@ -467,11 +467,11 @@ Compile-time errors use L-codes (lumina-analyzer). Runtime errors use R-codes (l
 
 # **7.4 Adding a New Expression Variant**
 
-- Add variant to Expr enum in lumina-parser/src/ast.rs
-- Add parsing in the Pratt parser's parse_primary() or parse_infix()
-- Add type inference in infer_type() in lumina-analyzer/src/analyzer.rs
-- Add evaluation in eval_expr() in lumina-runtime/src/engine.rs
-- Handle all evaluation failure modes - return RuntimeError, not panic
+* Add variant to Expr enum in lumina-parser/src/ast.rs
+* Add parsing in the Pratt parser's parse_primary() or parse_infix()
+* Add type inference in infer_type() in lumina-analyzer/src/analyzer.rs
+* Add evaluation in eval_expr() in lumina-runtime/src/engine.rs
+* Handle all evaluation failure modes - return RuntimeError, not panic
 
 # **7.5 Adding a New FFI Function**
 
