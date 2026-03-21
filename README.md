@@ -143,7 +143,7 @@ Lumina implements a secure C ABI for integration into external environments.
 
 ```bash
 # Build the shared library
-cargo build --release -p lumina-ffi
+cargo build --release -p lumina_ffi
 ```
 
 ---
