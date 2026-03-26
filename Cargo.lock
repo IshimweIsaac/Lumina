@@ -472,6 +472,7 @@ dependencies = [
  "dashmap",
  "lumina-analyzer",
  "lumina-diagnostics",
+ "lumina-lexer",
  "lumina-parser",
  "serde_json",
  "tokio",

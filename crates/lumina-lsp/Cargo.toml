@@ -7,6 +7,7 @@ edition = "2021"
 name = "lumina-lsp"
 
 [dependencies]
+lumina-lexer = { path = "../lumina-lexer" }
 lumina-parser = { path = "../lumina-parser" }
 lumina-analyzer = { path = "../lumina-analyzer" }
 lumina-diagnostics = { path = "../lumina-diagnostics" }
