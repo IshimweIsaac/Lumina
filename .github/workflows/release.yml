@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: lumina-linux-x64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary: lumina-linux-arm64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary: lumina-macos-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary: lumina-macos-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: lumina-windows-x64.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build lumina
+        run: cargo build --release --target ${{ matrix.target }} -p lumina-cli
+
+      - name: Build lumina-lsp
+        run: cargo build --release --target ${{ matrix.target }} -p lumina-lsp
+
+      - name: Rename and checksum
+        shell: bash
+        run: |
+          mkdir -p dist
+          # On Windows, the binary has .exe extension
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp target/${{ matrix.target }}/release/lumina-cli.exe dist/${{ matrix.binary }}
+            cp target/${{ matrix.target }}/release/lumina-lsp.exe dist/${{ matrix.binary }}-lsp.exe
+          else
+            cp target/${{ matrix.target }}/release/lumina-cli dist/${{ matrix.binary }}
+            cp target/${{ matrix.target }}/release/lumina-lsp dist/${{ matrix.binary }}-lsp
+          fi
+          
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum ${{ matrix.binary }} > ${{ matrix.binary }}.sha256
+          else
+            shasum -a 256 ${{ matrix.binary }} > ${{ matrix.binary }}.sha256
+          fi
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/${{ matrix.binary }}
+            dist/${{ matrix.binary }}-lsp*
+            dist/${{ matrix.binary }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
