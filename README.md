@@ -10,74 +10,85 @@ Lumina is a statically typed, declarative, and reactive programming language eng
 
 Modern software architecture frequently struggles with the synchronization of distributed state and the unintended consequences of imperative control flow across varying subsystems. Lumina mitigates these systemic challenges by inverting the control paradigm. Instead of explicitly instructing the system when and how to update context, developers declare the inherent relationships between properties and the subsequent reactive triggers that must fire upon specific state variations.
 
-### 1.1 Key Features in v1.5
-*   **Declarative Entity Modeling**: Fields are partitioned into basal and derived categories. Derived fields (`:=`) maintain a strictly guaranteed relationship with their dependencies through continuous topological re-evaluation.
-*   **Fleet-Level Triggers**: Support for `any` and `all` conditions across entity instances (e.g., `when any Moto.battery becomes < 10`).
-*   **Aggregates**: Structural `aggregate` blocks for defining fleet-wide facts like `avg`, `sum`, `min`, `max`, and `count` with O(1) read performance.
-*   **Structured Alerting**: Native `alert` actions with severity levels, source tracking, and consistent metadata.
-*   **Recovery Logic (`on clear`)**: Automatic firing of actions when a rule condition is no longer met.
-*   **Rule Cooldowns**: Silence periods to prevent alert storms from flapping sensors.
-*   **Historical State Access**: Use the `prev()` keyword to access a field's value from the previous engine tick.
-*   **External Entities & Adapters**: Native support for synchronizing state with external sources (e.g., Supabase, MQTT) via the Adapter protocol.
-*   **List & Collection Types**: First-class support for list types (`type[]`), list literals (`[...]`), and element indexing (`list[0]`).
-*   **Pure Functions (`fn`)**: Stateless, side-effect-free functions for complex logic encapsulation.
-*   **Language Server Protocol (LSP)**: Full IDE support with real-time error squiggles, hover tooltips, and document symbol navigation.
+### 1.1 Evolution & Feature History
+
+Lumina has evolved from a simple reactive engine into a production-grade infrastructure monitoring language.
+
+#### **v1.6: The Infrastructure Release (Latest)**
+*   **Entity Relationships (`ref`)**: Structural truth declaration—one entity can reference another (e.g., `Server` refs `CoolingUnit`).
+*   **Structural Traversal**: Traverse relationships in rules and derived fields (e.g., `s.cooling.isFailing`).
+*   **Multi-Condition Triggers (`and`)**: Fire rules only when compound truths are met simultaneously.
+*   **Write Capabilities (`write`)**: Send commands back to the physical world through external adapters.
+*   **Frequency Conditions**: Detect flapping with `N times within <duration>` triggers.
+*   **Temporal Truth**: Native `Timestamp` type with `.age` accessor and `now()` function.
+*   **LSP v2**: Production-grade IDE support with rename, references, and code actions.
+
+#### **v1.5: The Fleet Release**
+*   **Fleet-Level Triggers**: Support for `any` and `all` conditions across entity instances.
+*   **Reactive Aggregates**: `aggregate` blocks for `avg`, `sum`, `count` across device fleets.
+*   **Structured Alerting**: Native `alert` actions with severity levels and `on clear` recovery logic.
+*   **Rule Cooldowns**: Silence periods to prevent alert storms.
+*   **Historical State**: The `prev()` keyword for transition-based logic.
+
+#### **v1.4: The Developer Experience Release**
+*   **Enhanced Diagnostics**: Rust-style error messages with source context and carets.
+*   **Stateful REPL**: Persistent evaluator state across interactive sessions.
+*   **Pure Functions (`fn`)**: Stateless logic encapsulation.
+*   **Modules (`import`)**: Multi-file program support.
+*   **Collections**: First-class list types (`type[]`) and indexing.
+
+#### **v1.3: The Core Engine Release**
+*   **Reactive Core**: The basic topological propagation engine.
+*   **FFI & WASM**: Native C ABI and WebAssembly compilation targets.
+*   **CLI**: Initial `run`, `check`, and `repl` commands.
 
 ---
 
 ## 2. Documentation
 
-*   **[Lumina Complete Guide (v1.5)](./docs/Lumina_Complete_Guide.md)**: The definitive 34-chapter guide to the language, architecture, and tooling.
-*   **[Language Specification](./docs/SPEC.md)**: Formal EBNF grammar.
-*   **[Architecture Overview](./docs/ARCHITECTURE.md)**: Deep dive into the reactive engine and snapshot VM.
+*   **[Lumina Complete Guide (v1.6)](./docs/Lumina_Complete_Guide.md)**: The technical bible of the Lumina language.
+*   **[Language Specification](./docs/SPEC.md)**: EBNF grammar and v1.6 syntax reference.
+*   **[Architecture Overview](./docs/ARCHITECTURE.md)**: Deep dive into the reactive engine, adapters, and the write-back cycle.
 
 ---
 
 ## 3. Architecture and Execution Model
 
-The Lumina compiler and runtime pipeline is implemented in Rust, exploiting zero-cost abstractions and strict memory safety guarantees. Every program flows through this pipeline:
+The Lumina compiler and runtime pipeline is implemented in Rust. Every program flows through this pipeline:
 
-1.  **`lumina-lexer`**: A high-throughput deterministic finite automaton tokenizer.
-2.  **`lumina-parser`**: A hybrid recursive-descent and Pratt parser.
-3.  **`Module Loader`**: Resolves `import` statements and builds a unified AST.
-4.  **`lumina-analyzer`**: Enforces static type safety and validates evaluation order.
-5.  **`lumina-runtime`**: The core Snapshot VM (`Evaluator`) handling state allocation, fleet tracking, and temporal scheduling.
-6.  **`lumina-lsp`**: Provides real-time developer feedback and cross-file navigation.
+1.  **`lumina-lexer`**: High-throughput DFA tokenizer.
+2.  **`lumina-parser`**: Hybrid recursive-descent and Pratt parser.
+3.  **`lumina-analyzer`**: Static type safety, ref-integrity, and cycle detection.
+4.  **`lumina-runtime`**: The reactive Snapshot VM. Handles temporal scheduling and external adapter synchronization.
+5.  **`lumina-lsp`**: Multi-protocol language server providing real-time IDE feedback.
 
 ---
 
-## 4. Language Specification (v1.5 Example)
-
-### 4.1 Entity Schemas & Rules
+## 4. Language Specification (v1.6 Example)
 
 ```lua
-import "types.lum"
+-- Infrastructure modeling with v1.6 features
+external entity CoolingUnit {
+  isRunning: Boolean
+  isFailing := not isRunning
+} sync on isRunning
 
-entity Moto {
-  battery: Number
-  isCritical := battery < 5
+entity Server {
+  cpuTemp: Number
+  cooling: ref CoolingUnit -- Structural relationship
+  
+  isOverheating := cpuTemp > 85
+  isAtRisk := isOverheating and cooling.isFailing
 }
 
--- Aggregate fleet state reactively
-aggregate FleetStatus over Moto {
-  avgBattery := avg(battery)
-  onlineCount := count(isOnline)
-}
-
--- Rule with structured alert, recovery logic, and cooldown
-rule Overheat when any Temp.isHigh becomes true cooldown 5m {
-  alert severity: "critical", message: "Unit is overheating!"
-} on clear {
-  alert severity: "resolved", message: "Temperature stabilized"
+-- Multi-condition trigger with write action
+rule EmergencyShutdown for (s: Server)
+  when s.isOverheating becomes true
+  and s.cooling.isFailing becomes true {
+    write s.throttle = 10 -- Command the physical world
+    alert severity: "critical", message: "Emergency throttle applied"
 }
 ```
-
----
-
-## 5. v1.6 Roadmap (Future Work)
-*   **LSP Refactoring**: Go-to-definition and symbol renaming across modules.
-*   **Visual Debugger**: Live inspection of the dependency graph in the Playground.
-*   **Native Adapters**: Production-ready adapters for MQTT and Supabase.
 
 ---
 
@@ -94,48 +105,21 @@ cargo build --release -p lumina-cli
 
 # Execute a Lumina program
 cargo run -p lumina-cli -- run main.lum
-
-# Interactive REPL
-cargo run -p lumina-cli -- repl
 ```
 
-### 5.2 Language Server (LSP)
-Install the LSP globally to enable IDE features in VS Code:
+### 5.2 Foreign Function Interface (FFI)
 ```bash
-cargo install --path crates/lumina-lsp
+# Build the shared library (.so / .dll / .dylib)
+cargo build --release -p lumina-ffi
 ```
 
 ---
 
-## 6. Foreign Function Interface (FFI)
-
-Lumina implements a secure C ABI for integration into external environments.
-
-```bash
-# Build the shared library
-cargo build --release -p lumina_ffi
-```
-
----
-
-## 7. WebAssembly Integration
-
-Lumina cross-compiles to WebAssembly, operating inside standard JavaScript runtimes.
-
-```bash
-cd crates/lumina-wasm
-wasm-pack build --target web --release
-```
-
----
-
-## 8. Development & Testing
-Before committing to the codebase, read our detailed [CONTRIBUTING.md](./CONTRIBUTING.md) guide.
-
-Run the full specification regression suite:
+## 6. Development & Testing
+Run the full regression suite to verify v1.6 compliance:
 ```bash
 cargo test --workspace
 ```
 
 ## License
-This software and associated documentation files are distributed under the MIT License. Reference [`LICENSE`](LICENSE) for complete legal stipulations.
+This software is distributed under the MIT License. Reference [`LICENSE`](LICENSE) for details.

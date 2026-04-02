@@ -34,8 +34,10 @@ pub struct Evaluator {
     depth:         usize,
     fired_this_cycle: HashSet<String>,
     output:        Vec<String>,
+    prev_rule_conditions: HashMap<(String, String), bool>,
     pub cooldown_map: HashMap<(String, String), f64>,
     pub rule_active: HashMap<(String, String), bool>,
+    pub frequency_events: HashMap<(String, String), Vec<f64>>,
     pub agg_store: AggregateStore,
     pub now:       f64,
 }
@@ -68,8 +70,10 @@ impl Evaluator {
             depth: 0,
             fired_this_cycle: HashSet::new(),
             output: Vec::new(),
+            prev_rule_conditions: HashMap::new(),
             cooldown_map: HashMap::new(),
             rule_active: HashMap::new(),
+            frequency_events: HashMap::new(),
             agg_store: AggregateStore::new(),
             now: 0.0,
         }
@@ -97,8 +101,10 @@ impl Evaluator {
             depth: 0,
             fired_this_cycle: HashSet::new(),
             output: Vec::new(),
+            prev_rule_conditions: HashMap::new(),
             cooldown_map: HashMap::new(),
             rule_active: HashMap::new(),
+            frequency_events: HashMap::new(),
             agg_store: AggregateStore::new(),
             now: 0.0,
         }
@@ -154,6 +160,7 @@ impl Evaluator {
             Expr::Number(n) => Ok(Value::Number(*n)),
             Expr::Text(s) => Ok(Value::Text(s.clone())),
             Expr::Bool(b) => Ok(Value::Bool(*b)),
+            Expr::Duration(d) => Ok(Value::Duration(d.to_seconds())),
 
             Expr::Ident(name) => {
                 if let Some(inst) = ctx {
@@ -169,24 +176,32 @@ impl Evaluator {
                 if let Some(val) = self.agg_store.get(name, "") {
                     return Ok(val.clone());
                 }
+                // E1 Fix: Check if the identifier is a known instance name.
+                // This resolves the R001 bug where instance names (e.g. 'unit1')
+                // could not be resolved during rule execution.
+                if self.instances.contains_key(name) {
+                    return Ok(Value::Text(name.clone()));
+                }
                 Err(RuntimeError::R001 { instance: name.clone() })
             }
 
             Expr::FieldAccess { obj, field, .. } => {
-                let mut inst_name = match obj.as_ref() {
-                    Expr::Ident(n) => n.clone(),
-                    // Support chained ref traversal: a.b.c
-                    Expr::FieldAccess { .. } => {
-                        let ref_val = self.eval_expr(obj, ctx)?;
-                        match ref_val {
-                            // .age on a Timestamp value
-                            Value::Timestamp(ts) => {
-                                if field == "age" {
-                                    return Ok(Value::Number(self.now - ts));
-                                }
-                                return Err(RuntimeError::R005 { instance: "Timestamp".into(), field: field.clone() });
-                            }
-                            _ => return Err(RuntimeError::R001 { instance: format!("{:?}", obj) }),
+                let obj_val = self.eval_expr(obj, ctx);
+
+                if let Ok(Value::Timestamp(ts)) = obj_val {
+                    if field == "age" {
+                        return Ok(Value::Duration(self.now - ts));
+                    }
+                    return Err(RuntimeError::R005 { instance: "Timestamp".into(), field: field.clone() });
+                }
+
+                let mut inst_name = match obj_val {
+                    Ok(Value::Text(s)) => s,
+                    Err(_) => {
+                        if let Expr::Ident(n) = obj.as_ref() {
+                            n.clone()
+                        } else {
+                            return Err(RuntimeError::R001 { instance: format!("{:?}", obj) });
                         }
                     }
                     _ => return Err(RuntimeError::R001 { instance: format!("{:?}", obj) }),
@@ -212,19 +227,9 @@ impl Evaluator {
                 let val = instance.get(field).cloned()
                     .ok_or(RuntimeError::R005 { instance: inst_name.clone(), field: field.clone() })?;
 
-                // .age accessor on a Timestamp field value
-                if field == "age" {
-                    // This branch won't fire — age is not a stored field.
-                    // The Timestamp .age case is handled via the match on Value::Timestamp below.
-                    return Ok(val);
-                }
-
-                // If the resolved value is a Timestamp and we're accessing .age on it,
-                // that's handled by chained FieldAccess above. For single-level access,
-                // check if the caller wants .age on the result:
                 match &val {
                     Value::Timestamp(ts) if field == "age" => {
-                        Ok(Value::Number(self.now - ts))
+                        Ok(Value::Duration(self.now - ts))
                     }
                     _ => Ok(val),
                 }
@@ -399,12 +404,34 @@ impl Evaluator {
             },
             BinOp::Eq => Ok(Value::Bool(l == r)),
             BinOp::Ne => Ok(Value::Bool(l != r)),
-            BinOp::Gt  => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a > b)),  _ => Ok(Value::Bool(false)) },
-            BinOp::Lt  => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),  _ => Ok(Value::Bool(false)) },
-            BinOp::Ge  => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a >= b)), _ => Ok(Value::Bool(false)) },
-            BinOp::Le  => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a <= b)), _ => Ok(Value::Bool(false)) },
+            BinOp::Gt  => match (l, r) { 
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a > b)),
+                (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a > b)),
+                _ => Ok(Value::Bool(false)) 
+            },
+            BinOp::Lt  => match (l, r) { 
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),
+                (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a < b)),
+                _ => Ok(Value::Bool(false)) 
+            },
+            BinOp::Ge  => match (l, r) { 
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a >= b)),
+                (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a >= b)),
+                _ => Ok(Value::Bool(false)) 
+            },
+            BinOp::Le  => match (l, r) { 
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a <= b)),
+                (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a <= b)),
+                _ => Ok(Value::Bool(false)) 
+            },
             BinOp::And | BinOp::Or => unreachable!(),
         }
+    }
+
+    /// Public wrapper around apply_binop for use by the rules module
+    /// when evaluating expressions against historical state.
+    pub fn eval_binary_values(&self, op: &BinOp, l: &Value, r: &Value) -> Result<Value, RuntimeError> {
+        self.apply_binop(op, l.clone(), r.clone())
     }
 
     fn eval_expr_local(&self, expr: &Expr, locals: &HashMap<String, Value>) -> Result<Value, RuntimeError> {
@@ -508,6 +535,7 @@ impl Evaluator {
                         self.store.insert(inst_name.clone(), Instance::new(&entity_name, fields));
                         // Compute derived fields for the new instance
                         self.propagate_derived(&inst_name, &entity_name)?;
+                        self.agg_store.recompute(&self.store);
                         self.store.commit_all();
                         
                         // Initial rule evaluation for this new instance
@@ -551,7 +579,20 @@ impl Evaluator {
                 let count = self.store.all_of_entity(entity).count();
                 let inst_name = format!("{}_{}", entity.to_lowercase(), count + 1);
                 self.instances.insert(inst_name.clone(), entity.clone());
+
+                // Update fleet state for any Boolean fields on the new instance
+                for (fname, val) in &fv {
+                    if let Value::Bool(b) = val {
+                        let total = self.store.all_of_entity(entity).count() + 1;
+                        self.fleet_state.update(entity, fname, false, *b, total);
+                    }
+                }
+
                 self.store.insert(inst_name, Instance::new(entity, fv));
+
+                // Recompute aggregates to include the new instance
+                self.agg_store.recompute(&self.store);
+
                 Ok(vec![])
             }
             Action::Delete(name) => {
@@ -650,7 +691,6 @@ impl Evaluator {
 
         let snap = self.snapshots.take(&self.store);
         self.snapshots.push(snap);
-        self.agg_store.recompute(&self.store);
         
         let entity_name = self.store.get(instance_name)
             .ok_or(RuntimeError::R001 { instance: instance_name.to_string() })?
@@ -709,6 +749,36 @@ impl Evaluator {
             return Err(e);
         }
 
+        // Cross-instance ref propagation: find all instances that reference
+        // the updated instance via a `ref` field, and re-propagate their deriveds.
+        let referencing_instances: Vec<(String, String)> = self.store.all()
+            .filter_map(|(name, inst)| {
+                // Skip the instance we already propagated
+                if name == instance_name { return None; }
+                // Check if any field value is a Text matching the updated instance name
+                // (ref fields are stored as Value::Text(instance_name))
+                for (_, val) in &inst.fields {
+                    if let Value::Text(ref_target) = val {
+                        if ref_target == instance_name {
+                            return Some((name.clone(), inst.entity_name.clone()));
+                        }
+                    }
+                }
+                None
+            })
+            .collect();
+
+        for (ref_inst_name, ref_entity_name) in referencing_instances {
+            if let Err(e) = self.propagate_derived(&ref_inst_name, &ref_entity_name) {
+                let snap = self.snapshots.pop().unwrap();
+                self.store = snap.store;
+                self.depth -= 1;
+                return Err(e);
+            }
+        }
+
+        self.agg_store.recompute(&self.store);
+
         // Evaluate rules
         let all_events = self.evaluate_rules(instance_name)?;
 
@@ -734,18 +804,61 @@ impl Evaluator {
             match &rule.trigger {
                 RuleTrigger::When(conditions) => {
                     let active_key = (rule.name.clone(), instance_name.to_string());
-                    // All conditions in the compound trigger must be met
-                    let all_met = conditions.iter().all(|c| {
-                        rules::condition_is_met(self, c, instance_name, true).unwrap_or(false)
-                    });
+                    // All conditions in the compound trigger must be met.
+                    // For compound triggers, only enforce the transition check
+                    // on the condition(s) that reference the field being updated.
+                    // Other conditions just need to be currently true.
+                    let is_compound = conditions.len() > 1;
+                    let has_becomes = conditions.iter().any(|c| c.becomes.is_some());
+                    let all_met = if is_compound {
+                        // For compound triggers: each condition must currently match,
+                        // but we don't require ALL of them to have just transitioned.
+                        // The rising edge detection on prev_rule_conditions handles
+                        // whether the compound state as a whole just became true.
+                        conditions.iter().all(|c| {
+                            rules::condition_is_met(self, c, instance_name, false).unwrap_or(false)
+                        })
+                    } else {
+                        conditions.iter().all(|c| {
+                            rules::condition_is_met(self, c, instance_name, has_becomes).unwrap_or(false)
+                        })
+                    };
+
+                    // E2 Fix: Rising Edge Detection for triggers.
+                    // Only fire when condition transitions false→true.
+                    let edge_key = (rule.name.clone(), instance_name.to_string());
+                    let prev_met = self.prev_rule_conditions.get(&edge_key).copied().unwrap_or(false);
+                    let is_rising_edge = all_met && !prev_met;
+                    self.prev_rule_conditions.insert(edge_key, all_met);
+
                     match all_met {
-                        true => {
+                        true if is_rising_edge => {
                             let fire_key = format!("{}::{}", rule.name, instance_name);
                             if self.fired_this_cycle.contains(&fire_key) {
                                 // Mark as active even if we skip firing
-                                self.rule_active.insert(active_key, true);
+                                self.rule_active.insert(active_key.clone(), true);
                                 continue;
                             }
+
+                            // Evaluate sliding window for frequency triggers
+                            let freq = conditions.first().and_then(|c| c.frequency.as_ref());
+                            if let Some(f) = freq {
+                                let history = self.frequency_events.entry(active_key.clone()).or_default();
+                                history.push(self.now);
+
+                                // Retain timestamps within the window
+                                let cutoff = self.now - f.within.to_seconds();
+                                history.retain(|&ts| ts >= cutoff);
+
+                                if history.len() < f.count as usize {
+                                    self.rule_active.insert(active_key.clone(), true);
+                                    continue;
+                                }
+
+                                // Reset the sliding window after firing
+                                history.clear();
+                            }
+                            
                             // Use the for_duration from the first condition if present
                             let for_duration = conditions.first().and_then(|c| c.for_duration.as_ref());
                             if let Some(dur) = for_duration {
@@ -774,6 +887,10 @@ impl Evaluator {
                                     ts: self.now,
                                 });
                             }
+                            self.rule_active.insert(active_key, true);
+                        }
+                        true => {
+                            // Condition is true but not a rising edge — don't fire
                             self.rule_active.insert(active_key, true);
                         }
                         false => {
@@ -809,22 +926,50 @@ impl Evaluator {
                         !self.fleet_state.all_true(&fc.entity, &fc.field)
                     };
                     let prev = self.prev_fleet_any.get(&key).copied().unwrap_or(false);
-                    // Edge detection: fire only on rising edge
-                    if now_met && !prev {
-                        let fire_key = format!("{}::fleet_any", rule.name);
-                        if !self.fired_this_cycle.contains(&fire_key) {
-                            self.fired_this_cycle.insert(fire_key);
-                            for action in &rule.actions {
-                                let evts = self.exec_action(action, None)?;
-                                all_events.extend(evts);
+                    let active_key = (rule.name.clone(), "fleet".to_string());
+                    let fire_key = format!("{}::fleet_any", rule.name);
+
+                    // Edge detection: fire only on rising edge (or start timer)
+                    if now_met {
+                        if !prev {
+                            if let Some(dur) = &fc.for_duration {
+                                let _ = self.timers.start_for_timer(&rule.name, "fleet", dur.to_seconds());
+                            } else {
+                                if !self.fired_this_cycle.contains(&fire_key) {
+                                    self.fired_this_cycle.insert(fire_key);
+                                    for action in &rule.actions {
+                                        let evts = self.exec_action(action, None)?;
+                                        all_events.extend(evts);
+                                    }
+                                    all_events.push(FiredEvent {
+                                        rule: rule.name.clone(),
+                                        instance: "fleet".to_string(),
+                                        severity: "info".to_string(),
+                                        message: format!("Fleet any trigger fired for '{}'", rule.name),
+                                        ts: self.now,
+                                    });
+                                }
                             }
-                            all_events.push(FiredEvent {
-                                rule: rule.name.clone(),
-                                instance: "fleet".to_string(),
-                                severity: "info".to_string(),
-                                message: format!("Fleet any trigger fired for '{}'", rule.name),
-                                ts: self.now,
-                            });
+                        }
+                        self.rule_active.insert(active_key, true);
+                    } else {
+                        self.timers.cancel_for_timer(&rule.name, "fleet");
+                        let was_active = self.rule_active.get(&active_key).copied().unwrap_or(false);
+                        if was_active {
+                            self.rule_active.insert(active_key, false);
+                            if let Some(clear_actions) = &rule.on_clear {
+                                for action in clear_actions {
+                                    let evts = self.exec_action(action, None)?;
+                                    all_events.extend(evts);
+                                }
+                                all_events.push(FiredEvent {
+                                    rule: format!("{}_clear", rule.name),
+                                    instance: "fleet".to_string(),
+                                    severity: "resolved".to_string(),
+                                    message: format!("Fleet any trigger cleared for '{}'", rule.name),
+                                    ts: self.now,
+                                });
+                            }
                         }
                     }
                     self.prev_fleet_any.insert(key, now_met);
@@ -838,22 +983,50 @@ impl Evaluator {
                         !self.fleet_state.any_true(&fc.entity, &fc.field)
                     };
                     let prev = self.prev_fleet_all.get(&key).copied().unwrap_or(false);
-                    // Edge detection: fire only on rising edge
-                    if now_met && !prev {
-                        let fire_key = format!("{}::fleet_all", rule.name);
-                        if !self.fired_this_cycle.contains(&fire_key) {
-                            self.fired_this_cycle.insert(fire_key);
-                            for action in &rule.actions {
-                                let evts = self.exec_action(action, None)?;
-                                all_events.extend(evts);
+                    let active_key = (rule.name.clone(), "fleet".to_string());
+                    let fire_key = format!("{}::fleet_all", rule.name);
+
+                    // Edge detection: fire only on rising edge (or start timer)
+                    if now_met {
+                        if !prev {
+                            if let Some(dur) = &fc.for_duration {
+                                let _ = self.timers.start_for_timer(&rule.name, "fleet", dur.to_seconds());
+                            } else {
+                                if !self.fired_this_cycle.contains(&fire_key) {
+                                    self.fired_this_cycle.insert(fire_key);
+                                    for action in &rule.actions {
+                                        let evts = self.exec_action(action, None)?;
+                                        all_events.extend(evts);
+                                    }
+                                    all_events.push(FiredEvent {
+                                        rule: rule.name.clone(),
+                                        instance: "fleet".to_string(),
+                                        severity: "info".to_string(),
+                                        message: format!("Fleet all trigger fired for '{}'", rule.name),
+                                        ts: self.now,
+                                    });
+                                }
                             }
-                            all_events.push(FiredEvent {
-                                rule: rule.name.clone(),
-                                instance: "fleet".to_string(),
-                                severity: "info".to_string(),
-                                message: format!("Fleet all trigger fired for '{}'", rule.name),
-                                ts: self.now,
-                            });
+                        }
+                        self.rule_active.insert(active_key, true);
+                    } else {
+                        self.timers.cancel_for_timer(&rule.name, "fleet");
+                        let was_active = self.rule_active.get(&active_key).copied().unwrap_or(false);
+                        if was_active {
+                            self.rule_active.insert(active_key, false);
+                            if let Some(clear_actions) = &rule.on_clear {
+                                for action in clear_actions {
+                                    let evts = self.exec_action(action, None)?;
+                                    all_events.extend(evts);
+                                }
+                                all_events.push(FiredEvent {
+                                    rule: format!("{}_clear", rule.name),
+                                    instance: "fleet".to_string(),
+                                    severity: "resolved".to_string(),
+                                    message: format!("Fleet all trigger cleared for '{}'", rule.name),
+                                    ts: self.now,
+                                });
+                            }
                         }
                     }
                     self.prev_fleet_all.insert(key, now_met);
@@ -947,8 +1120,8 @@ impl Evaluator {
                 // sync_on filtering: only propagate if the field matches sync_on
                 // (or if no sync_on is set). Non-sync fields are still stored.
                 if let Some(entity_schema) = self.schema.get_entity(&entity) {
-                    if let Some(ref sync_field) = entity_schema.sync_on {
-                        if &field != sync_field {
+                    if let Some(ref sync_fields) = entity_schema.sync_on {
+                        if !sync_fields.contains(&field) {
                             // Store the value without triggering propagation
                             if let Some(inst) = self.store.get_mut(&inst_name) {
                                 inst.set(&field, value);
@@ -968,27 +1141,47 @@ impl Evaluator {
                 .find(|r| r.name == timer.rule_name)
                 .cloned();
             if let Some(rule) = rule {
-                if let RuleTrigger::When(conditions) = &rule.trigger {
-                    let still_true = conditions.iter().all(|c| {
-                        rules::condition_is_met(self, c, &timer.instance_name, false).unwrap_or(false)
-                    });
-                    if still_true {
-                        let snap = self.snapshots.take(&self.store);
-                        match self.exec_rule_actions(&rule, &timer.instance_name) {
-                            Ok(events) => {
-                                self.store.commit_all();
-                                all_events.extend(events);
-                            }
-                            Err(e) => {
-                                self.store = snap.store;
-                                return Err(RollbackResult {
-                                    diagnostic: Diagnostic::from_runtime_error(
-                                        e.code(), &e.message(),
-                                        self.snapshots.current_version(),
-                                        vec![rule.name.clone()],
-                                    ),
-                                });
-                            }
+                let snap = self.snapshots.take(&self.store);
+                let still_true = match &rule.trigger {
+                    RuleTrigger::When(conditions) => {
+                        conditions.iter().all(|c| {
+                            rules::condition_is_met(self, c, &timer.instance_name, false).unwrap_or(false)
+                        })
+                    }
+                    RuleTrigger::Any(fc) => {
+                        let target = matches!(&fc.becomes, Expr::Bool(true));
+                        if target {
+                            self.fleet_state.any_true(&fc.entity, &fc.field)
+                        } else {
+                            !self.fleet_state.all_true(&fc.entity, &fc.field)
+                        }
+                    }
+                    RuleTrigger::All(fc) => {
+                        let target = matches!(&fc.becomes, Expr::Bool(true));
+                        if target {
+                            self.fleet_state.all_true(&fc.entity, &fc.field)
+                        } else {
+                            !self.fleet_state.any_true(&fc.entity, &fc.field)
+                        }
+                    }
+                    RuleTrigger::Every(_) => false,
+                };
+
+                if still_true {
+                    match self.exec_rule_actions(&rule, &timer.instance_name) {
+                        Ok(events) => {
+                            self.store.commit_all();
+                            all_events.extend(events);
+                        }
+                        Err(e) => {
+                            self.store = snap.store;
+                            return Err(RollbackResult {
+                                diagnostic: Diagnostic::from_runtime_error(
+                                    e.code(), &e.message(),
+                                    self.snapshots.current_version(),
+                                    vec![rule.name.clone()],
+                                ),
+                            });
                         }
                     }
                 }
@@ -1097,6 +1290,7 @@ impl Evaluator {
                 serde_json::json!(arr)
             }
             Value::Timestamp(t) => serde_json::json!(*t),
+            Value::Duration(d) => serde_json::json!(*d),
         }
     }
 }
@@ -1212,7 +1406,7 @@ mod tests {
 
     #[test]
     fn test_rule_fires_on_becomes() {
-        let src = "entity S {\n  active: Boolean\n}\nrule \"activate\" {\n  when S.active becomes true\n  then show \"fired\"\n}";
+        let src = "entity S {\n  active: Boolean\n}\nrule activate when S.active becomes true {\n  show \"fired\"\n}";
         let mut ev = build_eval(src);
         let mut fields = HashMap::new();
         fields.insert("active".into(), Value::Bool(false));
@@ -1254,7 +1448,7 @@ mod tests {
 
     #[test]
     fn test_rule_does_not_fire_without_transition() {
-        let src = "entity S {\n  active: Boolean\n}\nrule \"activate\" {\n  when S.active becomes true\n  then show \"fired\"\n}";
+        let src = "entity S {\n  active: Boolean\n}\nrule activate when S.active becomes true {\n  show \"fired\"\n}";
         let mut ev = build_eval(src);
         let mut fields = HashMap::new();
         fields.insert("active".into(), Value::Bool(true));
@@ -1269,7 +1463,7 @@ mod tests {
     #[test]
     fn test_adapter_poll_triggers_rule() {
         // Guide §28.5 Step 8: external entity + StaticAdapter, push value, verify rule fires
-        let src = "entity Sensor {\n  reading: Number\n  isCritical := reading > 90\n}\nrule \"overheat\" {\n  when Sensor.isCritical becomes true\n  then show \"overheating\"\n}";
+        let src = "entity Sensor {\n  reading: Number\n  isCritical := reading > 90\n}\nrule overheat when Sensor.isCritical becomes true {\n  show \"overheating\"\n}";
         let mut ev = build_eval(src);
         let mut fields = HashMap::new();
         fields.insert("reading".into(), Value::Number(50.0));
@@ -1343,13 +1537,11 @@ entity Battery {
     fn test_cascading_cleanup_issue_6() {
         let source = r#"
             entity Resource { status: Text }
-            rule "cleanup" {
-                when Resource.status == "deleted" becomes true
-                then delete Resource
+            rule cleanup when Resource.status == "deleted" becomes true {
+                delete Resource
             }
-            rule "log_deleted" {
-                when Resource.status == "deleted" becomes true
-                then update Resource.status to "forgotten"
+            rule log_deleted when Resource.status == "deleted" becomes true {
+                update Resource.status to "forgotten"
             }
         "#;
         let mut ev = build_eval(source);

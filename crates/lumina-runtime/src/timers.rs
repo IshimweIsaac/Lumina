@@ -206,6 +206,7 @@ mod tests {
         let rules = vec![
             RuleDecl {
                 name: "hourly".to_string(),
+                param: None,
                 trigger: RuleTrigger::Every(Duration {
                     value: 1.0,
                     unit: TimeUnit::Hours,
@@ -217,6 +218,7 @@ mod tests {
             },
             RuleDecl {
                 name: "on_change".to_string(),
+                param: None,
                 trigger: RuleTrigger::When(vec![Condition {
                     expr: Expr::Bool(true),
                     becomes: None,

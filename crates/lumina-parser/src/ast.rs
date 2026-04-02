@@ -109,6 +109,7 @@ pub enum LuminaType {
     Number,
     Boolean,
     Timestamp,
+    Duration,
     Entity(String),
     List(Box<LuminaType>),
 }
@@ -121,6 +122,7 @@ pub struct ExternalEntityDecl {
     pub fields:        Vec<Field>,
     pub sync_path:     String,
     pub sync_strategy: SyncStrategy,
+    pub sync_fields:   Vec<String>,
     pub poll_interval: Option<Duration>,
     pub span:          Span,
 }
@@ -159,11 +161,18 @@ pub struct EntityInit {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuleDecl {
     pub name:     String,
+    pub param:    Option<RuleParam>,
     pub trigger:  RuleTrigger,
     pub actions:  Vec<Action>,
     pub cooldown: Option<Duration>,
     pub on_clear: Option<Vec<Action>>,
     pub span:     Span,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuleParam {
+    pub name:   String,
+    pub entity: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +309,7 @@ pub enum Expr {
         index: Box<Expr>,
         span:  Span,
     },
+    Duration(Duration),
     Prev {
         field: String,
         span:  Span,

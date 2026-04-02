@@ -49,6 +49,28 @@ impl LuminaRuntime {
         let mut evaluator = Evaluator::new(analyzed.schema, analyzed.graph, rules);
         evaluator.now = now;
         evaluator.derived_exprs = derived;
+        
+        for stmt in &analyzed.program.statements {
+            match stmt {
+                Statement::ExternalEntity(e) => {
+                    let adapter = lumina_runtime::adapters::static_adapter::StaticAdapter::new(&e.name);
+                    evaluator.register_adapter(Box::new(adapter));
+                    for f in &e.fields {
+                        if let Field::Derived(df) = f {
+                            evaluator.derived_exprs.insert((e.name.clone(), df.name.clone()), df.expr.clone());
+                        }
+                    }
+                }
+                Statement::Fn(f) => {
+                    evaluator.functions.insert(f.name.clone(), f.clone());
+                }
+                Statement::Aggregate(a) => {
+                    evaluator.agg_store.register(a.clone());
+                }
+                _ => {}
+            }
+        }
+        evaluator.agg_store.recompute(&evaluator.store);
 
         let mut pending_alerts = Vec::new();
 

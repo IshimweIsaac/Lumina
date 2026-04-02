@@ -9,11 +9,16 @@ pub struct Schema {
 
 #[derive(Debug, Clone)]
 pub struct EntitySchema {
-    pub name:    String,
-    pub fields:  HashMap<String, FieldSchema>,
-    pub is_external: bool,
-    pub sync_on: Option<String>,
+    pub name:          String,
+    pub fields:        HashMap<String, FieldSchema>,
+    pub is_external:   bool,
+    pub sync_path:     String,
+    pub sync_strategy: SyncStrategy,
+    pub sync_on:       Option<Vec<String>>,
+    pub poll_interval: Option<Duration>,
 }
+
+pub use lumina_parser::ast::{SyncStrategy, Duration};
 
 #[derive(Debug, Clone)]
 pub struct FieldSchema {

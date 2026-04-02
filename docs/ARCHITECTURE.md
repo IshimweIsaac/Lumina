@@ -1,86 +1,74 @@
-# Lumina System Architecture (v1.5)
+# Lumina System Architecture (v1.6)
 
-The Lumina runtime engine is designed for absolute correctness and deterministic reactivity. Version 1.5 introduces advanced fleet-level triggers, historical state access, and full integration with external systems via the Adapter protocol.
+The Lumina runtime engine is designed for absolute correctness and deterministic reactivity. Version 1.6 completes the "Infrastructure Release," introducing structural entity relationships, multi-condition triggers, and a robust command-action cycle for the physical world.
 
 ## 1. Compiler Pipeline Overview
 
 Lumina programs are processed through a strictly ordered pipeline. Every stage is designed for zero-allocation performance and strong safety guarantees.
 
 ### 2.1 Lexical Analysis (`lumina-lexer`)
-Tokenization is performed via the `logos` crate. Version 1.5 adds specialized keywords for `prev()`, `when any/all`, and new aggregate operators.
+Tokenization is performed via the `logos` crate. Version 1.6 adds specialized keywords for `ref`, `and`, `write`, `Timestamp`, and `.age`.
 
 ### 2.2 Syntax Analysis (`lumina-parser`)
 The parser maps tokens into an Abstract Syntax Tree (AST):
 *   **Recursive Descent**: Handles declarative constructs (`entity`, `rule`, `fn`).
-*   **Pratt Parsing**: For expressions, managing operator precedence including the new `prev()` state accessor.
+*   **Pratt Parsing**: For expressions, managing operator precedence including specialized accessors like `.age`.
 
-### 2.3 Module Resolution (`lumina-cli::loader`)
-The `ModuleLoader` handles recursive file discovery. 
-*   **Path Resolution**: Resolves relative `import` paths into a flat source map.
-*   **Dependency Deduplication**: Prevents circular imports and ensures each module is parsed exactly once.
-*   **AST Merging**: Combines multiple files into a single `Program` context.
-
-### 2.4 Semantic Analysis (`lumina-analyzer`)
+### 2.3 Semantic Analysis (`lumina-analyzer`)
 Analysis is performed in two distinct passes:
 1.  **Declaration Registration**: Records all entities, fields, and pure functions.
-2.  **Typechecking & Graph Construction**: Validates expressions and constructs a topological `DependencyGraph`. Version 1.5 introduces complex fleet-level validation for `any/all` conditions.
+2.  **Structural Integrity & Typecheck**: Validates expressions and constructs a topological `DependencyGraph`. Version 1.6 introduces **Relationship Validation** to detect circular `ref` paths and ensures `write` actions only target external entities.
 
 ## 3. The Reactive Engine (`lumina-runtime`)
 
-### 3.1 Closed Evaluation Model
-The `Evaluator` executes state changes in deterministic topological order.
-*   **Basal Updates**: Direct mutations to stored fields trigger downstream re-evaluation.
-*   **Topological Re-evaluation**: Derived `:=` fields are recomputed exactly as needed.
-*   **History Access**: The `prev()` operator allows rules to compare current values against the previous engine tick's state.
+### 3.1 Structural Relationships (`ref`)
+Lumina v1.6 introduces the `ref` keyword, transforming the flat instance map into a directed structural graph.
+*   **Graph Traversal**: Evaluators can traverse entity relationships (e.g., `s.cooling.isFailing`) in a single pass.
+*   **Reactive Propagation**: When a referenced instance updates, all dependent entities in the structural graph are automatically marked for re-evaluation.
 
-### 3.2 Fleet Triggers
-New in v1.5, fleet triggers allow monitoring state across all instances of an entity:
-*   **Running Counters**: The `FleetState` component maintains O(1) true-counts for Boolean fields across the entire engine.
-*   **True/False Aggregation**: Logic for `any` (count > 0) and `all` (count == total) is updated atomically after every basal field write.
-*   **Edge Detection**: Transitions are detected by comparing current fleet state against the previous tick's state-cache.
+### 3.2 Multi-Condition Triggers (`and`)
+Compound truths are handled as single rising-edge events.
+*   **Logical Conjunction**: Rules with `when A and B` triggers fire only when both conditions are simultaneously true.
+*   **State Cache**: The engine maintains a transition cache for each condition, firing the rule only when the *last* required condition transitions to true.
 
-### 3.3 Historical State (`prev()`)
-Lumina provides deterministic access to the previous state of any entity:
-*   **Tick-based Snapshots**: At the start of every update cycle, the engine clones the current `EntityStore` into a `prev_store`.
-*   **Evaluation Context**: The `prev()` operator resolves identifiers against this historical snapshot, enabling rate-of-change and state-transition logic.
+### 3.3 Frequency Detection (`N times within`)
+Temporal patterns are tracked via the `FrequencyTracker`:
+*   **Sliding Windows**: The engine maintains a per-rule buffer of transition timestamps.
+*   **Threshold Evaluation**: On every rule tick, the engine counts transitions within the sliding duration window to detect "flapping" or "chronic" conditions.
 
-### 3.4 External Entities & Adapters
-Lumina v1.5 can synchronize with external data sources:
-*   **Polling Loop**: The runtime `tick()` cycle polls all registered adapters to ingest external data.
-*   **Field Filtering**: The `sync on` clause allows filtering incoming external updates to specific trigger fields, preventing unnecessary rule cascades.
-*   **Write-back**: Mutations to fields marked as external are pushed to the host system via the `LuminaAdapter` trait's `on_write` hook.
+### 3.4 Temporal Engine & Stabilization
+The v1.6 temporal engine is the most stable version yet.
+*   **`Timestamp` Type**: Native support for temporal truth with the `.age` accessor.
+*   **TimerHeap Synchronization**: A unified `TimerHeap` manages both `every` intervals and `for` duration stabilization.
+*   **Fleet Stabilization**: Fleet triggers (`any`/`all`) now support full `for duration` stabilization, ensuring noisy sensor fluctuations do not trigger premature rule cascades.
 
-### 3.5 State Snapshots & Safety
+### 3.5 Write-Back Cycle (`write`)
+Lumina v1.6 closes the loop between observation and action.
+*   **Command Dispatch**: The `write` action sends structured commands to external entity adapters.
+*   **Adapter Contract**: Adapters implement the `on_write(field, value)` hook to translate Lumina intent into physical signals (MQTT publish, API call, etc).
+
+### 3.6 State Snapshots & Safety
 Lumina implements a **Self-Healing Guarantee**. Before any destructive action:
 1.  The VM takes a complete memory **Snapshot**.
-2.  Evaluation proceeds. If a recursion limit (default: 100) is breached or an invariant is violated, the runtime **Automatically Rolls Back** to the snapshot.
+2.  Evaluation proceeds. If a recursion limit (100) or invariant is breached, the runtime **Automatically Rolls Back** to the snapshot.
 
 ---
 
-## 4. v1.5 Implementation Status
-All architectural components of the v1.5 specification are now fully operational:
+## 4. Maintenance & IDE Integration
 
-*   **`AggregateStore`**: A specialized storage layer that maintains named, top-level fleet-wide facts like `avg` and `sum` with O(1) read performance.
-*   **Structured Alerting**: Full support for `alert` actions, providing consistent metadata (severity, source, code) across FFI and WASM boundaries.
-*   **Recovery Logic (`on clear`)**: Integrated support for rule "clear" events, enabling automated lifecycle tracking from incident to resolution.
-*   **Rule Cooldown Engine**: A logic gate in the firing pipeline that enforces temporal gaps, preventing alert storms from flapping sensors.
+### 4.1 LSP v2 (`lumina-lsp`)
+The v1.6 Language Server is production-grade, providing:
+*   **Refactoring**: Global symbol renaming across multiple modules.
+*   **Navigation**: "Find All References" to trace data flow through rules and derived fields.
+*   **Quick Fixes**: Code actions for common analyzer errors (L001-L042).
 
----
+### 4.2 Platform Support
+*   **FFI**: Stable C ABI for integration with Python, Go, and C.
+*   **WASM**: Optimized WebAssembly layer for browser-side simulation.
+*   **CLI**: Event-driven output with real-time alert logging.
 
-## 5. Ecosystem & Tooling
-
-### 5.1 Language Server (`lumina-lsp`)
-New in v1.5, a dedicated LSP implementation provides:
-*   Real-time diagnostics and error squiggles via the `lumina-analyzer`.
-*   Hover tooltips for types and documentation.
-*   Multi-file import resolution and cross-document symbol search.
-
-### 5.2 Web Integration
-*   **WASM**: Tailored `wasm-bindgen` layer for browser execution.
-*   **JSON API**: Stable serialization for snapshots and state exports.
-
-## 6. Technical Stack Considerations
-*   **Rust**: Predictable performance and memory safety.
-*   **Logos**: High-performance regex-based lexing.
-*   **Pratt Parsing**: Elegant handling of complex expression precedence.
-*   **Deterministic Execution**: Ensures a given set of events always results in the same final state.
+## 5. Technical Stack Considerations
+*   **Rust**: Deterministic performance and memory safety.
+*   **Logos**: DFA-based high-performance lexing.
+*   **Pratt Parsing**: Precedence-climbing expression evaluation.
+*   **Snapshot VM**: Atomic state transitions with guaranteed rollback.

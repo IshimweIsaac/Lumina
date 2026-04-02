@@ -7,6 +7,9 @@ use lumina_parser::parse;
 use lumina_parser::ast::*;
 use lumina_analyzer::analyze;
 use lumina_runtime::engine::Evaluator;
+use lumina_runtime::adapters::static_adapter::StaticAdapter;
+#[cfg(not(target_arch = "wasm32"))]
+use lumina_runtime::adapters::{mqtt_adapter::MqttAdapter, http_adapter::HttpPollAdapter, file_adapter::FileWatchAdapter};
 use lumina_diagnostics::DiagnosticRenderer;
 
 mod loader;
@@ -48,10 +51,39 @@ fn read_file(args: &[String]) -> (String, String) {
 fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
     let mut rules = Vec::new();
     let mut derived = HashMap::new();
+    let mut adapters: Vec<Box<dyn lumina_runtime::adapter::LuminaAdapter>> = Vec::new();
+
     for stmt in &analyzed.program.statements {
         match stmt {
             Statement::Rule(r) => rules.push(r.clone()),
             Statement::Entity(e) => {
+                for f in &e.fields {
+                    if let Field::Derived(df) = f {
+                        derived.insert((e.name.clone(), df.name.clone()), df.expr.clone());
+                    }
+                }
+            }
+            Statement::ExternalEntity(e) => {
+                // Initialize adapters based on sync_path
+                if e.sync_path.starts_with("static://") {
+                    adapters.push(Box::new(StaticAdapter::new(&e.name)));
+                } 
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    if e.sync_path.starts_with("mqtt://") {
+                        if let Ok(a) = MqttAdapter::new(&e.name, &e.sync_path, "lumina-cli", "lumina/in", "lumina/out") {
+                            adapters.push(Box::new(a));
+                        }
+                    } else if e.sync_path.starts_with("http://") || e.sync_path.starts_with("https://") {
+                        adapters.push(Box::new(HttpPollAdapter::new(&e.name, e.sync_path.clone(), e.poll_interval.as_ref().map(|d| d.to_std_duration()).unwrap_or(std::time::Duration::from_secs(5)))));
+                    } else if e.sync_path.starts_with("file://") {
+                        let path_str = e.sync_path.trim_start_matches("file://");
+                        if let Ok(a) = FileWatchAdapter::new(&e.name, std::path::PathBuf::from(path_str)) {
+                            adapters.push(Box::new(a));
+                        }
+                    }
+                }
+
                 for f in &e.fields {
                     if let Field::Derived(df) = f {
                         derived.insert((e.name.clone(), df.name.clone()), df.expr.clone());
@@ -63,6 +95,7 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
     }
     let mut ev = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), rules);
     ev.derived_exprs = derived;
+    ev.adapters = adapters;
     ev
 }
 
@@ -106,9 +139,24 @@ fn cmd_run(args: &[String]) {
 
     println!("Running Lumina [Ctrl+C to stop]...");
     loop {
-        if let Err(rollback) = evaluator.tick() {
-            eprintln!("Runtime error: {}", rollback.diagnostic.message);
-            std::process::exit(1);
+        match evaluator.tick() {
+            Ok(events) => {
+                for event in events {
+                    let color = match event.severity.as_str() {
+                        "info"     => "\x1b[36m", // Cyan
+                        "warning"  => "\x1b[33m", // Yellow
+                        "critical" => "\x1b[31m", // Red
+                        "resolved" => "\x1b[32m", // Green
+                        _          => "\x1b[0m",  // Reset
+                    };
+                    println!("{}[{}] {}: {}\x1b[0m", color, event.severity.to_uppercase(), event.rule, event.message);
+                }
+            }
+            Err(rollback) => {
+                eprintln!("\x1b[31mRuntime error: {}\x1b[0m", rollback.diagnostic.message);
+                eprintln!("Suggested fix: {}", rollback.diagnostic.suggested_fix);
+                std::process::exit(1);
+            }
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }

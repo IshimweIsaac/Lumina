@@ -231,7 +231,7 @@ fn collect_from_expr(expr: &Expr, name: &str, uri: &Url, locs: &mut Vec<Location
                 }
             }
         }
-        Expr::Prev { .. } | Expr::Number(_) | Expr::Text(_) | Expr::Bool(_) => {}
+        Expr::Prev { .. } | Expr::Number(_) | Expr::Text(_) | Expr::Bool(_) | Expr::Duration(_) => {}
     }
 }
 

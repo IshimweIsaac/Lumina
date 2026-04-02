@@ -6,12 +6,22 @@ import { StatePanel } from "./StatePanel";
 import { AlertTimeline } from "./AlertTimeline";
 import { VirtualClock } from "./VirtualClock";
 import { ShareButton, loadFromURL } from "./ShareButton";
+import { EXAMPLES } from "./examples";
 import "./App.css";
 
+function getInitialSource(): string {
+    const shared = loadFromURL();
+    if (shared) return shared;
+    const params = new URLSearchParams(window.location.search);
+    const example = params.get("example");
+    if (example && example in EXAMPLES) {
+        return EXAMPLES[example as keyof typeof EXAMPLES].source;
+    }
+    return EXAMPLES.fleet.source;
+}
+
 function App() {
-    const [source, setSource] = useState(
-        loadFromURL() || `entity Sensor { temp: Number }\nlet s1 = Sensor { temp: 20 }\nrule overheat {\n  when Sensor.temp > 40\n  then alert severity: "critical", message: "Too hot"\n}`
-    );
+    const [source, setSource] = useState(getInitialSource());
     const [runtime, setRuntime] = useState<LuminaRuntime | null>(null);
     const [alerts, setAlerts] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -59,6 +69,22 @@ function App() {
             <header>
                 <h1>Lumina Playground v2</h1>
                 <div className="toolbar">
+                    <select 
+                        className="example-selector"
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val in EXAMPLES) {
+                                const newSource = EXAMPLES[val as keyof typeof EXAMPLES].source;
+                                setSource(newSource);
+                                compileAndRun(newSource);
+                            }
+                        }}
+                        defaultValue={new URLSearchParams(window.location.search).get("example") || "fleet"}
+                    >
+                        {Object.entries(EXAMPLES).map(([key, ex]) => (
+                            <option key={key} value={key}>{ex.name}</option>
+                        ))}
+                    </select>
                     <button onClick={handleRun}>Compile & Run</button>
                     <VirtualClock rt={runtime} onAlerts={handleAlertsRaw} />
                     <ShareButton source={source} />
