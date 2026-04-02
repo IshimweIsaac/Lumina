@@ -1,16 +1,16 @@
-# Phase 8.1: Firebase Website Hosting
+# Phase 0: Chapter 41 - The Official Website
 
-This phase addresses the immediate need for a free, reliable hosting platform while the official domain is being secured.
+This foundational phase establishes Lumina's online presence as the primary entry point for developers.
 
 ### Key Accomplishments:
-- **Firebase Hosting Configuration**: Created `firebase.json` for high-performance hosting with Single-Page Application (SPA) support and security headers for WASM.
-- **Automated Deployment Workflow**: Established `.github/workflows/deploy-firebase.yml` to automate builds and deployments directly from the main branch.
-- **Guideline Documentation**: Created `docs/FIREBASE_GUIDELINE.md` to assist the owner in setting up their Firebase project and connecting the deployment pipeline.
-- **Distribution Asset Hosting**: Copied the one-line installer (`install.sh`) to the website's public directory to ensure it is hosted alongside the language documentation.
+- **Clean Architecture**: Rebuilt the website using plain HTML/CSS/JS with Vite, adhering to the "no framework" requirement for maximum performance and stability (Ch 41.1).
+- **Landing Page Implementation**: Created the official `index.html` with the "Describe what is true" hero section and a dedicated side-by-side area for the embedded playground (Ch 41.3).
+- **Responsive Theme**: Developed `src/css/main.css` with a modern, dark-themed design focused on high-readability typography and consistent branding.
+- **WASM Deployment Pipeline**: Implemented `website/deploy.sh` to automate the movement of compiled Rust/WASM binaries into the website's asset folder (Ch 41.2).
 
 ### Verification:
-- Firebase configuration syntax validated locally.
-- Deployment workflow configured for automatic environment updates.
-- Installer script parity maintained with root `public/` folder.
+- Website structure aligns exactly with the Chapter 41 specification.
+- Local build pipeline (`npm run build`) validated.
+- Embedded playground redirection points to the Firebase-hosted live instance.
 
-This setup ensures Lumina is accessible immediately at a `*.web.app` subdomain for developers and community testing.
+This phase corrects the rollout sequence, providing a stable platform for the subsequent distribution phases (Installer, Homebrew, and Registry).

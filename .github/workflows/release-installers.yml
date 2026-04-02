@@ -1,0 +1,58 @@
+name: Release Installers
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  installers:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            setup_name: lumina-setup-linux-amd64.deb
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            setup_name: lumina-setup-macos.pkg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            setup_name: LuminaSetup.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+        
+      - name: Build Lumina Cargo Workspace
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p lumina-cli
+          cargo build --release --target ${{ matrix.target }} -p lumina-lsp
+
+      - name: Generate Linux Installer (.deb)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd installers/linux
+          chmod +x build_deb.sh
+          ./build_deb.sh ${{ github.ref_name }} ${{ matrix.target }}/release
+
+      - name: Generate macOS Installer (.pkg)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd installers/macos
+          chmod +x build_pkg.sh
+          ./build_pkg.sh ${{ github.ref_name }} ${{ matrix.target }}/release
+
+      - name: Generate Windows Installer (.exe)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd installers\windows
+          makensis lumina.nsi
+          move LuminaSetup.exe ..\..\LuminaSetup.exe
+
+      - name: Upload Installers to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ matrix.setup_name }}

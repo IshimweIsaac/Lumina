@@ -86,30 +86,97 @@ document.addEventListener('mousemove', (e) => {
   });
 });
 
+// ─── OS Detection & Download Links ───
+const heroDownloadBtn = document.getElementById('hero-download-btn');
+const installDownloadBtn = document.getElementById('install-download-btn');
+const RELEASES_URL = 'https://github.com/IshimweIsaac/Lumina/releases/latest/download';
+const FALLBACK_URL = 'https://github.com/IshimweIsaac/Lumina/releases';
+
+function detectOS() {
+  const ua = window.navigator.userAgent.toLowerCase();
+  
+  if (ua.includes('win')) return 'Windows';
+  if (ua.includes('mac')) return 'macOS';
+  if (ua.includes('linux')) return 'Linux';
+  return 'Unknown';
+}
+
+function getDownloadLink(os) {
+  // Pointing to the newly created GUI installers
+  switch (os) {
+    case 'Windows': return `${RELEASES_URL}/LuminaSetup.exe`;
+    case 'macOS': return `${RELEASES_URL}/lumina-setup-macos.pkg`;
+    case 'Linux': return `${RELEASES_URL}/lumina-setup-linux-amd64.deb`;
+    default: return FALLBACK_URL;
+  }
+}
+
+const os = detectOS();
+const downloadUrl = getDownloadLink(os);
+
+if (heroDownloadBtn && os !== 'Unknown') {
+  heroDownloadBtn.innerHTML = heroDownloadBtn.innerHTML.replace('Download Lumina', `Download for ${os}`);
+  heroDownloadBtn.href = downloadUrl;
+}
+
+if (installDownloadBtn && os !== 'Unknown') {
+  installDownloadBtn.innerHTML = `Download for ${os}`;
+  installDownloadBtn.href = downloadUrl;
+}
+
 // ─── Documentation Logic ───
 
 // Basic Syntax Highlighter for Lumina
 function highlightLumina(code) {
-  // Simple regex replacements for basic highlighting
-  let highlighted = code
-    .replace(/</g, "&lt;").replace(/>/g, "&gt;") // escape HTML first
-    // Strings
-    .replace(/("(?:\\"|[^"])*")/g, '<span class="str">$1</span>')
-    // Comments
-    .replace(/(--.*$)/gm, '<span class="comment">$1</span>')
-    // Keywords
-    .replace(/\b(entity|external|sync on|rule|when|becomes|then|update|to|show|alert|severity|source|message|code|payload|on clear|every|for|let|fn|import|aggregate|over|cooldown|if|then|else|not|and|or)\b/g, '<span class="kw">$1</span>')
-    // Types
-    .replace(/\b(Number|Text|Boolean)\b/g, '<span class="type">$1</span>')
-    // Built-ins (min, max, etc)
-    .replace(/\b(len|min|max|sum|append|head|tail|at|count|avg|any|all|prev)\b(?=\()/g, '<span class="builtin">$1</span>')
-    // Operators
-    .replace(/(:=|->|@doc|@range|@affects|==|!=|<=|>=|<|>)/g, '<span class="op">$1</span>')
-    // Numbers
-    .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="num">$1</span>')
-    // Booleans
-    .replace(/\b(true|false)\b/g, '<span class="bool">$1</span>');
-  return highlighted;
+  const tokens = [];
+  let ti = 0;
+
+  // Escape HTML entities first
+  let h = code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Protect strings from further regex matches
+  h = h.replace(/"((?:\\.|[^"])*)"/g, (m) => {
+    const ph = `\x00S${ti}\x00`;
+    tokens.push({ ph, html: `<span class="str">${m}</span>` });
+    ti++;
+    return ph;
+  });
+
+  // Protect comments
+  h = h.replace(/(--.*$)/gm, (m) => {
+    const ph = `\x00C${ti}\x00`;
+    tokens.push({ ph, html: `<span class="comment">${m}</span>` });
+    ti++;
+    return ph;
+  });
+
+  // Keywords
+  h = h.replace(/\b(entity|external|sync on|rule|when|becomes|then|update|to|show|alert|severity|source|message|code|payload|on clear|every|for|let|fn|import|aggregate|over|cooldown|if|else|not|and|or)\b/g, '<span class="kw">$1</span>');
+
+  // Types
+  h = h.replace(/\b(Number|Text|Boolean)\b/g, '<span class="type">$1</span>');
+
+  // Built-ins
+  h = h.replace(/\b(len|min|max|sum|append|head|tail|at|count|avg|any|all|prev)\b(?=\()/g, '<span class="builtin">$1</span>');
+
+  // Operators — use HTML-escaped forms for < and >
+  h = h.replace(/(:=|&lt;=|&gt;=|&lt;|&gt;|-&gt;|@doc|@range|@affects|==|!=)/g, '<span class="op">$1</span>');
+
+  // Numbers
+  h = h.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="num">$1</span>');
+
+  // Booleans
+  h = h.replace(/\b(true|false)\b/g, '<span class="bool">$1</span>');
+
+  // Restore protected tokens
+  tokens.forEach(({ ph, html }) => {
+    h = h.split(ph).join(html);
+  });
+
+  return h;
 }
 
 // Auto-highlight static Lumina code blocks in the HTML
