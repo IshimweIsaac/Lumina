@@ -46,21 +46,83 @@ navBurger?.addEventListener('click', () => {
 });
 
 // Smooth Scroll for anchor links
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+// Professional Smooth Scroll & Clean URL Routing
+// Hide ugly `#hash` from the URL to make it feel like a professional SPA
+function scrollToHashTarget(hash) {
+  const target = document.querySelector(hash);
+  if(target) {
+    window.scrollTo({
+      top: target.offsetTop - 80,
+      behavior: 'smooth'
+    });
+    // Scrub the hash from the URL
+    window.history.replaceState(null, null, window.location.pathname);
+  }
+}
+
+// Intercept clicks
+document.querySelectorAll('a').forEach(anchor => {
   anchor.addEventListener('click', function(e) {
+    const href = this.getAttribute('href');
+    if (!href) return;
+    
+    const hashMatches = href.match(/(#.*)$/);
+    if (!hashMatches) return;
+    
+    const hash = hashMatches[1];
+    
+    // Cross-page logic
+    const isRoot = window.location.pathname === '/' || window.location.pathname === '/index.html';
+    if (href.startsWith('/#') && !isRoot) {
+      return; // Let browser do full navigation back to index
+    }
+    if (href.startsWith('/docs.html#') && window.location.pathname !== '/docs.html') {
+      return; // Let browser do full navigation to docs
+    }
+
+    // Since we are on the correct page, intercept the jump
     e.preventDefault();
     if(navLinks?.classList.contains('active')) {
       navLinks.classList.remove('active');
       navBurger.classList.remove('active');
     }
-    const target = document.querySelector(this.getAttribute('href'));
-    if(target) {
-      window.scrollTo({
-        top: target.offsetTop - 80,
-        behavior: 'smooth'
-      });
-    }
+    scrollToHashTarget(hash);
   });
+});
+
+// ─── OS Detection & Download Highlighting ───
+function detectOS() {
+  const platform = window.navigator.platform.toLowerCase();
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  let os = 'linux'; // Default
+
+  if (platform.includes('win') || userAgent.includes('windows')) {
+    os = 'windows';
+  } else if (platform.includes('mac') || userAgent.includes('apple') || userAgent.includes('darwin')) {
+    os = 'macos';
+  }
+
+  const btn = document.getElementById(`download-${os}`);
+  if (btn) {
+    btn.classList.remove('btn--outline');
+    btn.classList.add('btn--primary');
+    
+    // Add a "Recommended for your OS" label
+    const label = document.createElement('span');
+    label.innerText = ' (Recommended)';
+    label.style.fontSize = '0.8rem';
+    label.style.opacity = '0.8';
+    label.style.marginLeft = '0.5rem';
+    btn.appendChild(label);
+  }
+}
+
+// Run on page load if a user navigated to a hash directly (e.g. from docs to /#features)
+window.addEventListener('DOMContentLoaded', () => {
+  detectOS();
+  if (window.location.hash) {
+    setTimeout(() => scrollToHashTarget(window.location.hash), 100);
+  }
 });
 
 // ─── Copy to Clipboard ───
@@ -102,12 +164,12 @@ function detectOS() {
 }
 
 function getDownloadLink(os) {
-  // Pointing to the newly created GUI installers
+  // Pointing to local static assets in Firebase Hosting (website/public)
   switch (os) {
-    case 'Windows': return `${RELEASES_URL}/LuminaSetup.exe`;
-    case 'macOS': return `${RELEASES_URL}/lumina-setup-macos.pkg`;
-    case 'Linux': return `${RELEASES_URL}/lumina-setup-linux-amd64.deb`;
-    default: return FALLBACK_URL;
+    case 'Windows': return `/LuminaSetup.exe`;
+    case 'macOS': return `/lumina-setup-macos.pkg`;
+    case 'Linux': return `/lumina-setup-linux-amd64.deb`;
+    default: return `/install.sh`; // Fallback
   }
 }
 

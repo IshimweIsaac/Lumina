@@ -50,6 +50,38 @@
             "\t${5:expr}",
             "}"
         ],
-        "description": "Pure function declaration (v1.4)"
+        "description": "Pure function declaration for encapsulated logic"
+    },
+    "External Entity": {
+        "prefix": "external",
+        "body": [
+            "external entity ${1:Name} {",
+            "\tsync: \"${2:topic/or/path}\"",
+            "\ton: ${3|realtime,poll|}",
+            "\t${4:field}: ${5:Number}",
+            "}"
+        ],
+        "description": "Declare an entity synced with an external source (MQTT/HTTP/File)"
+    },
+    "Rule for each": {
+        "prefix": "rfor",
+        "body": [
+            "rule \"${1:Description}\"",
+            "for (${2:s}: ${3:Entity})",
+            "when ${2:s}.${4:field} > ${5:40} {",
+            "\t${6:show \"Alert!\"}",
+            "}"
+        ],
+        "description": "Rule that iterates over all instances of an entity"
+    },
+    "Aggregate": {
+        "prefix": "aggregate",
+        "body": [
+            "aggregate ${1:Stats} over ${2:Entity} {",
+            "\t${3:avg_val} := avg(${4:field})",
+            "\t${5:max_val} := max(${4:field})",
+            "}"
+        ],
+        "description": "Declare an aggregate to compute fleet-level statistics"
     }
 }

@@ -24,4 +24,4 @@ node_modules/
 dist/
 .npm
 package-lock.json (if not tracked)
-
+.env

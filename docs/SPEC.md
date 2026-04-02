@@ -1,6 +1,6 @@
-# Extended Backus-Naur Form (EBNF) Specification (v1.6)
+# Extended Backus-Naur Form (EBNF) Specification (v1.7.0)
 
-This document contains the formal grammar and error registry for Lumina v1.6.
+This document contains the formal grammar and error registry for Lumina v1.7.0.
 
 ## 1. Global Program Structure
 ```ebnf
@@ -160,6 +160,7 @@ cmp_op ::= '==' | '!=' | '>' | '<' | '>=' | '<='
 ---
 
 ## 10. Version History
+*   **v1.7.0**: Professional Distribution (Homebrew, DEB, NSIS), "Teaching" diagnostics with mentoring hints, Zero-Config `lumina setup` CLI, High-fidelity website and VS Code extension.
 *   **v1.6**: Multi-condition triggers (`and`), Entity Relationships (`ref`), Frequency triggers (`N times within`), `write` actions, `Timestamp` type and `.age`.
 *   **v1.5**: LSP, External Entities, `prev()`, Aggregates, `on clear`, Cooldowns, Playground v2.
 *   **v1.4**: Functions, Modules, String Interpolation, Lists, Go FFI, REPL v2, Diagnostics.

@@ -1,18 +1,53 @@
 {
-    "name": "lumina-language",
-    "displayName": "Lumina",
+    "name": "lumina-lang",
+    "displayName": "Lumina Language Support",
     "description": "Lumina (.lum) language support - syntax highlighting, snippets, and LSP",
-    "version": "0.2.0",
-    "publisher": "isaac-ishimwe",
+    "version": "1.7.0",
+    "publisher": "luminalang",
     "icon": "icon.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/IshimweIsaac/Lumina.git"
+    },
     "engines": {
         "vscode": "^1.75.0"
     },
     "categories": [
-        "Programming Languages"
+        "Programming Languages",
+        "Snippets",
+        "Linters"
     ],
-    "main": "./out/extension.js",
+    "keywords": [
+        "lumina",
+        "iot",
+        "monitoring",
+        "language",
+        "lsp"
+    ],
+    "license": "MIT",
+    "main": "./dist/extension.js",
     "contributes": {
+        "configuration": {
+            "type": "object",
+            "title": "Lumina",
+            "properties": {
+                "lumina.serverPath": {
+                    "type": "string",
+                    "default": "lumina-lsp",
+                    "description": "The absolute path to the lumina-lsp executable."
+                },
+                "lumina.trace.server": {
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "default": "off",
+                    "description": "Trace level for the Lumina Language Server."
+                }
+            }
+        },
         "languages": [
             {
                 "id": "lumina",
@@ -49,10 +84,12 @@
     },
     "devDependencies": {
         "@types/vscode": "^1.75.0",
-        "typescript": "^5.0.0"
+        "typescript": "^5.0.0",
+        "esbuild": "^0.17.0"
     },
     "scripts": {
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./"
+        "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+        "watch": "npm run compile -- --watch",
+        "vscode:prepublish": "npm run compile -- --minify"
     }
 }

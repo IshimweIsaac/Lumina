@@ -1,0 +1,21 @@
+{
+  "name": "@lumina-lang/core",
+  "version": "1.7.0",
+  "description": "Lumina Programming Language - NPM Distribution",
+  "bin": {
+    "lumina": "./bin/lumina"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install-binary.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IshimweIsaac/Lumina"
+  },
+  "keywords": ["lumina", "programming", "language", "iot"],
+  "author": "Isaac Ishimwe",
+  "license": "MIT",
+  "dependencies": {
+    "follow-redirects": "^1.15.5"
+  }
+}

@@ -31,17 +31,15 @@ pub fn analyze(program: Program, source: &str, filename: &str, allow_imports: bo
 
 fn help_for_code(code: &str) -> Option<String> {
     match code {
-        "L001" => Some("rename one of the entity declarations".into()),
-        "L002" => Some("check spelling or add the entity declaration".into()),
-        "L003" => Some("break the cycle by making one field stored (field: Type)".into()),
-        "L004" => Some("verify the field type and the literal type match".into()),
-        "L005" => Some("check field spelling or add the field to the entity".into()),
-        "L006" => Some("@range only applies to Number fields; ensure min < max".into()),
-        "L007" => Some("check entity name in the when clause".into()),
-        "L008" => Some("add a let binding for the instance before using it".into()),
-        "L009" => Some("instance names must be globally unique".into()),
-        "L010" => Some("@affects only applies to stored fields".into()),
-        "R004" => Some("check the list is non-empty and the index is within range".into()),
+        "L001" => Some("try choosing a unique name for this entity to resolve the naming conflict".into()),
+        "L002" => Some("check spelling or ensure the entity is declared before it's used in this rule".into()),
+        "L003" => Some("you can only manually 'update' stored fields, not derived ones (:=)".into()),
+        "L004" => Some("avoid circular dependencies by making one of the fields in the chain a stored field (field: Type)".into()),
+        "L005" => Some("ensure entity names are unique across your entire program".into()),
+        "L006" => Some("ensure all field names within the same entity are unique".into()),
+        "L010" => Some("double-check the field name spelling in your entity definition".into()),
+        "L041" => Some("try shifting the time-dependent logic into a rule action instead of a := field".into()),
+        "R004" => Some("verify your index value is within the bounds of the list".into()),
         _ => None,
     }
 }

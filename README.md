@@ -14,11 +14,17 @@ Modern software architecture frequently struggles with the synchronization of di
 
 Lumina has evolved from a simple reactive engine into a production-grade infrastructure monitoring language.
 
-#### **v1.6: The Infrastructure Release (Latest)**
-*   **Entity Relationships (`ref`)**: Structural truth declaration—one entity can reference another (e.g., `Server` refs `CoolingUnit`).
-*   **Structural Traversal**: Traverse relationships in rules and derived fields (e.g., `s.cooling.isFailing`).
-*   **Multi-Condition Triggers (`and`)**: Fire rules only when compound truths are met simultaneously.
-*   **Write Capabilities (`write`)**: Send commands back to the physical world through external adapters.
+#### **v1.7: The Experience Release (Latest Stable)**
+*   **Zero-Configuration Installer**: Native `.deb`, `.exe`, and Homebrew support with automated `lumina setup`.
+*   **"Teaching" Diagnostics**: Rewritten compiler errors that provide mentoring and actionable hints.
+*   **Professional Branding**: Dedicated documentation site and high-fidelity VS Code extension.
+*   **Performance Optimization**: WASM runtime and CLI binaries optimized for scale and speed.
+
+#### **v1.6: The Infrastructure Release**
+*   **Entity Relationships (`ref`)**: Structural truth declaration—one entity can reference another.
+*   **Structural Traversal**: Traverse relationships in rules and derived fields.
+*   **Multi-Condition Triggers (`and`)**: Fire rules only when compound truths are met.
+*   **Write Capabilities (`write`)**: Send commands back to the physical world.
 *   **Frequency Conditions**: Detect flapping with `N times within <duration>` triggers.
 *   **Temporal Truth**: Native `Timestamp` type with `.age` accessor and `now()` function.
 *   **LSP v2**: Production-grade IDE support with rename, references, and code actions.
@@ -46,8 +52,8 @@ Lumina has evolved from a simple reactive engine into a production-grade infrast
 
 ## 2. Documentation
 
-*   **[Lumina Complete Guide (v1.6)](./docs/Lumina_Complete_Guide.md)**: The technical bible of the Lumina language.
-*   **[Language Specification](./docs/SPEC.md)**: EBNF grammar and v1.6 syntax reference.
+*   **[Lumina Complete Guide (v1.7)](./docs/Lumina_Complete_Guide.md)**: The technical bible of the Lumina language.
+*   **[Language Specification](./docs/SPEC.md)**: EBNF grammar and v1.7 syntax reference.
 *   **[Architecture Overview](./docs/ARCHITECTURE.md)**: Deep dive into the reactive engine, adapters, and the write-back cycle.
 
 ---
@@ -64,7 +70,7 @@ The Lumina compiler and runtime pipeline is implemented in Rust. Every program f
 
 ---
 
-## 4. Language Specification (v1.6 Example)
+## 4. Language Specification (v1.7 Example)
 
 ```lua
 -- Infrastructure modeling with v1.6 features
@@ -116,7 +122,7 @@ cargo build --release -p lumina-ffi
 ---
 
 ## 6. Development & Testing
-Run the full regression suite to verify v1.6 compliance:
+Run the full regression suite to verify v1.7 compliance:
 ```bash
 cargo test --workspace
 ```

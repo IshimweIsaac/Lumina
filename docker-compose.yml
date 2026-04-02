@@ -1,0 +1,20 @@
+# Lumina IoT Dev Environment
+version: '3.8'
+
+services:
+  # Lumina CLI for rules
+  lumina:
+    build: .
+    volumes:
+      - ./examples:/usr/src/lumina/examples:ro
+    command: ["run", "/usr/src/lumina/examples/iot_monitor.lum", "--server", "mqtt://broker:1883"]
+    depends_on:
+      - broker
+
+  # MQTT Broker for testing
+  broker:
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro

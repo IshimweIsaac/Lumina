@@ -584,14 +584,14 @@ impl Analyzer {
                         } else {
                             Err(AnalyzerError {
                                 code: "L042",
-                                message: format!("Timestamp only supports '.age' accessor, not '.{}'", field),
+                                message: format!("Timestamps only support the '.age' accessor (which returns a Duration). I don't recognize the field '.{}'.", field),
                                 span: *span,
                             })
                         }
                     }
                     _ => Err(AnalyzerError {
                         code: "L002",
-                        message: "Field access only allowed on entities or Timestamps".to_string(),
+                        message: format!("I can only look up fields on Entities or Timestamps. You're trying to look up '.{}' on a {:?}.", field, obj_ty),
                         span: *span,
                     }),
                 }
@@ -606,7 +606,7 @@ impl Analyzer {
                         } else {
                             Err(AnalyzerError {
                                 code: "L002",
-                                message: "Arithmetic operations require Numbers".to_string(),
+                                message: format!("I can only perform math ('{}') on two Numbers. You've provided a {:?} and a {:?}.", op, l_ty, r_ty),
                                 span: *span,
                             })
                         }
@@ -617,7 +617,7 @@ impl Analyzer {
                         } else {
                             Err(AnalyzerError {
                                 code: "L002",
-                                message: "Comparison requires same types".to_string(),
+                                message: format!("I can't compare a {:?} with a {:?}. Both sides must be the same type to check for equality or order.", l_ty, r_ty),
                                 span: *span,
                             })
                         }
@@ -694,7 +694,7 @@ impl Analyzer {
                         if self.in_derived_context {
                             return Err(AnalyzerError {
                                 code: "L041",
-                                message: "now() cannot be used in derived field expressions".to_string(),
+                                message: "You can't use 'now()' inside a derived field (:=). Derived fields are calculated automatically and must be 'pure' (they shouldn't change depending on when they are read).".to_string(),
                                 span: *span,
                             });
                         }
@@ -859,7 +859,7 @@ impl Analyzer {
                 if field_schema.is_derived {
                     return Err(AnalyzerError {
                         code: "L024",
-                        message: "prev() cannot be used on derived fields".to_string(),
+                        message: format!("I can't use 'prev()' on '{}' because it's a derived field. 'prev()' only works on stored data that has a history.", field),
                         span: *span,
                     });
                 }
@@ -954,7 +954,7 @@ impl Analyzer {
                 if field_schema.is_derived {
                     return Err(vec![AnalyzerError {
                         code: "L003",
-                        message: "Cannot update a derived field".to_string(),
+                        message: format!("I can't manually update '{}' because it's a derived field (it uses :=). Its value is automatically maintained by the engine.", target.field),
                         span: target.span,
                     }]);
                 }

@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+# Run lumina setup to detect VS Code and install the extension
+# Since postinst runs as root, checking for code might fail if not in user PATH.
+# However, many users install code globally in /usr/bin/code.
+
+echo "Lumina Post-Installation Setup..."
+
+if command -v lumina >/dev/null 2>&1; then
+    # Attempt to run setup. Ignore errors as VS Code might not be present.
+    lumina setup || true
+else
+    echo "Lumina binary not found in PATH yet. Skipping automated IDE setup."
+fi
+
+exit 0

@@ -84,7 +84,7 @@ impl Parser {
     fn expect(&mut self, token: &Token) -> Result<Span, ParseError> {
         if self.is_at_end() {
             return Err(ParseError::new(
-                format!("expected {:?}, got end of input", token),
+                format!("I was looking for {}, but I reached the end of the file instead.", token.to_human_string()),
                 self.current_span(),
             ));
         }
@@ -94,7 +94,7 @@ impl Parser {
             Ok(span)
         } else {
             Err(ParseError::new(
-                format!("expected {:?}, got {:?}", token, self.current()),
+                format!("I expected to see {}, but I found {} here instead.", token.to_human_string(), self.current().to_human_string()),
                 self.current_span(),
             ))
         }
@@ -143,7 +143,7 @@ impl Parser {
             Token::Import     => self.parse_import(),
             Token::Aggregate  => self.parse_aggregate(),
             _ => Err(ParseError::new(
-                format!("unexpected token: {:?}", self.current()),
+                format!("I didn't expect to see {} at the start of a statement. Did you mean to use 'let', 'entity', or 'rule'?", self.current().to_human_string()),
                 self.current_span(),
             )),
         }

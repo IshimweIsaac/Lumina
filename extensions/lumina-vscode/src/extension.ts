@@ -9,10 +9,16 @@ import {
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
+    const config = workspace.getConfiguration("lumina");
+    const serverPath = config.get<string>("serverPath") || "lumina-lsp";
+
     const serverOptions: ServerOptions = {
-        command: "lumina-lsp",
+        command: serverPath,
         args: [],
         transport: TransportKind.stdio,
+        options: {
+            shell: true,
+        },
     };
 
     const clientOptions: LanguageClientOptions = {
@@ -20,6 +26,7 @@ export function activate(context: ExtensionContext) {
         synchronize: {
             fileEvents: workspace.createFileSystemWatcher("**/*.lum"),
         },
+        initializationOptions: {},
     };
 
     client = new LanguageClient(
@@ -29,7 +36,9 @@ export function activate(context: ExtensionContext) {
         clientOptions
     );
 
-    client.start();
+    client.start().catch((err) => {
+        console.error("Failed to start Lumina LSP:", err);
+    });
 }
 
 export function deactivate(): Thenable<void> | undefined {

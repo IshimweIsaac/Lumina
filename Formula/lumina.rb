@@ -5,10 +5,10 @@ class Lumina < Formula
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/IshimweIsaac/Lumina/releases/download/v1.7.0/lumina-macos-arm64.tar.gz"
-      sha256 "PLACEHOLDER_ARM64" # To be updated during Phase 3 verification or manual release
+      url "https://lumina-lang.web.app/lumina-macos-arm64.tar.gz"
+      sha256 "PLACEHOLDER_ARM64"
     else
-      url "https://github.com/IshimweIsaac/Lumina/releases/download/v1.7.0/lumina-macos-x64.tar.gz"
+      url "https://lumina-lang.web.app/lumina-macos-x64.tar.gz"
       sha256 "PLACEHOLDER_X64"
     end
   end
@@ -22,6 +22,15 @@ class Lumina < Formula
     
     bin.install bin_name => "lumina"
     bin.install "#{bin_name}-lsp" => "lumina-lsp"
+  end
+
+  def caveats
+    <<~EOS
+      Lumina 1.7 requires an initial setup to configure your IDE (VS Code/VSCodium).
+      Please run the following command after installation:
+
+        lumina setup
+    EOS
   end
 
   test do

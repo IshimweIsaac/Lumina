@@ -245,6 +245,49 @@ code { font-family: var(--ff-mono); font-size: 0.88em; }
   transform: translateY(-2px);
 }
 
+/* ── OS Download Grid ── */
+.download-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-8);
+}
+
+.os-download {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--sp-4);
+  text-align: left;
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--radius-md);
+  transition: all var(--duration) var(--ease-out);
+}
+
+.os-download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+.os-download svg {
+  flex-shrink: 0;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+.os-download span {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.os-download.btn--primary svg {
+  color: white;
+}
+
+.os-download.btn--outline svg {
+  color: var(--accent);
+}
+
 /* ═══════════════════════════════════════════════════
    NAVIGATION
    ═══════════════════════════════════════════════════ */

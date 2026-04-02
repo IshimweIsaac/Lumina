@@ -37,6 +37,10 @@ Section "Install"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayIcon" "$INSTDIR\lumina.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "Publisher" "${COMPANYNAME}"
+
+  ; Run setup immediately to detect VS Code
+  DetailPrint "Configuring Lumina environment..."
+  ExecWait '"$INSTDIR\lumina.exe" setup'
 SectionEnd
 
 Section "Uninstall"

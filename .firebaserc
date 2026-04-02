@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "lumina-lang"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

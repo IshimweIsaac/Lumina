@@ -23,11 +23,14 @@ Description: Lumina Programming Language
  Declarative reactive language for IoT and infrastructure monitoring.
 EOF
 
-# 3. Copy binaries
-cp "../../$TARGET/lumina" "$DEB_DIR/usr/local/bin/"
-cp "../../$TARGET/lumina-lsp" "$DEB_DIR/usr/local/bin/"
+# 3. Copy binaries and setup scripts
+cp "../../$TARGET/lumina-cli" "$DEB_DIR/usr/local/bin/lumina"
+cp "../../$TARGET/lumina-lsp" "$DEB_DIR/usr/local/bin/lumina-lsp"
+cp "postinst" "$DEB_DIR/DEBIAN/postinst"
+
 chmod 755 "$DEB_DIR/usr/local/bin/lumina"
 chmod 755 "$DEB_DIR/usr/local/bin/lumina-lsp"
+chmod 755 "$DEB_DIR/DEBIAN/postinst"
 
 # 4. Build package
 dpkg-deb --build "$DEB_DIR"

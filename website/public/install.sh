@@ -6,7 +6,7 @@ set -e
 
 LUMINA_HOME="${LUMINA_HOME:-$HOME/.lumina}"
 BIN_DIR="$LUMINA_HOME/bin"
-RELEASES="https://github.com/IshimweIsaac/Lumina/releases/latest/download"
+RELEASES="https://lumina-lang.web.app"
 
 # ── Detect platform ─────────────────────────────────────
 detect_platform() {
@@ -104,9 +104,15 @@ if [ -x "$BIN_DIR/lumina" ]; then
     echo ""
     echo "Lumina $VERSION installed successfully."
     echo ""
+    
+    # ── Zero-Config Hook ────────────────────────────────────
+    echo "Running automated environment setup..."
+    "$BIN_DIR/lumina" setup || true
+    echo ""
+
     echo " Run: lumina run your-program.lum"
     echo " Check: lumina check your-program.lum"
-    echo " Docs: https://lumina-lang.dev/docs"
+    echo " Docs: https://lumina-lang.web.app/docs"
     echo ""
     echo "Restart your terminal or run: source ~/.zshrc"
 else

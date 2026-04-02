@@ -23,16 +23,50 @@ fn main() {
         Some("run")   => cmd_run(&args),
         Some("check") => cmd_check(&args),
         Some("repl")  => cmd_repl(),
+        Some("setup") => cmd_setup(),
         _ => {
-            eprintln!("Lumina v1.5 — Declarative Reactive Language");
+            eprintln!("Lumina v1.7.0 — Declarative Reactive Language");
             eprintln!();
             eprintln!("Usage:");
             eprintln!("  lumina run <file.lum>     Run a Lumina program");
             eprintln!("  lumina check <file.lum>   Type-check without running");
             eprintln!("  lumina repl               Start interactive REPL");
+            eprintln!("  lumina setup              Automated IDE & environment setup");
             std::process::exit(1);
         }
     }
+}
+
+fn cmd_setup() {
+    println!("Lumina v1.7 — Automated Environment Setup");
+    println!("─────────────────────────────────────────");
+
+    // 1. Detect VS Code
+    println!("Checking for VS Code / VSCodium...");
+    let id = "luminalang.lumina-lang";
+    let mut installed = false;
+
+    for cmd in &["code", "codium", "cursor"] {
+        let status = std::process::Command::new(cmd)
+            .arg("--install-extension")
+            .arg(id)
+            .arg("--force")
+            .status();
+
+        if let Ok(s) = status {
+            if s.success() {
+                println!("✓ Successfully installed Lumina extension for {cmd}!");
+                installed = true;
+            }
+        }
+    }
+
+    if !installed {
+        println!("! No supported IDE (VS Code, VSCodium, Cursor) detected in PATH.");
+        println!("  You can manually install the extension from: https://marketplace.visualstudio.com/items?itemName={id}");
+    }
+
+    println!("\nSetup complete. Happy coding!");
 }
 
 fn read_file(args: &[String]) -> (String, String) {
@@ -192,7 +226,7 @@ fn cmd_repl() {
     use crate::commands::run_command;
     use std::io::{self, BufRead, Write};
 
-    println!("Lumina v1.5 REPL — type Lumina expressions and statements");
+    println!("Lumina v1.7.0 REPL — type Lumina expressions and statements");
     println!("Type ':help' to see inspector commands\n");
 
     let mut session = ReplSession::new();
