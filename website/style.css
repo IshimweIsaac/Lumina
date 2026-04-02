@@ -210,6 +210,7 @@ code { font-family: var(--ff-mono); font-size: 0.88em; }
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
+  padding: var(--sp-2) var(--sp-5);
   transition: all var(--duration) var(--ease-out);
   white-space: nowrap;
   text-decoration: none;

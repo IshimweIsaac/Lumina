@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lumina — The Reactive Language for State-Driven Systems</title>
+  <title>Lumina | The Reactive Language for State-Driven Systems</title>
   <meta name="description"
     content="Lumina is a statically typed, declarative, and reactive programming language engineered in Rust for modeling complex state-driven systems. Full documentation, examples, and guides." />
   <link rel="icon" type="image/png" href="/favicon.png" />
@@ -54,17 +54,17 @@
     </div>
     <div class="hero__container">
       <div class="hero__content reveal">
-        <div class="hero__badge"><span class="hero__badge-dot"></span>Open Source · Built in Rust · v1.5</div>
+        <div class="hero__badge"><span class="hero__badge-dot"></span>Open Source · Built in Rust · v1.7.0</div>
         <h1 class="hero__title">Declare your logic.<br /><span class="gradient-text">Let Lumina react.</span></h1>
         <p class="hero__subtitle">A statically typed, declarative, and reactive programming language for modeling
           complex state-driven systems. Define relationships, write rules the runtime handles the rest.</p>
         <div class="hero__actions">
-          <a href="#install" class="btn btn--primary btn--lg"><svg width="18" height="18" viewBox="0 0 24 24"
+          <a href="https://github.com/IshimweIsaac/Lumina/releases" id="hero-download-btn" class="btn btn--primary btn--lg"><svg width="18" height="18" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>Install Lumina</a>
+            </svg>Download Lumina</a>
           <a href="/docs.html" class="btn btn--outline btn--lg"><svg width="18" height="18" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2">
               <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
@@ -75,17 +75,18 @@
       <div class="hero__code reveal reveal--delay-1">
         <div class="code-window">
           <div class="code-window__header">
-            <div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div><span class="code-window__filename">fleet.lum</span>
+            <div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div><span
+              class="code-window__filename">fleet.lum</span>
           </div>
           <pre class="code-window__body"><code class="language-lumina">entity Moto {
   battery: Number
   status:  Text
-
+ 
   -- Derived fields compute automatically
-  isCritical  := battery < 5
+  isCritical  := battery &lt; 5
   isAvailable := not isBusy and battery > 15
 }
-
+ 
 rule "Critical Battery" {
   when Moto.isCritical becomes true
   then update Moto.status to "maintenance"
@@ -103,7 +104,7 @@ rule "Critical Battery" {
         <span class="section__label">Core Principles</span>
         <h2 class="section__title">Built for correctness.<br /><span class="gradient-text">Designed for clarity.</span>
         </h2>
-        <p class="section__desc">Lumina inverts the control paradigm. Declare relationships, define constraints — the
+        <p class="section__desc">Lumina inverts the control paradigm. Declare relationships, define constraints the
           runtime resolves everything deterministically.</p>
       </div>
       <div class="features__grid">
@@ -285,14 +286,16 @@ rule "Critical Battery" {
       <div class="install__grid reveal">
         <div class="install__card">
           <div class="install__step">1</div>
-          <h4 class="install__title">Clone & Build</h4>
-          <p class="install__desc">Requires Rust toolchain (rustc ≥ 1.70.0)</p>
+          <h4 class="install__title">Download Setup</h4>
+          <p class="install__desc">Get the installer for your system.</p>
+          <div style="margin-top: 1.25rem; margin-bottom: 1.5rem;">
+            <a href="https://github.com/IshimweIsaac/Lumina/releases" id="install-download-btn" class="btn btn--primary">Download for OS</a>
+          </div>
+          <p class="install__desc" style="font-size: 0.85rem; margin-bottom: 0.5rem; opacity: 0.8;">Or install via terminal:</p>
           <div class="install__terminal">
             <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
-            <pre class="install__terminal-body"><code><span class="prompt">$</span> git clone https://github.com/IshimweIsaac/Lumina.git
-<span class="prompt">$</span> cd Lumina
-<span class="prompt">$</span> cargo build --release -p lumina-cli</code></pre><button class="install__copy"
-              data-copy="git clone https://github.com/IshimweIsaac/Lumina.git && cd Lumina && cargo build --release -p lumina-cli"
+            <pre class="install__terminal-body"><code>$ curl -fsSL https://raw.githubusercontent.com/IshimweIsaac/Lumina/main/install.sh | sh</code></pre><button class="install__copy"
+              data-copy="curl -fsSL https://raw.githubusercontent.com/IshimweIsaac/Lumina/main/install.sh | sh"
               aria-label="Copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2">
                 <rect x="9" y="9" width="13" height="13" rx="2" />
@@ -317,14 +320,14 @@ show "Hello, {app.name}!"</code></pre>
           <p class="install__desc">Execute with the Lumina CLI</p>
           <div class="install__terminal">
             <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
-            <pre class="install__terminal-body"><code><span class="prompt">$</span> cargo run -p lumina-cli -- run hello.lum
-<span class="output">Hello, Lumina!</span>
+            <pre class="install__terminal-body"><code>$ lumina run hello.lum
+Hello, Lumina!
 
-<span class="prompt">$</span> cargo run -p lumina-cli -- check hello.lum
-<span class="output">✓ No errors found.</span>
+$ lumina check hello.lum
+✓ No errors found.
 
-<span class="prompt">$</span> cargo run -p lumina-cli -- repl
-<span class="output">>>> </span><span class="comment">interactive session</span></code></pre>
+$ lumina repl
+>>> interactive session</code></pre>
           </div>
         </div>
       </div>
@@ -353,9 +356,10 @@ show "Hello, {app.name}!"</code></pre>
           <div class="footer__col">
             <h5 class="footer__heading">Community</h5><a
               href="https://github.com/IshimweIsaac/Lumina/blob/main/CONTRIBUTING.md" class="footer__link"
-              target="_blank">Contributing</a><a href="https://github.com/IshimweIsaac/Lumina/issues" class="footer__link"
-              target="_blank">Issues</a><a href="https://github.com/IshimweIsaac/Lumina/blob/main/LICENSE"
-              class="footer__link" target="_blank">MIT License</a>
+              target="_blank">Contributing</a><a href="https://github.com/IshimweIsaac/Lumina/issues"
+              class="footer__link" target="_blank">Issues</a><a
+              href="https://github.com/IshimweIsaac/Lumina/blob/main/LICENSE" class="footer__link" target="_blank">MIT
+              License</a>
           </div>
         </div>
       </div>
