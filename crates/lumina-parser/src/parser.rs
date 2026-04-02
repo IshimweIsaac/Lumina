@@ -267,7 +267,8 @@ impl Parser {
         let mut fields = vec![];
         let mut sync_path = String::new();
         let mut sync_strategy = SyncStrategy::Realtime;
-        let poll_interval = None;
+        let mut sync_fields = Vec::new();
+        let mut poll_interval = None;
 
         while !self.check(&Token::RBrace) && !self.is_at_end() {
             if self.check(&Token::KwSync) {
@@ -277,24 +278,39 @@ impl Parser {
             } else if self.check(&Token::KwOn) {
                 self.advance();
                 self.expect(&Token::Colon)?;
-                let strategy_str = self.expect_text("sync strategy")?;
-                sync_strategy = match strategy_str.as_str() {
+                let strat = self.expect_ident("sync strategy")?;
+                sync_strategy = match strat.as_str() {
                     "realtime" => SyncStrategy::Realtime,
                     "poll"     => SyncStrategy::Poll,
                     "webhook"  => SyncStrategy::Webhook,
-                    _ => return Err(ParseError::new(
-                        format!("unknown sync strategy '{}'", strategy_str),
-                        self.current_span(),
-                    )),
+                    _ => return Err(ParseError::new("unknown sync strategy", self.current_span())),
                 };
+            } else if self.check(&Token::KwPollInterval) {
+                self.advance();
+                self.expect(&Token::Colon)?;
+                poll_interval = Some(self.parse_duration()?);
+            } else if self.check(&Token::KwSyncOn) {
+                self.advance();
+                if self.check(&Token::LParen) {
+                    self.advance();
+                    sync_fields.push(self.expect_ident("sync field")?);
+                    while self.check(&Token::Comma) {
+                        self.advance();
+                        sync_fields.push(self.expect_ident("sync field")?);
+                    }
+                    self.expect(&Token::RParen)?;
+                } else {
+                    sync_fields.push(self.expect_ident("sync field")?);
+                }
             } else {
                 fields.push(self.parse_field()?);
             }
             self.skip_newlines();
         }
         self.expect(&Token::RBrace)?;
+
         Ok(Statement::ExternalEntity(ExternalEntityDecl {
-            name, fields, sync_path, sync_strategy, poll_interval, span: start,
+            name, fields, sync_path, sync_strategy, sync_fields, poll_interval, span: start,
         }))
     }
 
@@ -374,10 +390,30 @@ impl Parser {
     fn parse_rule(&mut self) -> Result<Statement, ParseError> {
         let start = self.current_span();
         self.advance(); // 'rule'
-        let name = self.expect_text("rule name")?;
-        self.expect(&Token::LBrace)?;
+
+        // Rule name: accept both identifier and string literal
+        let name = match self.current().clone() {
+            Token::Text(s) => { self.advance(); s }
+            Token::Ident(s) => { self.advance(); s }
+            _ => return Err(ParseError::new("expected rule name", self.current_span())),
+        };
+
+        // Optional: for (param: Entity)
+        let param = if self.check(&Token::KwFor) {
+            self.advance(); // consume 'for'
+            self.expect(&Token::LParen)?;
+            let param_name = self.expect_ident("parameter name")?;
+            self.expect(&Token::Colon)?;
+            let entity_name = self.expect_ident("entity name")?;
+            self.expect(&Token::RParen)?;
+            Some(RuleParam { name: param_name, entity: entity_name })
+        } else {
+            None
+        };
+
         self.skip_newlines();
 
+        // Parse trigger: when/and or every (BEFORE the opening brace)
         let trigger = if self.check(&Token::KwWhen) {
             self.advance();
             // Check for fleet-level triggers: "when any" or "when all"
@@ -389,9 +425,11 @@ impl Parser {
                 RuleTrigger::All(self.parse_fleet_condition()?)
             } else {
                 let mut conds = vec![self.parse_condition()?];
+                self.skip_newlines();
                 while self.check(&Token::KwAnd) {
                     self.advance();
                     conds.push(self.parse_condition()?);
+                    self.skip_newlines();
                 }
                 RuleTrigger::When(conds)
             }
@@ -400,30 +438,33 @@ impl Parser {
             RuleTrigger::Every(self.parse_duration()?)
         } else {
             return Err(ParseError::new(
-                "expected 'when', or 'every' in rule body",
+                "expected 'when' or 'every' in rule",
                 self.current_span(),
             ));
         };
 
-        let cooldown = if self.check(&Token::Cooldown) {
-            self.advance();
-            Some(self.parse_duration()?)
-        } else {
-            None
-        };
+        self.skip_newlines();
 
-        let actions = self.parse_actions()?;
+        self.skip_newlines();
 
-        // Parse optional "on clear { ... }" block
+        // Opening brace for actions body
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+
+        // Parse actions inside { } — no 'then' keyword needed
+        let actions = self.parse_body_actions()?;
+
+        self.expect(&Token::RBrace)?;
+
+        // Parse optional "on clear { ... }" block AFTER main closing brace
         self.skip_newlines();
         let on_clear = if self.check(&Token::KwOn) {
-            // Peek ahead to see if it's "on clear"
             if self.peek() == Some(&Token::Clear) {
                 self.advance(); // consume 'on'
                 self.advance(); // consume 'clear'
                 self.expect(&Token::LBrace)?;
                 self.skip_newlines();
-                let clear_actions = self.parse_actions()?;
+                let clear_actions = self.parse_body_actions()?;
                 self.expect(&Token::RBrace)?;
                 self.skip_newlines();
                 Some(clear_actions)
@@ -434,8 +475,15 @@ impl Parser {
             None
         };
 
-        self.expect(&Token::RBrace)?;
-        Ok(Statement::Rule(RuleDecl { name, trigger, actions, cooldown, on_clear, span: start }))
+        // Optional cooldown (after body/on clear)
+        let cooldown = if self.check(&Token::Cooldown) {
+            self.advance();
+            Some(self.parse_duration()?)
+        } else {
+            None
+        };
+
+        Ok(Statement::Rule(RuleDecl { name, param, trigger, actions, cooldown, on_clear, span: start }))
     }
 
     fn parse_aggregate(&mut self) -> Result<Statement, ParseError> {
@@ -446,13 +494,33 @@ impl Parser {
         self.expect(&Token::Over)?;
         let over = self.expect_ident("entity name")?;
         self.expect(&Token::LBrace)?;
+        self.skip_newlines();
 
         let mut fields = Vec::new();
         while !self.check(&Token::RBrace) && !self.is_at_end() {
+            self.skip_newlines();
             let fspan    = self.current_span();
             let fname    = self.expect_ident("field name")?;
             self.expect(&Token::ColonEq)?; // ":=" derived assignment
-            let agg_fn   = self.expect_ident("aggregate function")?;
+            
+            // The aggregate function could be an identifier or a keyword like 'any'/'all'
+            let agg_fn = match self.current() {
+                Token::Ident(name) => {
+                    let s = name.clone();
+                    self.advance();
+                    s
+                }
+                Token::KwAny => {
+                    self.advance();
+                    "any".to_string()
+                }
+                Token::KwAll => {
+                    self.advance();
+                    "all".to_string()
+                }
+                _ => return Err(ParseError::new("expected aggregate function", self.current_span())),
+            };
+            
             self.expect(&Token::LParen)?;
             let arg = if self.check(&Token::RParen) {
                 None
@@ -489,11 +557,14 @@ impl Parser {
         self.expect(&Token::Dot)?;
         let field = self.expect_ident("field name")?;
         self.expect(&Token::KwBecomes)?;
-        let becomes = self.parse_expr(0)?;
+        // Use min_bp=5 to stop before 'and'(3,4) and 'or'(1,2) tokens,
+        // which act as compound trigger separators, not binary operators here.
+        let becomes = self.parse_expr(5)?;
         let for_duration = if self.check(&Token::KwFor) {
             self.advance();
             Some(self.parse_duration()?)
         } else { None };
+        self.skip_newlines();
         let frequency = if matches!(self.current(), Token::Number(_)) {
             let span = self.current_span();
             let count = self.expect_number("frequency count")? as u32;
@@ -506,15 +577,18 @@ impl Parser {
     }
 
     fn parse_condition(&mut self) -> Result<Condition, ParseError> {
-        let expr = self.parse_expr(0)?;
+        // Use min_bp=5 to stop before 'and'(3,4) and 'or'(1,2) tokens.
+        // This ensures compound trigger separators aren't consumed as binary operators.
+        let expr = self.parse_expr(5)?;
         let becomes = if self.check(&Token::KwBecomes) {
             self.advance();
-            Some(self.parse_expr(0)?)
+            Some(self.parse_expr(5)?)
         } else { None };
         let for_duration = if self.check(&Token::KwFor) {
             self.advance();
             Some(self.parse_duration()?)
         } else { None };
+        self.skip_newlines();
         let frequency = if matches!(self.current(), Token::Number(_)) {
             let span = self.current_span();
             let count = self.expect_number("frequency count")? as u32;
@@ -556,6 +630,25 @@ impl Parser {
         Ok(actions)
     }
 
+    /// Parse actions inside a rule body — no 'then' keyword, just direct action tokens.
+    /// Stops when it sees RBrace (end of body).
+    fn parse_body_actions(&mut self) -> Result<Vec<Action>, ParseError> {
+        let mut actions = vec![];
+        self.skip_newlines();
+        while !self.check(&Token::RBrace) && !self.is_at_end() {
+            // Also support the 'then' keyword for backward compatibility
+            if self.check(&Token::KwThen) {
+                self.advance();
+            }
+            actions.push(self.parse_action()?);
+            self.skip_newlines();
+        }
+        if actions.is_empty() {
+            return Err(ParseError::new("expected at least one action in rule body", self.current_span()));
+        }
+        Ok(actions)
+    }
+
     fn parse_action(&mut self) -> Result<Action, ParseError> {
         match self.current() {
             Token::KwShow => {
@@ -568,7 +661,12 @@ impl Parser {
                 self.expect(&Token::Dot)?;
                 let field = self.expect_ident("field name")?;
                 let span = self.current_span();
-                self.expect(&Token::KwTo)?;
+                // Accept both 'to' and '=' for assignment
+                if self.check(&Token::KwTo) {
+                    self.advance();
+                } else {
+                    self.expect(&Token::Eq)?;
+                }
                 let value = self.parse_expr(0)?;
                 Ok(Action::Update {
                     target: FieldPath { instance, field, span },
@@ -581,7 +679,12 @@ impl Parser {
                 self.expect(&Token::Dot)?;
                 let field = self.expect_ident("field name")?;
                 let span = self.current_span();
-                self.expect(&Token::Eq)?;
+                // Accept both 'to' and '=' for consistency
+                if self.check(&Token::KwTo) {
+                    self.advance();
+                } else {
+                    self.expect(&Token::Eq)?;
+                }
                 let value = self.parse_expr(0)?;
                 Ok(Action::Write {
                     target: FieldPath { instance, field, span },
@@ -622,6 +725,7 @@ impl Parser {
 
                 // Parse key: value pairs separated by commas
                 loop {
+                    self.skip_newlines();
                     let key = match self.current() {
                         Token::Severity => { self.advance(); "severity".to_string() },
                         Token::Ident(s) if s == "message" => { self.advance(); "message".to_string() },
@@ -667,6 +771,19 @@ impl Parser {
     fn parse_expr(&mut self, min_bp: u8) -> Result<Expr, ParseError> {
         let mut lhs = self.parse_prefix()?;
 
+        // Postfix index access: expr[index]
+        while !self.is_at_end() && self.check(&Token::LBracket) {
+            let span = self.current_span();
+            self.advance(); // [
+            let index = self.parse_expr(0)?;
+            self.expect(&Token::RBracket)?; // ]
+            lhs = Expr::Index {
+                list: Box::new(lhs),
+                index: Box::new(index),
+                span,
+            };
+        }
+
         while !self.is_at_end() {
             let token = self.current().clone();
             if let Some((l_bp, r_bp)) = infix_bp(&token) {
@@ -692,18 +809,6 @@ impl Parser {
                 break;
             }
         }
-        // Postfix index access: expr[index]
-        while !self.is_at_end() && self.check(&Token::LBracket) {
-            let span = self.current_span();
-            self.advance(); // [
-            let index = self.parse_expr(0)?;
-            self.expect(&Token::RBracket)?; // ]
-            lhs = Expr::Index {
-                list: Box::new(lhs),
-                index: Box::new(index),
-                span,
-            };
-        }
         Ok(lhs)
     }
 
@@ -714,7 +819,25 @@ impl Parser {
         let span = self.current_span();
         let tok = self.current().clone();
         match tok {
-            Token::Number(n) => { self.advance(); Ok(Expr::Number(n)) }
+            Token::Number(n) => {
+                self.advance();
+                
+                if let Token::Ident(ref unit) = self.current() {
+                    let maybe_unit = match unit.as_str() {
+                        "s" => Some(TimeUnit::Seconds),
+                        "m" => Some(TimeUnit::Minutes),
+                        "h" => Some(TimeUnit::Hours),
+                        "d" => Some(TimeUnit::Days),
+                        _ => None,
+                    };
+                    if let Some(u) = maybe_unit {
+                        self.advance();
+                        return Ok(Expr::Duration(Duration { value: n, unit: u }));
+                    }
+                }
+                
+                Ok(Expr::Number(n))
+            }
             Token::Text(ref s) => {
                 let s = s.clone();
                 self.advance();
@@ -918,15 +1041,15 @@ mod tests {
     #[test]
     fn test_rule_with_becomes_and_for_duration() {
         let prog = parse_source(concat!(
-            "rule \"lock bike\" {\n",
-            "  when isIdle becomes true for 10 m\n",
-            "  then show \"Bike locked\"\n",
+            "rule lockbike\n",
+            "when isIdle becomes true for 10 m {\n",
+            "  show \"Bike locked\"\n",
             "}"
         ));
         assert_eq!(prog.statements.len(), 1);
         match &prog.statements[0] {
             Statement::Rule(r) => {
-                assert_eq!(r.name, "lock bike");
+                assert_eq!(r.name, "lockbike");
                 match &r.trigger {
                     RuleTrigger::When(conds) => {
                         assert_eq!(conds.len(), 1);
@@ -948,14 +1071,14 @@ mod tests {
     #[test]
     fn test_rule_with_every() {
         let prog = parse_source(concat!(
-            "rule \"hourly check\" {\n",
-            "  every 1 h\n",
-            "  then show \"check\"\n",
+            "rule hourlycheck\n",
+            "every 1 h {\n",
+            "  show \"check\"\n",
             "}"
         ));
         match &prog.statements[0] {
             Statement::Rule(r) => {
-                assert_eq!(r.name, "hourly check");
+                assert_eq!(r.name, "hourlycheck");
                 match &r.trigger {
                     RuleTrigger::Every(d) => {
                         assert_eq!(d.value, 1.0);
@@ -1014,10 +1137,10 @@ mod tests {
     #[test]
     fn test_multi_action_rule() {
         let prog = parse_source(concat!(
-            "rule \"multi\" {\n",
-            "  when score >= 100\n",
-            "  then show \"Winner!\"\n",
-            "  then update player.status to \"champion\"\n",
+            "rule multi\n",
+            "when score >= 100 {\n",
+            "  show \"Winner!\"\n",
+            "  update player.status to \"champion\"\n",
             "}"
         ));
         match &prog.statements[0] {

@@ -8,6 +8,7 @@ pub enum Value {
     Bool(bool),
     List(Vec<Value>),
     Timestamp(f64),
+    Duration(f64),
 }
 
 impl Value {
@@ -18,6 +19,7 @@ impl Value {
             Value::Bool(_)      => "Boolean",
             Value::List(_)      => "List",
             Value::Timestamp(_) => "Timestamp",
+            Value::Duration(_)  => "Duration",
         }
     }
 
@@ -44,7 +46,8 @@ impl Value {
             (Value::Text(_),   Value::Text(_))   |
             (Value::Bool(_),   Value::Bool(_))   |
             (Value::List(_),   Value::List(_))   |
-            (Value::Timestamp(_), Value::Timestamp(_))
+            (Value::Timestamp(_), Value::Timestamp(_)) |
+            (Value::Duration(_), Value::Duration(_))
         )
     }
 }
@@ -67,6 +70,36 @@ impl std::fmt::Display for Value {
                 write!(f, "]")
             }
             Value::Timestamp(t) => write!(f, "Timestamp({})", t),
+            Value::Duration(d) => {
+                let d = *d;
+                if d < 60.0 {
+                    write!(f, "{}s", d)
+                } else if d < 3600.0 {
+                    let m = (d / 60.0).floor();
+                    let s = d % 60.0;
+                    if s > 0.0 {
+                        write!(f, "{}m {}s", m, s)
+                    } else {
+                        write!(f, "{}m", m)
+                    }
+                } else if d < 86400.0 {
+                    let h = (d / 3600.0).floor();
+                    let m = ((d % 3600.0) / 60.0).floor();
+                    if m > 0.0 {
+                        write!(f, "{}h {}m", h, m)
+                    } else {
+                        write!(f, "{}h", h)
+                    }
+                } else {
+                    let days = (d / 86400.0).floor();
+                    let h = ((d % 86400.0) / 3600.0).floor();
+                    if h > 0.0 {
+                        write!(f, "{}d {}h", days, h)
+                    } else {
+                        write!(f, "{}d", days)
+                    }
+                }
+            }
         }
     }
 }

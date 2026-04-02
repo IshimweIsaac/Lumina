@@ -102,7 +102,12 @@ impl Analyzer {
                         }
                     }
                 }
-                Statement::Aggregate(_) => {}
+                Statement::Aggregate(decl) => {
+                    // E3 Fix: Register aggregate name in the global scope as a
+                    // numeric provider so that references like `fleet_stats.avg_temp`
+                    // resolve correctly during type checking.
+                    self.instances.insert(decl.name.clone(), LuminaType::Entity(decl.name.clone()));
+                }
                 _ => {}
             }
         }
@@ -167,7 +172,10 @@ impl Analyzer {
             name: decl.name.clone(),
             fields,
             is_external,
+            sync_path: String::new(),
+            sync_strategy: SyncStrategy::Realtime,
             sync_on: None,
+            poll_interval: None,
         });
     }
 
@@ -217,7 +225,10 @@ impl Analyzer {
             name: decl.name.clone(),
             fields,
             is_external: true,
-            sync_on: if decl.sync_path.is_empty() { None } else { Some(decl.sync_path.clone()) },
+            sync_path: decl.sync_path.clone(),
+            sync_strategy: decl.sync_strategy.clone(),
+            sync_on: if decl.sync_fields.is_empty() { None } else { Some(decl.sync_fields.clone()) },
+            poll_interval: decl.poll_interval.clone(),
         });
     }
 
@@ -247,30 +258,26 @@ impl Analyzer {
         for stmt in &program.statements {
             match stmt {
                 Statement::Entity(decl) => {
-                    for field in &decl.fields {
-                        match field {
-                            Field::Derived(df) => {
-                                let ty = self.infer_type_ctx(&df.expr, Some(&decl.name), None, true).map_err(|e| vec![e])?;
-                                if let Some(entity) = self.schema.entities.get_mut(&decl.name) {
-                                    if let Some(f_schema) = entity.fields.get_mut(&df.name) {
-                                        f_schema.ty = ty;
-                                    }
-                                }
-                                // Build dependency graph for derived fields
-                                let target_node = self.graph.intern(&decl.name, &df.name);
-                                self.collect_dependencies(&df.expr, &decl.name, target_node)?;
-                            }
-                            Field::Ref(r) => {
-                                // L037: Add ref edges to the dependency graph for cycle detection
-                                let ref_node = self.graph.intern(&decl.name, &r.name);
-                                let target_node = self.graph.intern(&r.target_entity, "__entity__");
-                                self.graph.add_edge(target_node, ref_node);
-                            }
-                            _ => {}
-                        }
-                    }
+                    self.typecheck_entity_fields(&decl.name, &decl.fields)?;
+                }
+                Statement::ExternalEntity(decl) => {
+                    self.typecheck_entity_fields(&decl.name, &decl.fields)?;
                 }
                 Statement::Rule(rule) => {
+                    let mut rule_locals = HashMap::new();
+                    if let Some(param) = &rule.param {
+                        if self.schema.get_entity(&param.entity).is_some() {
+                            rule_locals.insert(param.name.clone(), LuminaType::Entity(param.entity.clone()));
+                        } else {
+                            return Err(vec![AnalyzerError {
+                                code: "L026",
+                                message: format!("Unknown entity '{}' in rule parameter", param.entity),
+                                span: rule.span,
+                            }]);
+                        }
+                    }
+                    let locals_ref = if rule_locals.is_empty() { None } else { Some(&rule_locals) };
+
                     // Type check condition
                     match &rule.trigger {
                         RuleTrigger::When(conds) => {
@@ -283,23 +290,26 @@ impl Analyzer {
                                 }]);
                             }
                             for cond in conds {
-                                let ty = self.infer_type(&cond.expr, None, None).map_err(|e| vec![e])?;
-                                if ty != LuminaType::Boolean {
-                                    return Err(vec![AnalyzerError {
-                                        code: "L002",
-                                        message: "when condition must be Boolean".to_string(),
-                                        span: rule.span,
-                                    }]);
-                                }
-                                if let Some(becomes) = &cond.becomes {
-                                    let b_ty = self.infer_type(becomes, None, None).map_err(|e| vec![e])?;
-                                    if b_ty != LuminaType::Boolean {
+                                let ty = self.infer_type(&cond.expr, None, locals_ref).map_err(|e| vec![e])?;
+                                
+                                if let Some(becomes_expr) = &cond.becomes {
+                                    let b_ty = self.infer_type(becomes_expr, None, locals_ref).map_err(|e| vec![e])?;
+                                    if ty != b_ty {
                                         return Err(vec![AnalyzerError {
                                             code: "L002",
-                                            message: "becomes condition must be Boolean".to_string(),
+                                            message: format!(
+                                                "becomes target type mismatch: expected {:?}, got {:?}",
+                                                ty, b_ty
+                                            ),
                                             span: rule.span,
                                         }]);
                                     }
+                                } else if ty != LuminaType::Boolean {
+                                    return Err(vec![AnalyzerError {
+                                        code: "L002",
+                                        message: "when condition must be Boolean if 'becomes' is not used".to_string(),
+                                        span: rule.span,
+                                    }]);
                                 }
                                 // L039/L040: Validate frequency conditions
                                 if let Some(freq) = &cond.frequency {
@@ -353,7 +363,7 @@ impl Analyzer {
                                 }]);
                             }
                             // Validate becomes value is Boolean
-                            let b_ty = self.infer_type(&fc.becomes, None, None).map_err(|e| vec![e])?;
+                            let b_ty = self.infer_type(&fc.becomes, None, locals_ref).map_err(|e| vec![e])?;
                             if b_ty != LuminaType::Boolean {
                                 return Err(vec![AnalyzerError {
                                     code: "L002",
@@ -384,7 +394,7 @@ impl Analyzer {
 
                     // Type check actions
                     for action in &rule.actions {
-                        self.check_action(action, rule.span)?;
+                        self.check_action(action, rule.span, locals_ref)?;
                     }
                 }
                 Statement::Fn(decl) => {
@@ -425,6 +435,32 @@ impl Analyzer {
         } else {
             Ok(())
         }
+    }
+
+    fn typecheck_entity_fields(&mut self, entity_name: &str, fields: &[Field]) -> Result<(), Vec<AnalyzerError>> {
+        for field in fields {
+            match field {
+                Field::Derived(df) => {
+                    let ty = self.infer_type_ctx(&df.expr, Some(entity_name), None, true).map_err(|e| vec![e])?;
+                    if let Some(entity) = self.schema.entities.get_mut(entity_name) {
+                        if let Some(f_schema) = entity.fields.get_mut(&df.name) {
+                            f_schema.ty = ty;
+                        }
+                    }
+                    // Build dependency graph for derived fields
+                    let target_node = self.graph.intern(entity_name, &df.name);
+                    self.collect_dependencies(&df.expr, entity_name, target_node)?;
+                }
+                Field::Ref(r) => {
+                    // L037: Add ref edges to the dependency graph for cycle detection
+                    let ref_node = self.graph.intern(entity_name, &r.name);
+                    let target_node = self.graph.intern(&r.target_entity, "__entity__");
+                    self.graph.add_edge(target_node, ref_node);
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 
     fn check_fn_body(&mut self, expr: &Expr, locals: &std::collections::HashSet<String>, span: Span) {
@@ -500,6 +536,7 @@ impl Analyzer {
             Expr::Number(_) => Ok(LuminaType::Number),
             Expr::Text(_) | Expr::InterpolatedString(_) => Ok(LuminaType::Text),
             Expr::Bool(_) => Ok(LuminaType::Boolean),
+            Expr::Duration(_) => Ok(LuminaType::Duration),
             Expr::Ident(name) => {
                 if let Some(locs) = locals {
                     if let Some(ty) = locs.get(name) {
@@ -540,10 +577,10 @@ impl Analyzer {
                             })
                         }
                     }
-                    // L042: .age on Timestamp returns Number (seconds)
+                    // L042: .age on Timestamp returns Duration
                     LuminaType::Timestamp => {
                         if field == "age" {
-                            Ok(LuminaType::Number)
+                            Ok(LuminaType::Duration)
                         } else {
                             Err(AnalyzerError {
                                 code: "L042",
@@ -893,16 +930,20 @@ impl Analyzer {
         Ok(())
     }
 
-    fn check_action(&mut self, action: &Action, rule_span: Span) -> Result<(), Vec<AnalyzerError>> {
+    fn check_action(&mut self, action: &Action, rule_span: Span, locals: Option<&HashMap<String, LuminaType>>) -> Result<(), Vec<AnalyzerError>> {
         match action {
             Action::Show(expr) => {
-                self.infer_type(expr, None, None).map_err(|e| vec![e])?;
+                self.infer_type(expr, None, locals).map_err(|e| vec![e])?;
                 Ok(())
             }
             Action::Update { target, value } => {
-                let entity_name = match self.instances.get(&target.instance) {
-                    Some(LuminaType::Entity(e)) => e,
-                    _ => &target.instance,
+                let entity_name = if let Some(Some(LuminaType::Entity(e))) = locals.map(|l| l.get(&target.instance)) {
+                    e
+                } else {
+                    match self.instances.get(&target.instance) {
+                        Some(LuminaType::Entity(e)) => e,
+                        _ => &target.instance,
+                    }
                 };
                 let field_schema = self.schema.get_field(entity_name, &target.field).ok_or_else(|| vec![AnalyzerError {
                     code: "L010",
@@ -918,7 +959,7 @@ impl Analyzer {
                     }]);
                 }
 
-                let val_ty = self.infer_type(value, None, None).map_err(|e| vec![e])?;
+                let val_ty = self.infer_type(value, None, locals).map_err(|e| vec![e])?;
                 if val_ty != field_schema.ty {
                     return Err(vec![AnalyzerError {
                         code: "L002",
@@ -943,7 +984,7 @@ impl Analyzer {
                         span: rule_span,
                     }])?;
 
-                    let ty = self.infer_type(expr, None, None).map_err(|e| vec![e])?;
+                    let ty = self.infer_type(expr, None, locals).map_err(|e| vec![e])?;
                     if ty != field_schema.ty {
                         return Err(vec![AnalyzerError {
                             code: "L002",
@@ -978,9 +1019,13 @@ impl Analyzer {
             }
             Action::Alert(_) => Ok(()),
             Action::Write { target, value } => {
-                let entity_name = match self.instances.get(&target.instance) {
-                    Some(LuminaType::Entity(e)) => e,
-                    _ => &target.instance,
+                let entity_name = if let Some(Some(LuminaType::Entity(e))) = locals.map(|l| l.get(&target.instance)) {
+                    e
+                } else {
+                    match self.instances.get(&target.instance) {
+                        Some(LuminaType::Entity(e)) => e,
+                        _ => &target.instance,
+                    }
                 };
                 // L038: write actions can only target external entities
                 if let Some(entity_schema) = self.schema.get_entity(entity_name) {
@@ -992,7 +1037,7 @@ impl Analyzer {
                         }]);
                     }
                     if let Some(field_schema) = entity_schema.fields.get(&target.field) {
-                        let val_ty = self.infer_type(value, None, None).map_err(|e| vec![e])?;
+                        let val_ty = self.infer_type(value, None, locals).map_err(|e| vec![e])?;
                         if val_ty != field_schema.ty {
                             return Err(vec![AnalyzerError {
                                 code: "L002",
@@ -1075,21 +1120,21 @@ mod tests {
 
     #[test]
     fn test_update_derived_field() {
-        let source = "entity A { x := 1 } rule \"test\" { when true then update A.x to 2 }";
+        let source = "entity A { x := 1 } rule test when true { update A.x to 2 }";
         let errs = analyze_source(source).err().unwrap();
         assert!(errs.iter().any(|e| e.code == "L003"));
     }
 
     #[test]
     fn test_unknown_field_access() {
-        let source = "entity A { x: Number } rule \"test\" { when true then update A.y to 2 }";
+        let source = "entity A { x: Number } rule test when true { update A.y to 2 }";
         let errs = analyze_source(source).err().unwrap();
         assert!(errs.iter().any(|e| e.code == "L010"));
     }
 
     #[test]
     fn test_valid_rule_with_becomes_condition() {
-        let source = "entity A { x: Boolean } rule \"test\" { when A.x becomes true then show \"changed\" }";
+        let source = "entity A { x: Boolean } rule test when A.x becomes true { show \"changed\" }";
         let res = analyze_source(source).expect("analysis should succeed");
         assert_eq!(res.program.statements.len(), 2);
     }
@@ -1113,7 +1158,7 @@ mod tests {
 
     #[test]
     fn test_l038_write_on_non_external_entity() {
-        let source = "entity Local { x: Number } rule \"w\" { when true then write Local.x = 5 }";
+        let source = "entity Local { x: Number } rule w when true { write Local.x = 5 }";
         let errs = analyze_source(source).unwrap_err();
         assert!(errs.iter().any(|e| e.code == "L038"), "expected L038, got: {:?}", errs);
     }
@@ -1128,17 +1173,17 @@ mod tests {
     #[test]
     fn test_now_returns_timestamp() {
         // now() in a rule condition is valid and should infer as Timestamp
-        let source = "entity S { ts: Timestamp } rule \"r\" { when true then update S.ts to now() }";
+        let source = "entity S { ts: Timestamp } rule r when true { update S.ts to now() }";
         let res = analyze_source(source);
         // This should either succeed or fail with a type mismatch (Timestamp == Timestamp => ok)
         assert!(res.is_ok(), "now() should return Timestamp type, got: {:?}", res.err());
     }
 
     #[test]
-    fn test_age_returns_number() {
-        // ts.age should return Number (seconds since timestamp)
-        let source = "entity S { ts: Timestamp stale := ts.age > 60 }";
+    fn test_age_returns_duration() {
+        // ts.age should return Duration
+        let source = "entity S { ts: Timestamp stale := ts.age > 60s }";
         let res = analyze_source(source);
-        assert!(res.is_ok(), ".age should return Number, got: {:?}", res.err());
+        assert!(res.is_ok(), ".age should return Duration, got: {:?}", res.err());
     }
 }

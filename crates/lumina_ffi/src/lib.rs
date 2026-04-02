@@ -12,6 +12,17 @@ thread_local! {
     static LAST_CREATE_ERROR: RefCell<Option<String>> = RefCell::new(None);
 }
 
+/// # Memory Safety and Ownership Rules
+/// 
+/// The FFI boundary frequently returns strings as raw C-style pointers (`*mut c_char`).
+/// These strings are allocated on the Rust heap using `CString::into_raw()` to allow
+/// them to cross the FFI boundary safely.
+/// 
+/// **CRITICAL**: The caller takes full ownership of these pointers. To prevent memory 
+/// leaks, the caller MUST explicitly free every returned non-null string pointer by 
+/// passing it back to `lumina_free_string`. Do not use `free()` from the C standard 
+/// library, as the Rust allocator must handle the deallocation.
+
 /// Opaque runtime handle — the caller never sees internals
 pub struct LuminaRuntime {
     evaluator: Evaluator,
@@ -40,6 +51,33 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
     }
     let mut ev = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), rules);
     ev.derived_exprs = derived;
+    
+    // B1 Fix: Process all statements to ensure parity.
+    for stmt in &analyzed.program.statements {
+        match stmt {
+            Statement::ExternalEntity(e) => {
+                // Register a static adapter stub so write-backs don't drop
+                let adapter = lumina_runtime::adapters::static_adapter::StaticAdapter::new(&e.name);
+                ev.register_adapter(Box::new(adapter));
+                // Add derived fields
+                for f in &e.fields {
+                    if let Field::Derived(df) = f {
+                        ev.derived_exprs.insert((e.name.clone(), df.name.clone()), df.expr.clone());
+                    }
+                }
+            }
+            Statement::Fn(f) => {
+                ev.functions.insert(f.name.clone(), f.clone());
+            }
+            Statement::Aggregate(a) => {
+                ev.agg_store.register(a.clone());
+            }
+            _ => {}
+        }
+    }
+    // Now that aggregates are registered, compute their initial values.
+    ev.agg_store.recompute(&ev.store);
+    
     ev
 }
 

@@ -41,6 +41,8 @@ pub enum Token {
     #[token("over")]      Over,
     #[token("cooldown")]   Cooldown,
     #[token("clear")]      Clear,
+    #[token("poll_interval")] KwPollInterval,
+    #[token("sync_on")]      KwSyncOn,
     #[token("ref")]        KwRef,
     #[token("times")]      KwTimes,
     #[token("within")]     KwWithin,

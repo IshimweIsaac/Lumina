@@ -11,3 +11,10 @@ members = [
     "crates/lumina-wasm",
     "crates/lumina-lsp",
 ]
+
+[profile.release]
+opt-level = "z"        # Optimize for size
+lto = true             # Link-time optimization
+codegen-units = 1      # Single codegen unit for better optimization
+panic = "abort"        # Smaller panic handler
+strip = true           # Strip debug symbols

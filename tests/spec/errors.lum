@@ -5,7 +5,7 @@ entity Person {
   isAdult := age >= 18
 }
 
-rule "bad update" {
-  when true
-  then update Person.isAdult to false
+rule "bad update"
+when true {
+  update Person.isAdult to false
 }
