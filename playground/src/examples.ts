@@ -3,26 +3,54 @@ export const EXAMPLES = {
     name: "Delivery Fleet",
     description: "Monitor a fleet of delivery motos",
     source: `
+-- A fleet of delivery motos. Each has a battery.
+-- When battery drops below 20% -- alert the dispatcher.
+-- When any moto goes offline -- alert immediately.
+-- When the whole fleet is offline -- critical alert.
+
 entity Moto {
   battery: Number
   isOnline: Boolean
   label: Text
   isLowBattery := battery < 20
+  isCritical := battery < 5
 }
 
 aggregate FleetStatus over Moto {
   avgBattery := avg(battery)
   onlineCount := count(isOnline)
   anyLow := any(isLowBattery)
+  allOffline := all(isOnline)
 }
 
 rule LowBattery for (m: Moto)
-when m.isLowBattery becomes true cooldown 5m {
-  alert severity: "warning", source: m.label,
-  message: "low battery: {m.battery}%"
+when m.isLowBattery becomes true
+cooldown 10m {
+  alert severity: "warning",
+  source: m.label,
+  message: "low battery: {m.battery}% on {m.label}"
 } on clear {
-  alert severity: "resolved", source: m.label,
-  message: "battery recovered"
+  alert severity: "resolved",
+  source: m.label,
+  message: "battery recovered: {m.battery}%"
+}
+
+rule MotoOffline for (m: Moto)
+when m.isOnline becomes false {
+  alert severity: "critical",
+  source: m.label,
+  message: "moto offline: {m.label}"
+} on clear {
+  alert severity: "resolved",
+  source: m.label,
+  message: "moto back online: {m.label}"
+}
+
+rule FleetOffline
+when all Moto.isOnline becomes false {
+  alert severity: "critical",
+  source: "fleet",
+  message: "entire fleet offline -- fleet avg battery: {FleetStatus.avgBattery}%"
 }
 
 let moto1 = Moto { battery: 80, isOnline: true, label: "moto-north-1" }
@@ -32,12 +60,14 @@ let moto3 = Moto { battery: 12, isOnline: true, label: "moto-south-1" }
   },
   sensors: {
     name: "Temperature Sensor Network",
-    description: "Multi-sensor aggregate monitoring with average temperature tracking",
+    description: "External entities, sync on, prev() for drift detection",
     source: `
 entity Sensor {
   temperature: Number
   location: Text
   isHighTemp := temperature > 80
+  lastTemp := prev(temperature)
+  isDrifting := abs(temperature - lastTemp) > 10
 }
 
 aggregate NetworkStatus over Sensor {
@@ -46,47 +76,49 @@ aggregate NetworkStatus over Sensor {
   criticalCount := count(isHighTemp)
 }
 
-rule CriticalTemp for (s: Sensor)
-when s.isHighTemp becomes true {
-  alert severity: "critical", source: s.location,
-  message: "critical temperature detected: {s.temperature}C"
+rule TempDrift for (s: Sensor)
+when s.isDrifting becomes true {
+  alert severity: "warning", source: s.location,
+  message: "temp drift: {s.temperature}C from {s.lastTemp}C"
 }
 
 let lobby = Sensor { temperature: 22, location: "Main Lobby" }
-let serverRoom = Sensor { temperature: 75, location: "Server Room" }
 let warehouse = Sensor { temperature: 85, location: "Warehouse A" }
 `
   },
   datacenter: {
     name: "Data Center Basic Monitoring",
-    description: "Monitoring CPU and Power usage across server racks",
+    description: "ref relationships, multi-condition triggers, aggregate health",
     source: `
-entity Rack {
-  powerUsage: Number
-  cpuTotal: Number
-  rackId: Text
-  isOverloaded := cpuTotal > 90
+entity CoolingUnit {
+  temp: Number
+  isOnline: Boolean
 }
 
-aggregate DataCenter over Rack {
-  totalPower := sum(powerUsage)
-  avgCpu := avg(cpuTotal)
-  anyOverload := any(isOverloaded)
+entity Server {
+  cpu: Number
+  cooling: ref CoolingUnit
+  isOverheating := cpu > 80 and cooling.temp > 25
 }
 
-rule OverloadAlert for (r: Rack)
-when r.isOverloaded becomes true {
-  alert severity: "error", source: r.rackId,
-  message: "CPU utilization above 90%"
+aggregate DataCenter over Server {
+  avgCpu := avg(cpu)
+  anyOverheating := any(isOverheating)
 }
 
-let rackA = Rack { powerUsage: 1200, cpuTotal: 45, rackId: "R-01" }
-let rackB = Rack { powerUsage: 2500, cpuTotal: 96, rackId: "R-02" }
+rule OverheatAlert for (s: Server)
+when s.isOverheating becomes true {
+  alert severity: "critical", source: "DataCenter",
+  message: "Server overheating: CPU={s.cpu}%, CoolingTemp={s.cooling.temp}C"
+}
+
+let cooling1 = CoolingUnit { temp: 22, isOnline: true }
+let coreServer = Server { cpu: 85, cooling: ref cooling1 }
 `
   },
   agriculture: {
     name: "Smart Agriculture",
-    description: "Soil moisture and irrigation control simulation",
+    description: "Frequency conditions, Timestamp type, write action simulation",
     source: `
 entity Zone {
   moisture: Number
@@ -94,22 +126,14 @@ entity Zone {
   needsWater := moisture < 30
 }
 
-aggregate FarmStatus over Zone {
-  avgMoisture := avg(moisture)
-  dryZones := count(needsWater)
-}
-
-rule AutoIrrigation for (z: Zone)
-when z.needsWater becomes true {
+rule DryCondition for (z: Zone)
+when count(z.needsWater == true) >= 3 every 1h {
   alert severity: "info", source: z.label,
-  message: "starting irrigation: moisture at {z.moisture}%"
-} on clear {
-  alert severity: "resolved", source: z.label,
-  message: "zone hydrated"
+  message: "persistent dry condition on {z.label}"
 }
 
-let zoneNorth = Zone { moisture: 80, label: "North Field" }
-let zoneSouth = Zone { moisture: 25, label: "South Field" }
+let zoneNorth = Zone { moisture: 25, label: "North Field" }
+let zoneSouth = Zone { moisture: 80, label: "South Field" }
 `
   }
 };

@@ -157,3 +157,50 @@ main {
     padding: 4px;
     border-radius: 4px;
 }
+
+.example-selector {
+    background-color: #3e3e42;
+    color: #e5e5e5;
+    border: 1px solid #3c3c3c;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.example-selector:hover { background-color: #4e4e52; }
+
+/* Tablet: stack vertically */
+@media (max-width: 768px) {
+    main {
+        flex-direction: column;
+    }
+    .editor-pane {
+        flex: none;
+        height: 50vh;
+        border-right: none;
+        border-bottom: 1px solid #3c3c3c;
+    }
+    .state-pane {
+        flex: none;
+        height: 50vh;
+    }
+    .state-panel { max-height: 50vh; overflow-y: auto; }
+}
+
+/* Mobile: editor full width, panels below */
+@media (max-width: 480px) {
+    header {
+        flex-direction: column;
+        height: auto;
+        padding: 10px;
+    }
+    .toolbar {
+        margin-top: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .monaco-editor { font-size: 12px; }
+    .card { padding: 8px; }
+    .timeline div { font-size: 11px; }
+}
