@@ -1,16 +1,16 @@
-# Phase 2: System Installation
+# Phase 8.1: Firebase Website Hosting
 
-This phase builds the foundational distribution infrastructure for Lumina, allowing developers to install the language with a single command.
+This phase addresses the immediate need for a free, reliable hosting platform while the official domain is being secured.
 
 ### Key Accomplishments:
-- **GitHub Release Pipeline**: Configured `.github/workflows/release.yml` to automate binary builds for 5 platforms (Linux x64/arm64, macOS x64/arm64, Windows x64).
-- **One-Line Installer**: Created `public/install.sh`, a robust shell script for automated installation.
-    - **Platform Detection**: Automatically identifies OS and Architecture.
-    - **Checksum Verification**: Uses SHA256 to ensure binary integrity during download.
-    - **Automatic PATH Configuration**: Detects and updates common shell profiles (.zshrc, .bashrc, etc.).
-- **Workflow Automation**: Integrated checksum generation directly into the release process for increased security.
+- **Firebase Hosting Configuration**: Created `firebase.json` for high-performance hosting with Single-Page Application (SPA) support and security headers for WASM.
+- **Automated Deployment Workflow**: Established `.github/workflows/deploy-firebase.yml` to automate builds and deployments directly from the main branch.
+- **Guideline Documentation**: Created `docs/FIREBASE_GUIDELINE.md` to assist the owner in setting up their Firebase project and connecting the deployment pipeline.
+- **Distribution Asset Hosting**: Copied the one-line installer (`install.sh`) to the website's public directory to ensure it is hosted alongside the language documentation.
 
 ### Verification:
-- Release workflow syntax verified.
-- `install.sh` tested for platform detection and checksum fallback (sha256sum/shasum).
-- Path update logic tested for idempotency.
+- Firebase configuration syntax validated locally.
+- Deployment workflow configured for automatic environment updates.
+- Installer script parity maintained with root `public/` folder.
+
+This setup ensures Lumina is accessible immediately at a `*.web.app` subdomain for developers and community testing.
