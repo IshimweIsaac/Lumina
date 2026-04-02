@@ -1,17 +1,16 @@
-# Phase 3: Package Managers
+# Phase 8.1: Firebase Website Hosting
 
-This phase expands Lumina's reach through official package manager support and comprehensive documentation.
+This phase addresses the immediate need for a free, reliable hosting platform while the official domain is being secured.
 
 ### Key Accomplishments:
-- **Homebrew Support**: Created `Formula/lumina.rb` for macOS (Intel and Apple Silicon).
-- **Binary Tarballs**: Updated `.github/workflows/release.yml` to generate compressed archives (`.tar.gz`) and corresponding SHA256 checksums, ensuring standard package manager compatibility.
-- **Official Documentation**: Created `docs/install.md` which serves as the central guide for all installation methods (One-line, Homebrew, and Manual).
-- **Direct Downloads**: Established predictable release asset naming conventions for easier third-party integration.
+- **Firebase Hosting Configuration**: Created `firebase.json` for high-performance hosting with Single-Page Application (SPA) support and security headers for WASM.
+- **Automated Deployment Workflow**: Established `.github/workflows/deploy-firebase.yml` to automate builds and deployments directly from the main branch.
+- **Guideline Documentation**: Created `docs/FIREBASE_GUIDELINE.md` to assist the owner in setting up their Firebase project and connecting the deployment pipeline.
+- **Distribution Asset Hosting**: Copied the one-line installer (`install.sh`) to the website's public directory to ensure it is hosted alongside the language documentation.
 
 ### Verification:
-- Homebrew formula syntax verified (`ruby -c Formula/lumina.rb`).
-- Release workflow updated to upload tarballs to GitHub Assets.
-- Manual download links in `docs/install.md` align with release pipeline naming.
+- Firebase configuration syntax validated locally.
+- Deployment workflow configured for automatic environment updates.
+- Installer script parity maintained with root `public/` folder.
 
-### Next Steps:
-With the distribution infrastructure solid, we are ready for **Phase 4: VS Code Marketplace** to publish the official IDE extension.
+This setup ensures Lumina is accessible immediately at a `*.web.app` subdomain for developers and community testing.
