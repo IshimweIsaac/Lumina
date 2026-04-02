@@ -24,8 +24,7 @@ aggregate FleetStatus over Moto {
 }
 
 rule LowBattery for (m: Moto)
-when m.isLowBattery becomes true
-cooldown 10m {
+when m.isLowBattery becomes true {
   alert severity: "warning",
   source: m.label,
   message: "low battery: {m.battery}% on {m.label}"
@@ -33,7 +32,7 @@ cooldown 10m {
   alert severity: "resolved",
   source: m.label,
   message: "battery recovered: {m.battery}%"
-}
+} cooldown 10m
 
 rule MotoOffline for (m: Moto)
 when m.isOnline becomes false {
@@ -127,7 +126,7 @@ entity Zone {
 }
 
 rule DryCondition for (z: Zone)
-when count(z.needsWater == true) >= 3 every 1h {
+when z.needsWater == true 3 times within 1h {
   alert severity: "info", source: z.label,
   message: "persistent dry condition on {z.label}"
 }

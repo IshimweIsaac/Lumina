@@ -53,10 +53,16 @@ jobs:
           fi
           
           cd dist
+          # Create compressed archives for package managers (Phase 3)
+          tar -czf ../${{ matrix.binary }}.tar.gz *
+          cd ..
+          
           if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum ${{ matrix.binary }} > ${{ matrix.binary }}.sha256
+            sha256sum dist/${{ matrix.binary }} > dist/${{ matrix.binary }}.sha256
+            sha256sum ${{ matrix.binary }}.tar.gz > ${{ matrix.binary }}.tar.gz.sha256
           else
-            shasum -a 256 ${{ matrix.binary }} > ${{ matrix.binary }}.sha256
+            shasum -a 256 dist/${{ matrix.binary }} > dist/${{ matrix.binary }}.sha256
+            shasum -a 256 ${{ matrix.binary }}.tar.gz > ${{ matrix.binary }}.tar.gz.sha256
           fi
 
       - name: Upload to release
@@ -66,5 +72,7 @@ jobs:
             dist/${{ matrix.binary }}
             dist/${{ matrix.binary }}-lsp*
             dist/${{ matrix.binary }}.sha256
+            ${{ matrix.binary }}.tar.gz
+            ${{ matrix.binary }}.tar.gz.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,16 +1,17 @@
-# Phase 2: System Installation
+# Phase 3: Package Managers
 
-This phase builds the foundational distribution infrastructure for Lumina, allowing developers to install the language with a single command.
+This phase expands Lumina's reach through official package manager support and comprehensive documentation.
 
 ### Key Accomplishments:
-- **GitHub Release Pipeline**: Configured `.github/workflows/release.yml` to automate binary builds for 5 platforms (Linux x64/arm64, macOS x64/arm64, Windows x64).
-- **One-Line Installer**: Created `public/install.sh`, a robust shell script for automated installation.
-    - **Platform Detection**: Automatically identifies OS and Architecture.
-    - **Checksum Verification**: Uses SHA256 to ensure binary integrity during download.
-    - **Automatic PATH Configuration**: Detects and updates common shell profiles (.zshrc, .bashrc, etc.).
-- **Workflow Automation**: Integrated checksum generation directly into the release process for increased security.
+- **Homebrew Support**: Created `Formula/lumina.rb` for macOS (Intel and Apple Silicon).
+- **Binary Tarballs**: Updated `.github/workflows/release.yml` to generate compressed archives (`.tar.gz`) and corresponding SHA256 checksums, ensuring standard package manager compatibility.
+- **Official Documentation**: Created `docs/install.md` which serves as the central guide for all installation methods (One-line, Homebrew, and Manual).
+- **Direct Downloads**: Established predictable release asset naming conventions for easier third-party integration.
 
 ### Verification:
-- Release workflow syntax verified.
-- `install.sh` tested for platform detection and checksum fallback (sha256sum/shasum).
-- Path update logic tested for idempotency.
+- Homebrew formula syntax verified (`ruby -c Formula/lumina.rb`).
+- Release workflow updated to upload tarballs to GitHub Assets.
+- Manual download links in `docs/install.md` align with release pipeline naming.
+
+### Next Steps:
+With the distribution infrastructure solid, we are ready for **Phase 4: VS Code Marketplace** to publish the official IDE extension.
