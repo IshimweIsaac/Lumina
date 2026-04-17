@@ -56,6 +56,10 @@ impl ModuleLoader {
         // Recurse into imports before adding this file
         let dir = path.parent().unwrap_or(Path::new("."));
         for import in program.imports() {
+            // v1.9: Skip LSL namespace imports — they are virtual, not file-based
+            if import.namespace.is_some() {
+                continue;
+            }
             let dep_path = dir.join(&import.path);
             let dep_canonical = dep_path.canonicalize().map_err(|e| {
                 file_not_found(&dep_path, &e.to_string())
@@ -76,9 +80,11 @@ impl ModuleLoader {
         for path in &self.order {
             if let Some(prog) = self.loaded.get(path) {
                 for stmt in &prog.statements {
-                    // Skip import statements - already resolved
-                    if !matches!(stmt, Statement::Import(_)) {
-                        stmts.push(stmt.clone());
+                    // Skip file-based import statements (already resolved),
+                    // but keep LSL namespace imports for the engine
+                    match stmt {
+                        Statement::Import(i) if i.namespace.is_none() => continue,
+                        _ => stmts.push(stmt.clone()),
                     }
                 }
             }

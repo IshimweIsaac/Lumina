@@ -76,7 +76,7 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
         }
     }
     // Now that aggregates are registered, compute their initial values.
-    ev.agg_store.recompute(&ev.store);
+    ev.agg_store.recompute(&ev.store, Some(&ev.cluster_state));
     
     ev
 }

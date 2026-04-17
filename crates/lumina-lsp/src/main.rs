@@ -5,6 +5,7 @@ mod semantic;
 mod refs;
 mod action;
 mod inlay;
+mod symbols;
 use backend::LuminaBackend;
 use tower_lsp::{LspService, Server};
 

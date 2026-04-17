@@ -887,7 +887,7 @@ dependencies = [
 
 [[package]]
 name = "lumina-analyzer"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "lumina-diagnostics",
  "lumina-lexer",
@@ -896,9 +896,10 @@ dependencies = [
 
 [[package]]
 name = "lumina-cli"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "lumina-analyzer",
+ "lumina-cluster",
  "lumina-diagnostics",
  "lumina-lexer",
  "lumina-parser",
@@ -907,12 +908,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumina-cluster"
+version = "2.0.0"
+dependencies = [
+ "bytes",
+ "lumina-analyzer",
+ "lumina-parser",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "lumina-diagnostics"
-version = "1.6.0"
+version = "2.0.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "lumina-lexer"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "logos",
  "serde",
@@ -920,7 +937,7 @@ dependencies = [
 
 [[package]]
 name = "lumina-lsp"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "dashmap",
  "lumina-analyzer",
@@ -934,7 +951,7 @@ dependencies = [
 
 [[package]]
 name = "lumina-parser"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "lumina-lexer",
  "serde",
@@ -942,7 +959,7 @@ dependencies = [
 
 [[package]]
 name = "lumina-runtime"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "lumina-analyzer",
  "lumina-lexer",
@@ -957,7 +974,7 @@ dependencies = [
 
 [[package]]
 name = "lumina-wasm"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -973,7 +990,7 @@ dependencies = [
 
 [[package]]
 name = "lumina_ffi"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "libc",
  "lumina-analyzer",

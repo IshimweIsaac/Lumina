@@ -10,6 +10,7 @@ members = [
     "crates/lumina-cli",
     "crates/lumina-wasm",
     "crates/lumina-lsp",
+    "crates/lumina-cluster"
 ]
 
 [profile.release]

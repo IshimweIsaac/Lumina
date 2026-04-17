@@ -2,7 +2,7 @@
     "name": "lumina-lang",
     "displayName": "Lumina Language Support",
     "description": "Lumina (.lum) language support - syntax highlighting, snippets, and LSP",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "publisher": "luminalang",
     "icon": "icon.png",
     "repository": {

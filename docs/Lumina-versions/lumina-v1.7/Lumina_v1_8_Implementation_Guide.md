@@ -1,6 +1,6 @@
 **LUMINA**
 
-**v1.7 Implementation Guide**
+**v1.8 Implementation Guide**
 
 **The Experience Release -- Build Guide**
 
@@ -20,19 +20,19 @@ _This is a build guide -- not a language guide. No Rust. No crates. Pure distrib
 
 **CRITICAL Critical -- Read Before Building Anything**
 
-v1.7 adds ZERO new language features.
+v1.8 adds ZERO new language features.
 
-Do NOT touch any Rust crate during v1.7.
+Do NOT touch any Rust crate during v1.8.
 
 Do NOT modify lumina-parser, lumina-runtime, lumina-analyzer, or any other crate.
 
-v1.6 must be fully complete and cargo test --workspace green before v1.7 begins.
+v1.6 must be fully complete and cargo test --workspace green before v1.8 begins.
 
-v1.7 is entirely: website, scripts, config files, documentation, and frontend.
+v1.8 is entirely: website, scripts, config files, documentation, and frontend.
 
-The only code written in v1.7 is: shell scripts, HTML/CSS/JS, YAML, and Markdown.
+The only code written in v1.8 is: shell scripts, HTML/CSS/JS, YAML, and Markdown.
 
-**NOTE What v1.7 Requires from v1.6**
+**NOTE What v1.8 Requires from v1.6**
 
 lumina binary -- compiled, tested, all features working
 
@@ -68,7 +68,7 @@ _lumina-lang.dev -- static site, playground embedded, fast, alive on arrival_
 | **Choice**            | **Specification**                                                        |
 | --------------------- | ------------------------------------------------------------------------ |
 | Static site generator | Astro or plain HTML/CSS -- no React, no Next.js, no server               |
-| Hosting               | Cloudflare Pages or Netlify -- free tier, CDN globally, deploys from git |
+| Hosting               | Firebase Hosting -- lumina-lang.web.app                                  |
 | Domain                | lumina-lang.dev -- register via Cloudflare or Namecheap                  |
 | Playground embed      | iframe or direct WASM embed in the landing page                          |
 | Documentation         | Markdown files, static rendering, searchable via Pagefind                |
@@ -84,7 +84,7 @@ _lumina-lang.dev -- static site, playground embedded, fast, alive on arrival_
 
 | **index.html -- the critical first section**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| &lt;!DOCTYPE html&gt;<br><br>&lt;html lang="en"&gt;<br><br>&lt;head&gt;<br><br>&lt;meta charset="UTF-8"&gt;<br><br>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;<br><br>&lt;title&gt;Lumina -- Describe what is true.&lt;/title&gt;<br><br>&lt;meta name="description" content="Declarative reactive language for IoT and infrastructure monitoring."&gt;<br><br>&lt;link rel="stylesheet" href="/css/main.css"&gt;<br><br>&lt;/head&gt;<br><br>&lt;body&gt;<br><br>&lt;header&gt;<br><br>&lt;span class="logo"&gt;Lumina&lt;/span&gt;<br><br>&lt;nav&gt;<br><br>&lt;a href="/docs"&gt;Docs&lt;/a&gt;<br><br>&lt;a href="/guides"&gt;Get Started&lt;/a&gt;<br><br>&lt;a href="<https://github.com/luminalang/lumina">GitHub</a>&gt;<br><br>&lt;/nav&gt;<br><br>&lt;/header&gt;<br><br>&lt;!-- Hero: tagline + live playground side by side --&gt;<br><br>&lt;section class="hero"&gt;<br><br>&lt;div class="hero-text"&gt;<br><br>&lt;h1&gt;Describe what is true.&lt;/h1&gt;<br><br>&lt;p&gt;Lumina is a declarative reactive language for IoT,<br><br>infrastructure monitoring, and real-time automation.&lt;/p&gt;<br><br>&lt;p&gt;Write rules that react to the world. No event loops.<br><br>No polling. No state machines.&lt;/p&gt;<br><br>&lt;div class="hero-actions"&gt;<br><br>&lt;a href="/guides/fleet" class="btn-primary"&gt;Get Started in 10 Minutes&lt;/a&gt;<br><br>&lt;a href="<https://lumina-lang.dev/play>" class="btn-secondary"&gt;Try in Browser&lt;/a&gt;<br><br>&lt;/div&gt;<br><br>&lt;/div&gt;<br><br>&lt;div class="hero-playground"&gt;<br><br>&lt;!-- Playground iframe -- pre-loaded with fleet example --&gt;<br><br>&lt;iframe src="/play?example=fleet" title="Lumina Playground"&gt;&lt;/iframe&gt;<br><br>&lt;/div&gt;<br><br>&lt;/section&gt;<br><br>&lt;/body&gt;<br><br>&lt;/html&gt; |
+| &lt;!DOCTYPE html&gt;<br><br>&lt;html lang="en"&gt;<br><br>&lt;head&gt;<br><br>&lt;meta charset="UTF-8"&gt;<br><br>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;<br><br>&lt;title&gt;Lumina -- Reactive Target Infrastructure.&lt;/title&gt;<br><br>&lt;meta name="description" content="A reactive language for Target Infrastructure and real-time fleet orchestration."&gt;<br><br>&lt;link rel="stylesheet" href="/css/main.css"&gt;<br><br>&lt;/head&gt;<br><br>&lt;body&gt;<br><br>&lt;header&gt;<br><br>&lt;span class="logo"&gt;Lumina&lt;/span&gt;<br><br>&lt;nav&gt;<br><br>&lt;a href="/docs"&gt;Docs&lt;/a&gt;<br><br>&lt;a href="/guides"&gt;Get Started&lt;/a&gt;<br><br>&lt;a href="<https://github.com/luminalang/lumina">GitHub</a>&gt;<br><br>&lt;/nav&gt;<br><br>&lt;/header&gt;<br><br>&lt;!-- Hero: tagline + live playground side by side --&gt;<br><br>&lt;section class="hero"&gt;<br><br>&lt;div class="hero-text"&gt;<br><br>&lt;h1&gt;Reactive Target Infrastructure.&lt;/h1&gt;<br><br>&lt;p&gt;Lumina is a declarative reactive language for distributed state,<br><br>target infrastructure, and autonomous fleet management.&lt;/p&gt;<br><br>&lt;p&gt;Write rules that react to the world. No event loops.<br><br>No polling. No state machines.&lt;/p&gt;<br><br>&lt;div class="hero-actions"&gt;<br><br>&lt;a href="/guides/fleet" class="btn-primary"&gt;Get Started in 10 Minutes&lt;/a&gt;<br><br>&lt;a href="<https://lumina-lang.dev/play>" class="btn-secondary"&gt;Try in Browser&lt;/a&gt;<br><br>&lt;/div&gt;<br><br>&lt;/div&gt;<br><br>&lt;div class="hero-playground"&gt;<br><br>&lt;!-- Playground iframe -- pre-loaded with fleet example --&gt;<br><br>&lt;iframe src="/play?example=fleet" title="Lumina Playground"&gt;&lt;/iframe&gt;<br><br>&lt;/div&gt;<br><br>&lt;/section&gt;<br><br>&lt;/body&gt;<br><br>&lt;/html&gt; |
 
 # **41.4 Deployment Pipeline**
 
@@ -104,7 +104,7 @@ Step 3: Build landing page HTML/CSS -- hero section with playground iframe.
 
 Step 4: Build why page with Python vs Lumina comparison.
 
-Step 5: Set up Cloudflare Pages or Netlify deployment.
+Step 5: Set up Firebase Hosting deployment.
 
 Step 6: Configure deploy.sh to copy latest WASM build into public/.
 
@@ -142,7 +142,7 @@ Before the installer can work, binaries must be available on GitHub releases. Th
 
 Step 1: Set up GitHub releases workflow (.github/workflows/release.yml).
 
-Step 2: Create a test tag (v1.7.0-rc1) and verify all 5 platform binaries build.
+Step 2: Create a test tag (v1.8.0-rc1) and verify all 5 platform binaries build.
 
 Step 3: Verify checksum files are generated alongside each binary.
 
@@ -200,7 +200,7 @@ Step 2: Add Formula/lumina.rb with the formula content above.
 
 Step 3: Update release.yml to create tarballs and compute SHA256 for Homebrew.
 
-Step 4: On v1.7 release: update lumina.rb with correct sha256 values.
+Step 4: On v1.8 release: update lumina.rb with correct sha256 values.
 
 Step 5: Test: brew tap luminalang/lumina && brew install luminalang/lumina/lumina.
 
@@ -228,9 +228,9 @@ _vsce publish -- from .vsix file to searchable marketplace extension_
 
 # **44.2 package.json -- Complete Marketplace Metadata**
 
-| **extensions/lumina-vscode/package.json -- complete v1.7 version**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **extensions/lumina-vscode/package.json -- complete v1.8 version**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| {<br><br>"name": "lumina-lang",<br><br>"displayName": "Lumina",<br><br>"description": "Declarative reactive language for IoT and infrastructure monitoring",<br><br>"version": "1.7.0",<br><br>"publisher": "luminalang",<br><br>"license": "MIT",<br><br>"categories": \["Programming Languages", "Linters"\],<br><br>"keywords": \["lumina", "reactive", "IoT", "monitoring", "declarative", "infrastructure"\],<br><br>"icon": "images/lumina-icon.png",<br><br>"homepage": "<https://lumina-lang.dev>",<br><br>"repository": {<br><br>"type": "git",<br><br>"url": "<https://github.com/luminalang/lumina>"<br><br>},<br><br>"bugs": { "url": "<https://github.com/luminalang/lumina/issues>" },<br><br>"engines": { "vscode": "^1.75.0" },<br><br>"main": "./out/extension.js",<br><br>"activationEvents": \["onLanguage:lumina"\],<br><br>"contributes": {<br><br>"languages": \[{<br><br>"id": "lumina",<br><br>"aliases": \["Lumina", "lumina"\],<br><br>"extensions": \[".lum"\],<br><br>"configuration": "./language-configuration.json"<br><br>}\],<br><br>"grammars": \[{<br><br>"language": "lumina",<br><br>"scopeName": "source.lumina",<br><br>"path": "./syntaxes/lumina.tmLanguage.json"<br><br>}\],<br><br>"snippets": \[{<br><br>"language": "lumina",<br><br>"path": "./snippets/lumina.json"<br><br>}\]<br><br>},<br><br>"scripts": {<br><br>"compile": "tsc -p ./",<br><br>"package": "vsce package",<br><br>"publish": "vsce publish"<br><br>},<br><br>"dependencies": {<br><br>"vscode-languageclient": "^9.0.0"<br><br>},<br><br>"devDependencies": {<br><br>"@types/vscode": "^1.75.0",<br><br>"@vscode/vsce": "^2.0.0",<br><br>"typescript": "^5.0.0"<br><br>}<br><br>} |
+| {<br><br>"name": "lumina-lang",<br><br>"displayName": "Lumina",<br><br>"description": "Declarative reactive language for IoT and infrastructure monitoring",<br><br>"version": "1.8.0",<br><br>"publisher": "luminalang",<br><br>"license": "MIT",<br><br>"categories": \["Programming Languages", "Linters"\],<br><br>"keywords": \["lumina", "reactive", "IoT", "monitoring", "declarative", "infrastructure"\],<br><br>"icon": "images/lumina-icon.png",<br><br>"homepage": "<https://lumina-lang.dev>",<br><br>"repository": {<br><br>"type": "git",<br><br>"url": "<https://github.com/luminalang/lumina>"<br><br>},<br><br>"bugs": { "url": "<https://github.com/luminalang/lumina/issues>" },<br><br>"engines": { "vscode": "^1.75.0" },<br><br>"main": "./out/extension.js",<br><br>"activationEvents": \["onLanguage:lumina"\],<br><br>"contributes": {<br><br>"languages": \[{<br><br>"id": "lumina",<br><br>"aliases": \["Lumina", "lumina"\],<br><br>"extensions": \[".lum"\],<br><br>"configuration": "./language-configuration.json"<br><br>}\],<br><br>"grammars": \[{<br><br>"language": "lumina",<br><br>"scopeName": "source.lumina",<br><br>"path": "./syntaxes/lumina.tmLanguage.json"<br><br>}\],<br><br>"snippets": \[{<br><br>"language": "lumina",<br><br>"path": "./snippets/lumina.json"<br><br>}\]<br><br>},<br><br>"scripts": {<br><br>"compile": "tsc -p ./",<br><br>"package": "vsce package",<br><br>"publish": "vsce publish"<br><br>},<br><br>"dependencies": {<br><br>"vscode-languageclient": "^9.0.0"<br><br>},<br><br>"devDependencies": {<br><br>"@types/vscode": "^1.75.0",<br><br>"@vscode/vsce": "^2.0.0",<br><br>"typescript": "^5.0.0"<br><br>}<br><br>} |
 
 # **44.3 Automated Marketplace Publication**
 
@@ -254,7 +254,7 @@ Step 5: Add lumina-icon.png (128x128px) to extensions/lumina-vscode/images/.
 
 Step 6: npm install && npm run compile -- must succeed with 0 TypeScript errors.
 
-Step 7: vsce package -- produces lumina-lang-1.7.0.vsix.
+Step 7: vsce package -- produces lumina-lang-1.8.0.vsix.
 
 Step 8: vsce publish -- publishes to marketplace.
 
@@ -332,7 +332,7 @@ Step 10: Link each guide to the playground with the example pre-loaded.
 
 **Error Message Review**
 
-_Every L001-L042 rewritten to teach -- the most underrated v1.7 chapter_
+_Every L001-L042 rewritten to teach -- the most underrated v1.8 chapter_
 
 # **46.1 The Review Process**
 
@@ -368,7 +368,7 @@ Every error code is reviewed against the three-question standard: What went wron
 
 | **Where error messages live in the codebase**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| \-- Error messages are produced in:<br><br>\-- crates/lumina-diagnostics/src/messages.rs<br><br>\-- or equivalent diagnostic message file<br><br>\-- Each L-code maps to a format string:<br><br>\-- fn l036_message(target: &str, suggestion: Option&lt;&str&gt;) -> String {<br><br>\-- format!("L036: ref target entity does not exist.\\n\\n ...", target, suggestion)<br><br>\-- }<br><br>\-- The review in v1.7 rewrites these format strings.<br><br>\-- Do NOT change the error code numbers.<br><br>\-- Do NOT change where errors are emitted.<br><br>\-- ONLY change the message text to meet the three-question standard. |
+| \-- Error messages are produced in:<br><br>\-- crates/lumina-diagnostics/src/messages.rs<br><br>\-- or equivalent diagnostic message file<br><br>\-- Each L-code maps to a format string:<br><br>\-- fn l036_message(target: &str, suggestion: Option&lt;&str&gt;) -> String {<br><br>\-- format!("L036: ref target entity does not exist.\\n\\n ...", target, suggestion)<br><br>\-- }<br><br>\-- The review in v1.8 rewrites these format strings.<br><br>\-- Do NOT change the error code numbers.<br><br>\-- Do NOT change where errors are emitted.<br><br>\-- ONLY change the message text to meet the three-question standard. |
 
 # **46.4 Build Order**
 
@@ -492,7 +492,7 @@ Step 12: Verify iframe loads correctly on lumina-lang.dev.
 
 **Appendix**
 
-**Complete v1.7 Build Sequence**
+**Complete v1.8 Build Sequence**
 
 _8 chapters -- build in dependency order -- website launches when all are done_
 
@@ -508,7 +508,7 @@ WASM binary must be built with wasm-pack.
 
 All error codes L001-L042 must be implemented.
 
-Do NOT start v1.7 until all of the above are confirmed.
+Do NOT start v1.8 until all of the above are confirmed.
 
 **BUILD Phase 1 -- Ch48: Playground Polish (first -- everything depends on it)**
 
@@ -606,7 +606,7 @@ Do NOT start v1.7 until all of the above are confirmed.
 
 6\. Deploy and verify loads in under 2 seconds.
 
-**DONE v1.7 Definition of Done -- 12 Verification Points**
+**DONE v1.8 Definition of Done -- 12 Verification Points**
 
 1\. lumina-lang.dev loads in under 2 seconds.
 

@@ -1,6 +1,6 @@
 # Publishing to VS Code Marketplace
 
-You've already generated the `.vsix` package in `extensions/lumina-vscode/lumina-lang-1.7.0.vsix`. Here are the steps to make it live for the world.
+You've already generated the `.vsix` package in `extensions/lumina-vscode/lumina-lang-1.8.0.vsix`. Here are the steps to make it live for the world.
 
 ## 1. Prerequisites
 - A **Microsoft Account**.
@@ -37,7 +37,7 @@ npx @vscode/vsce publish
 1. Go to the [Management Console](https://marketplace.visualstudio.com/manage).
 2. Click on your `luminalang` publisher.
 3. Click **New Extension** -> **Visual Studio Code**.
-4. Drag and drop your `lumina-lang-1.7.0.vsix` file.
+4. Drag and drop your `lumina-lang-1.8.0.vsix` file.
 5. Review the details and click **Upload**.
 
 ## 6. Verification

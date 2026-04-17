@@ -1,5 +1,3 @@
--- Lumina Fleet OS — end-to-end spec test
-
 entity Moto {
   battery: Number
   isBusy: Boolean
@@ -13,10 +11,17 @@ entity Fleet {
   name: Text
 }
 
-let Moto = Moto { battery: 80, isBusy: false, status: "available" }
-let Fleet = Fleet { name: "Kigali Fleet Alpha" }
+let Moto = Moto {
+  battery: 80,
+  isBusy: false,
+  status: "available",
+}
 
-rule "low battery alert" 
+let Fleet = Fleet {
+  name: "Kigali Fleet Alpha",
+}
+
+rule "low battery alert"
 when Moto.isLowBattery becomes true {
   show "ALERT: battery low"
 }
@@ -28,6 +33,9 @@ when Moto.isCritical becomes true {
 }
 
 update Moto.battery to 18
+
 update Moto.battery to 4
+
 show "Fleet: {Fleet.name}"
+
 show "Moto available: {Moto.isAvailable}"

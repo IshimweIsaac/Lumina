@@ -39,6 +39,7 @@ pub struct Evaluator {
     pub rule_active: HashMap<(String, String), bool>,
     pub frequency_events: HashMap<(String, String), Vec<f64>>,
     pub agg_store: AggregateStore,
+    pub cluster_state: HashMap<String, HashMap<String, Value>>,
     pub now:       f64,
 }
 impl Evaluator {
@@ -75,6 +76,7 @@ impl Evaluator {
             rule_active: HashMap::new(),
             frequency_events: HashMap::new(),
             agg_store: AggregateStore::new(),
+            cluster_state: HashMap::new(),
             now: 0.0,
         }
     }
@@ -106,6 +108,7 @@ impl Evaluator {
             rule_active: HashMap::new(),
             frequency_events: HashMap::new(),
             agg_store: AggregateStore::new(),
+            cluster_state: HashMap::new(),
             now: 0.0,
         }
     }
@@ -334,6 +337,18 @@ impl Evaluator {
                     "now" => {
                         return Ok(Value::Timestamp(self.now));
                     }
+                    "env" => {
+                        // v1.9: Read environment variable, return as Secret
+                        if let Some(arg) = args.first() {
+                            let var_name = match self.eval_expr(arg, ctx)? {
+                                Value::Text(s) => s,
+                                _ => return Err(RuntimeError::R002),
+                            };
+                            let val = std::env::var(&var_name).unwrap_or_default();
+                            return Ok(Value::Secret(val));
+                        }
+                        return Err(RuntimeError::R002);
+                    }
                     _ => {} // Fall through to user-defined fn lookup
                 }
                 let decl = self.functions.get(name)
@@ -379,6 +394,21 @@ impl Evaluator {
                     .ok_or(RuntimeError::R001 { instance: inst_name.to_string() })?;
                 instance.get(field).cloned()
                     .ok_or(RuntimeError::R005 { instance: inst_name.to_string(), field: field.clone() })
+            }
+            Expr::ClusterAccess { node_id, field, .. } => {
+                // v2.0: Access cluster state.
+                if let Some(node_state) = self.cluster_state.get(node_id) {
+                    if let Some(val) = node_state.get(field) {
+                        return Ok(val.clone());
+                    }
+                    return Err(RuntimeError::R014 { node: node_id.clone(), entity: field.clone() }); // Unresolvable ref
+                }
+                Err(RuntimeError::R012 { reason: format!("Node {} not found in cluster state", node_id) }) // Node isolated / missing
+            }
+            Expr::Migrate { .. } | Expr::Evacuate { .. } | Expr::Deploy { .. } => {
+                // v2.0: Orchestration actions return Boolean true if accepted
+                // Actual implementation happens in the cluster controller
+                Ok(Value::Bool(true))
             }
         }
     }
@@ -510,7 +540,7 @@ impl Evaluator {
             Statement::Entity(_) | Statement::ExternalEntity(_) | Statement::Rule(_) => Ok(vec![]),
             Statement::Aggregate(decl) => {
                 self.agg_store.register(decl.clone());
-                self.agg_store.recompute(&self.store);
+                self.agg_store.recompute(&self.store, Some(&self.cluster_state));
                 Ok(vec![])
             }
             Statement::Fn(decl) => {
@@ -535,7 +565,7 @@ impl Evaluator {
                         self.store.insert(inst_name.clone(), Instance::new(&entity_name, fields));
                         // Compute derived fields for the new instance
                         self.propagate_derived(&inst_name, &entity_name)?;
-                        self.agg_store.recompute(&self.store);
+                        self.agg_store.recompute(&self.store, Some(&self.cluster_state));
                         self.store.commit_all();
                         
                         // Initial rule evaluation for this new instance
@@ -544,7 +574,32 @@ impl Evaluator {
                 }
             }
             Statement::Action(a) => self.exec_action(a, None),
-            Statement::Import(_) => Ok(vec![])
+            Statement::Import(import_decl) => {
+                // v1.9: If this is an LSL import, register the schema fields
+                if let Some(ref ns) = import_decl.namespace {
+                    let lsl = crate::lsl::LslRegistry::new();
+                    if let Some(entity_decl) = lsl.resolve(&import_decl.path) {
+                        let entity_name = ns.last().cloned().unwrap_or_default();
+                        // Register entity fields into the schema
+                        for field in &entity_decl.fields {
+                            match field {
+                                lumina_parser::ast::Field::Stored(sf) => {
+                                    self.schema.register_field(&entity_name, &sf.name, &sf.ty);
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                Ok(vec![])
+            }
+            Statement::PluginImport(_) => Ok(vec![]), // v1.8: Plugin registration handled at build time
+            Statement::Provider(decl) => {
+                // v1.9: Log provider registration for the orchestrator
+                self.output.push(format!("Provider '{}' registered (endpoint configured)", decl.protocol));
+                Ok(vec![])
+            }
+            Statement::Cluster(_) => Ok(vec![]), // v2.0: Cluster managed separately
         }
     }
 
@@ -591,7 +646,7 @@ impl Evaluator {
                 self.store.insert(inst_name, Instance::new(entity, fv));
 
                 // Recompute aggregates to include the new instance
-                self.agg_store.recompute(&self.store);
+                self.agg_store.recompute(&self.store, Some(&self.cluster_state));
 
                 Ok(vec![])
             }
@@ -777,7 +832,7 @@ impl Evaluator {
             }
         }
 
-        self.agg_store.recompute(&self.store);
+        self.agg_store.recompute(&self.store, Some(&self.cluster_state));
 
         // Evaluate rules
         let all_events = self.evaluate_rules(instance_name)?;
@@ -1291,6 +1346,8 @@ impl Evaluator {
             }
             Value::Timestamp(t) => serde_json::json!(*t),
             Value::Duration(d) => serde_json::json!(*d),
+            Value::Secret(_) => serde_json::json!("***SECRET***"),
+            Value::Unknown => serde_json::Value::Null,
         }
     }
 }

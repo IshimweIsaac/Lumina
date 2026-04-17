@@ -9,6 +9,12 @@ pub enum Value {
     List(Vec<Value>),
     Timestamp(f64),
     Duration(f64),
+    /// v1.8: A secret value that is redacted in display output.
+    /// Can only be passed to `write` actions and external adapters.
+    Secret(String),
+    /// v1.8: Represents a field whose value is unknown (e.g. external entity
+    /// has lost connectivity or sync timeout has expired).
+    Unknown,
 }
 
 impl Value {
@@ -20,6 +26,8 @@ impl Value {
             Value::List(_)      => "List",
             Value::Timestamp(_) => "Timestamp",
             Value::Duration(_)  => "Duration",
+            Value::Secret(_)    => "Secret",
+            Value::Unknown      => "Unknown",
         }
     }
 
@@ -39,6 +47,10 @@ impl Value {
         if let Value::List(l) = self { Some(l) } else { None }
     }
 
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, Value::Unknown)
+    }
+
     pub fn is_same_type(&self, other: &Value) -> bool {
         matches!(
             (self, other),
@@ -47,7 +59,9 @@ impl Value {
             (Value::Bool(_),   Value::Bool(_))   |
             (Value::List(_),   Value::List(_))   |
             (Value::Timestamp(_), Value::Timestamp(_)) |
-            (Value::Duration(_), Value::Duration(_))
+            (Value::Duration(_), Value::Duration(_)) |
+            (Value::Secret(_), Value::Secret(_)) |
+            (Value::Unknown, Value::Unknown)
         )
     }
 }
@@ -100,6 +114,8 @@ impl std::fmt::Display for Value {
                     }
                 }
             }
+            Value::Secret(_) => write!(f, "***SECRET***"),
+            Value::Unknown   => write!(f, "unknown"),
         }
     }
 }

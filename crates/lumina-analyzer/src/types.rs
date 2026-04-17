@@ -40,4 +40,27 @@ impl Schema {
     pub fn get_field(&self, entity: &str, field: &str) -> Option<&FieldSchema> {
         self.entities.get(entity)?.fields.get(field)
     }
+
+    /// v1.9: Register a single field into an entity schema (used by LSL imports)
+    pub fn register_field(&mut self, entity: &str, field_name: &str, ty: &LuminaType) {
+        let entity_schema = self.entities.entry(entity.to_string()).or_insert_with(|| {
+            EntitySchema {
+                name: entity.to_string(),
+                fields: HashMap::new(),
+                is_external: false,
+                sync_path: String::new(),
+                sync_strategy: SyncStrategy::Realtime,
+                sync_on: None,
+                poll_interval: None,
+            }
+        });
+        entity_schema.fields.entry(field_name.to_string()).or_insert_with(|| {
+            FieldSchema {
+                name: field_name.to_string(),
+                ty: ty.clone(),
+                is_derived: false,
+                metadata: FieldMetadata { doc: None, range: None, affects: vec![] },
+            }
+        });
+    }
 }

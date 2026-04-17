@@ -80,7 +80,7 @@ fn eval_expr_with_store(
             // Fallback: use the current evaluator
             evaluator.eval_expr(expr, Some(instance_name))
         }
-        Expr::Binary { op, left, right, span } => {
+        Expr::Binary { op, left, right, span: _ } => {
             let l = eval_expr_with_store(evaluator, left, instance_name, prev_store)?;
             let r = eval_expr_with_store(evaluator, right, instance_name, prev_store)?;
             // Re-evaluate the binary operation with previous values

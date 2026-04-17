@@ -100,7 +100,7 @@ add_to_path
 
 # ── Verify ──────────────────────────────────────────────
 if [ -x "$BIN_DIR/lumina" ]; then
-    VERSION=$("$BIN_DIR/lumina" --version 2>/dev/null || echo "v1.7.0")
+    VERSION=$("$BIN_DIR/lumina" --version 2>/dev/null || echo "v1.8.0")
     echo ""
     echo "Lumina $VERSION installed successfully."
     echo ""

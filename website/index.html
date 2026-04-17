@@ -22,7 +22,7 @@
       <a href="#" class="nav__brand">
         <img src="/logo.png" alt="Lumina" class="nav__logo" />
         <span class="nav__name">Lumina</span>
-        <span class="nav__version">v1.7.0</span>
+        <span class="nav__version">v1.8.0</span>
       </a>
       <div class="nav__links" id="nav-links">
         <a href="#features" class="nav__link">Features</a>
@@ -30,6 +30,14 @@
         <a href="/docs.html#examples" class="nav__link">Examples</a>
         <a href="#ecosystem" class="nav__link">Ecosystem</a>
         <a href="#install" class="nav__link">Install</a>
+        <a href="#install" class="nav__mobile-cta">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Get Started
+        </a>
+        <a href="https://github.com/IshimweIsaac/Lumina" target="_blank" class="nav__mobile-github">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
       </div>
       <div class="nav__actions">
         <a href="https://github.com/IshimweIsaac/Lumina" target="_blank" class="nav__link nav__github">
@@ -54,7 +62,6 @@
     </div>
     <div class="hero__container">
       <div class="hero__content reveal">
-        <div class="hero__badge"><span class="hero__badge-dot"></span>Open Source · Built in Rust · v1.7.0</div>
         <h1 class="hero__title">Declare your logic.<br /><span class="gradient-text">Let Lumina react.</span></h1>
         <p class="hero__subtitle">A statically typed, declarative, and reactive programming language for modeling
           complex state-driven systems. Define relationships, write rules the runtime handles the rest.</p>
@@ -76,22 +83,24 @@
         <div class="code-window">
           <div class="code-window__header">
             <div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div><span
-              class="code-window__filename">fleet.lum</span>
+              class="code-window__filename">security.lum</span>
           </div>
-          <pre class="code-window__body"><code class="language-lumina">entity Moto {
-  battery: Number
-  status:  Text
- 
-  -- Derived fields compute automatically
-  isCritical  := battery &lt; 5
-  isAvailable := not isBusy and battery > 15
+          <pre class="code-window__body"><code class="language-lumina">entity SecuritySensor {
+  is_armed: Boolean
+  motion_detected: Boolean
+  
+  -- Derived: alert only if sensor is armed
+  is_breached := is_armed and motion_detected
 }
- 
-rule "Critical Battery" {
-  when Moto.isCritical becomes true
-  then update Moto.status to "maintenance"
-  then show "ALARM: {Moto.battery}%"
-}</code></pre>
+
+rule "Intrusion Alert"
+when any SecuritySensor.is_breached becomes true {
+  alert 
+    severity: "critical",
+    message: "Security Breach: {SecuritySensor.zone}",
+    code: "SEC_001"
+}
+cooldown 1h</code></pre>
         </div>
       </div>
     </div>
@@ -143,7 +152,81 @@ rule "Critical Battery" {
     </div>
   </section>
 
+  <!-- WHY LUMINA — Comparison -->
+  <section class="section" id="why-lumina">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__label">Why Lumina?</span>
+        <h2 class="section__title">Describe what is true.<br /><span class="gradient-text">Lumina figures out what to do.</span></h2>
+        <p class="section__desc">Traditional languages make you write the plumbing. Lumina lets you declare intent.</p>
+      </div>
+      <div class="code-example reveal">
+        <div class="code-example__info">
+          <div class="code-example__number">Python</div>
+          <h3 class="code-example__title">The Imperative Way</h3>
+          <p class="code-example__desc">You write poll loops, threshold checks, state tracking, cooldown timers, and alerting logic. <strong>Every detail is your responsibility.</strong></p>
+          <ul class="code-example__highlights">
+            <li>Manual polling for multi-zone security</li>
+            <li>Fragile alert-state dictionaries</li>
+            <li>Time-delta math for cooldown windows</li>
+            <li>No built-in auto-recovery logic</li>
+          </ul>
+        </div>
+        <div class="code-window">
+          <div class="code-window__header">
+            <div class="code-window__dots"><span class="dot dot--red"></span><span class="dot dot--yellow"></span><span class="dot dot--green"></span></div>
+            <span class="code-window__filename">monitor.py</span>
+          </div>
+          <pre class="code-window__body"><code><span class="kw">def</span> <span class="type">check_security</span>(sensors):
+    <span class="kw">for</span> id, s <span class="kw">in</span> sensors.items():
+        <span class="kw">if</span> s.is_armed <span class="kw">and</span> s.motion <span class="kw">and</span> <span class="kw">not</span> s.alerted:
+            <span class="kw">if</span> time.time() <span class="op">-</span> s.last_alert <span class="op">&gt;</span> <span class="num">3600</span>:
+                send_alert(<span class="str">f"Intrusion: {id}"</span>)
+                s.alerted = <span class="bool">True</span>
+                s.last_alert = time.time()
+        <span class="kw">elif</span> <span class="kw">not</span> s.motion <span class="kw">and</span> s.alerted:
+            send_clear(<span class="str">f"Zone Clear: {id}"</span>)
+            s.alerted = <span class="bool">False</span></code></pre>
+        </div>
+      </div>
+      <div class="code-example code-example--reverse reveal reveal--delay-1" style="margin-top: var(--sp-12);">
+        <div class="code-example__info">
+          <div class="code-example__number" style="color: rgba(52, 211, 153, 0.3);">Lumina</div>
+          <h3 class="code-example__title">The Declarative Way</h3>
+          <p class="code-example__desc">You describe the <strong>truth</strong> — the engine handles edge detection, evaluation order, and alerting. <strong>No loops. No state tracking. No bugs.</strong></p>
+          <ul class="code-example__highlights">
+            <li>Reactive — fires on state transition</li>
+            <li>Self-healing with automatic rollback</li>
+            <li>Auto-clear when condition resolves</li>
+            <li><code>cooldown</code> built into the language</li>
+          </ul>
+        </div>
+        <div class="code-window">
+          <div class="code-window__header">
+            <div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
+            <span class="code-window__filename">monitor.lum</span>
+          </div>
+          <pre class="code-window__body"><code class="language-lumina">entity SecuritySensor {
+  is_armed: Boolean
+  motion_detected: Boolean
+  is_breached := is_armed and motion_detected
+}
 
+rule "High Priority Breach"
+when any SecuritySensor.is_breached becomes true {
+  alert 
+    severity: "critical",
+    message: "Intrusion Detected!",
+    code: "SEC_CRIT_001"
+  on clear {
+    show "Zone Secured"
+  }
+}
+cooldown 1h</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- PIPELINE -->
   <section class="section pipeline-section" id="pipeline">
@@ -298,7 +381,7 @@ rule "Critical Battery" {
                 <span>Download for Windows</span>
               </a>
               <!-- macOS -->
-              <a href="#install" id="download-macos" class="btn btn--outline os-download" onclick="window.scrollToHashTarget('#install-macos')">
+              <a href="#install-macos" id="download-macos" class="btn btn--outline os-download">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.004-2.117 3.669-.54 9.103 1.519 12.087 1.007 1.456 2.196 3.085 3.773 3.03 1.526-.067 2.09-.988 3.935-.988 1.83 0 2.356.988 3.939.954 1.625-.027 2.641-1.477 3.645-2.93 1.153-1.688 1.636-3.325 1.663-3.415-.026-.027-3.182-1.217-3.217-4.826-.026-3.011 2.447-4.454 2.56-4.521-1.407-2.05-3.565-2.279-4.321-2.327-1.835-.152-3.111.967-3.977.967zm.32-4.723C12.472 1.391 11.758.332 10.744.1c-.08-.013-.159-.022-.24-.03-.024-.002-.047-.008-.073-.01-.018-.002-.036-.008-.053-.01-1.042 0-2.197.643-2.88 1.442-.693.816-1.22 1.956-1.025 3.031.022.122.059.24.113.351.008.017.02.03.028.046.012.023.016.05.031.071.868.046 2.056-.566 2.748-1.393.684-.817 1.258-2.046 1.014-3.04z"/></svg>
                 <span>Install for macOS</span>
               </a>

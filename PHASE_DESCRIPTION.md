@@ -1,6 +1,13 @@
-# Lumina v1.7 "Experience Release" - Final Implementation Summary
+This document tracks the completion of the final stages of Lumina, transforming the project from a raw engine into a **Reactive Target Infrastructure** ecosystem.
 
-This document tracks the completion of the final stages of Lumina v1.7, transforming the project from a raw engine into a developer-ready ecosystem.
+> [!IMPORTANT]
+> Starting with v1.8, Lumina focuses on "Ecosystem Extensibility" — supporting robust external adapters with plugins, secrets, and strong distributed state consistency.
+
+## Phase 9: v1.8 "The Ecosystem Release" [COMPLETED]
+- **Plugin System**: Added `import plugin "name" as alias`.
+- **Secrets Management**: Introduced `Secret` type with `L050` and `L051` leakage prevention.
+- **State Consistency**: Implemented `timeout`, `fallible`, and `unknown` keyword integrations.
+- **Code Fomatter**: Built the `lumina fmt` command for canonical code formatting.
 
 ## Phase 0: The Official Website (Ch 41) [COMPLETED]
 - Rebuilt with Vite/Vanilla JS for high performance.
@@ -22,7 +29,7 @@ This document tracks the completion of the final stages of Lumina v1.7, transfor
 
 ## Phase 4: VS Code Extension (Ch 44) [COMPLETED]
 - Updated metadata for Marketplace compliance.
-- Successfully packaged into `lumina-lang-1.7.0.vsix` with `@vscode/vsce`.
+- Successfully packaged into `lumina-lang-1.8.0.vsix` with `@vscode/vsce`.
 
 ## Phase 5: "Teaching" Error Messages (Ch 47) [COMPLETED]
 - **Parser**: Replaced technical error codes with human-readable sentences (e.g., "I expected to see keyword 'then'...").

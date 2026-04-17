@@ -39,6 +39,9 @@ pub fn get_semantic_tokens(prog: &Program, src: &str) -> Vec<SemanticToken> {
         "for", "every", "any", "all", "show", "update", "alert", "create",
         "delete", "import", "aggregate", "over", "cooldown", "on_clear",
         "ref", "write", "times", "within", "now", "prev",
+        // v2.0 keywords
+        "cluster", "node_id", "peers", "quorum", "election_timeout",
+        "migrate", "to", "evacuate", "deploy", "region",
     ];
 
     let type_keywords = ["Number", "Text", "Boolean", "Timestamp"];

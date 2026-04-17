@@ -1,0 +1,66 @@
+-- Lumina v1.9 Test: LSL + Provider + Security
+-- Tests the full v1.9 feature set
+
+import LSL::datacenter::Server
+import LSL::network::Switch
+
+-- Native southbound provider
+provider "redfish" {
+  endpoint: "https:///10.0.0.1/redfish/v1"
+  credentials: env("REDFISH_TOKEN")
+  poll_interval: 15 s
+}
+
+-- Use an LSL-backed entity with custom fields
+entity WebServer {
+  hostname: Text
+  cpu_percent: Number
+  status: Text
+  app_version: Text
+}
+
+-- Security context
+entity InfraRole {
+  name: Text
+  can_write_servers: Boolean
+}
+
+entity Session {
+  authenticated: Boolean
+  role_name: Text
+}
+
+let web1 = WebServer {
+  hostname: "web-prod-01",
+  cpu_percent: 45,
+  status: "running",
+  app_version: "3.2.1",
+}
+
+let admin_role = InfraRole {
+  name: "admin",
+  can_write_servers: true,
+}
+
+let session = Session {
+  authenticated: true,
+  role_name: "admin",
+}
+
+rule "high cpu alert"
+when web1.cpu_percent > 80 {
+  show "ALERT: {web1.hostname} CPU at {web1.cpu_percent}%"
+}
+
+rule "auto scale"
+when web1.cpu_percent > 90
+and session.authenticated == true {
+  update web1.status to "scaling"
+  show "Scaling {web1.hostname} — authorized by {session.role_name}"
+}
+
+-- Trigger the rules
+update web1.cpu_percent to 92
+
+show "Final status: {web1.status}"
+show "Session auth: {session.authenticated}"

@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 pub mod location;
 pub mod render;
 
@@ -5,8 +7,8 @@ pub use location::{SourceLocation, extract_line};
 pub use render::DiagnosticRenderer;
 
 /// A fully-resolved compiler or runtime diagnostic.
-/// Every error in v1.7.0 produces one of these.
-#[derive(Debug, Clone)]
+/// Every error in v1.8.0 produces one of these.
+#[derive(Debug, Clone, Serialize)]
 pub struct Diagnostic {
     pub code: String, // "L003", "R006", etc.
     pub message: String, // short human message

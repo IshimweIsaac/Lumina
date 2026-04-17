@@ -1,0 +1,14 @@
+import lumina/k8
+entity Server {
+    server: Aws = 3
+}
+
+let myserver = {
+    server1 = "Myserver"
+}
+rule when Server.server == 3 {
+    show "Server is running"
+}
+let name = "Muhammad"
+
+show name

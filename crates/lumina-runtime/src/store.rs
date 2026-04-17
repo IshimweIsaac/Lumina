@@ -8,6 +8,10 @@ pub struct Instance {
     pub fields:       HashMap<String, Value>,
     /// Previous field values — used by the rule engine for `becomes` detection
     pub prev_fields:  HashMap<String, Value>,
+    /// v2.0: Monotonically increasing version for state mesh conflict resolution
+    pub version:      u64,
+    /// v2.0: The peer ID that last mutated this instance (None if local)
+    pub source_node:  Option<String>,
 }
 
 impl Instance {
@@ -16,6 +20,8 @@ impl Instance {
             entity_name: entity_name.into(),
             prev_fields: fields.clone(),
             fields,
+            version: 1,
+            source_node: None,
         }
     }
 
@@ -28,6 +34,8 @@ impl Instance {
             self.prev_fields.insert(field.to_string(), old.clone());
         }
         self.fields.insert(field.to_string(), value);
+        self.version += 1;
+        self.source_node = None; // A local mutation resets the source to local
     }
 
     pub fn prev(&self, field: &str) -> Option<&Value> {

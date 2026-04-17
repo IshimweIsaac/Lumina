@@ -123,6 +123,17 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
                 )));
             }
         }
+        
+        // ── Cluster hover ──────────────────────────────────────────
+        if let Statement::Cluster(c) = stmt {
+            let cl = c.span.line.saturating_sub(1);
+            if pos.line == cl {
+                return Some(make_hover(format!(
+                    "**cluster node** `{}`\n\nPeers: {}\nQuorum: {}\nElection Timeout: {} {:?}",
+                    c.node_id, c.peers.len(), c.quorum, c.election_timeout.value, c.election_timeout.unit
+                )));
+            }
+        }
     }
     None
 }

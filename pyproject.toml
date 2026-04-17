@@ -1,3 +1,0 @@
-[tool.pyright]
-include = ["."]
-extraPaths = ["crates/lumina_ffi"]

@@ -13,6 +13,7 @@ Thumbs.db
 
 # Temporary
 /tmp/
+
 # Python
 __pycache__/
 *.pyc
@@ -23,5 +24,21 @@ venv/
 node_modules/
 dist/
 .npm
-package-lock.json (if not tracked)
-.env
+package-lock.json
+
+# Firebase tools
+.firebase/
+firebase-debug.log
+.firebaserc
+
+# Platform Binaries
+*.vsix
+*.deb
+*.exe
+*.msi
+*.tar.gz
+*.zip
+
+# Built Binaries
+bin/
+

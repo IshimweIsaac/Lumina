@@ -162,7 +162,7 @@ fn split_interpolated(s: &str, base_span: Span) -> Vec<SpannedToken> {
                 // Re-tokenize the expression inside {}
                 if let Ok(inner) = lex_raw(&expr_src) {
                     // Note: In a production compiler, we would offset these spans
-                    // to point into the original file. For v1.7.0, we use the base_span.
+                    // to point into the original file. For v1.8.0, we use the base_span.
                     result.extend(inner);
                 }
                 result.push(spanned(Token::InterpExprEnd));

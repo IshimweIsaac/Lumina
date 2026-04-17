@@ -1,0 +1,32 @@
+-- Lumina v2.0 Sovereignty & Cluster Spec Test
+cluster {
+  node_id: "node-1"
+  peers: ["node-2", "node-3"]
+  quorum: 2
+  election_timeout: 1.5 s
+}
+
+entity Workload {
+  cpu: Number
+  zone: String
+}
+
+aggregate TotalCpu over Workload cluster {
+  sum_cpu := sum(cpu)
+}
+
+rule "AutoMigrate"
+when cluster.node_1.status == "overloaded" {
+  show migrate(Workload, to: "node-2")
+}
+
+-- Create some initial data
+let AppMain = Workload { cpu: 45, zone: "us-east-1" }
+let AppDB   = Workload { cpu: 20, zone: "us-east-1" }
+
+-- Rule to monitor global cluster health
+rule "GlobalHealth"
+when TotalCpu.sum_cpu > 60 {
+  show "WARNING: Cluster-wide CPU usage is high: {TotalCpu.sum_cpu}%"
+}
+

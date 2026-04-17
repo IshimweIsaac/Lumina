@@ -1,6 +1,6 @@
-# Infrastructure Monitoring with Lumina
+# [Flagship Guide] Target Infrastructure Monitoring
 
-Lumina is ideal for tracking the health of your infrastructure at a massive scale. In this guide, we'll build a system that monitors disk space usage across a fleet of virtual nodes.
+Lumina is a **Reactive Language for Target Infrastructure**. It is designed to model, monitor, and manage the desired state of complex digital ecosystems at scale. In this flagship guide, we'll build a production-ready system that monitors disk space usage across a global fleet of virtual nodes.
 
 ## 1. The Scenario
 You have a fleet of 500 virtual nodes, each sending their health data via an HTTP endpoint. You want to:

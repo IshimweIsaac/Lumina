@@ -1,6 +1,6 @@
 **LUMINA**
 
-**v1.7 Deep Documentation**
+**v1.8 Deep Documentation**
 
 **The Experience Release**
 
@@ -12,29 +12,29 @@ _2026 | Chapters 41-48 | No new language features | The world gets ready for Lum
 
 _Designed and authored by Isaac Ishimwe_
 
-**Why v1.7**
+**Why v1.8**
 
 **The Experience Release**
 
-_Power without accessibility is a dead language -- v1.7 fixes that_
+_Power without accessibility is a dead language -- v1.8 fixes that_
 
 By the end of v1.6 Lumina can describe any reactive system. Entities, relationships, compound conditions, frequency patterns, write-back to the physical world, temporal truth. The language is complete. But complete and accessible are two different things.
 
-v1.7 adds zero new language features. Every chapter is about the gap between "Lumina works" and "Lumina feels ready." That gap is smaller than it sounds but it matters enormously. The first engineer who encounters Lumina forms an opinion that is almost impossible to change. v1.7 makes sure that opinion is the right one.
+v1.8 adds zero new language features. Every chapter is about the gap between "Lumina works" and "Lumina feels ready." That gap is smaller than it sounds but it matters enormously. The first engineer who encounters Lumina forms an opinion that is almost impossible to change. v1.8 makes sure that opinion is the right one.
 
-**CORE The v1.7 Philosophy**
+**CORE The v1.8 Philosophy**
 
-v1.6 made Lumina powerful. v1.7 makes Lumina accessible.
+v1.6 made Lumina powerful. v1.8 makes Lumina accessible.
 
 Power without adoption is a dead project.
 
-v1.7 does not add a single new language feature.
+v1.8 does not add a single new language feature.
 
-v1.7 makes the language that already exists feel inevitable.
+v1.8 makes the language that already exists feel inevitable.
 
-# **What v1.7 Is and Is Not**
+# **What v1.8 Is and Is Not**
 
-| **v1.7 IS**                                     | **v1.7 IS NOT**                            |
+| **v1.8 IS**                                     | **v1.8 IS NOT**                            |
 | ----------------------------------------------- | ------------------------------------------ |
 | The installer being built and tested            | A new language release                     |
 | The website going live with playground embedded | New syntax or new runtime features         |
@@ -46,9 +46,9 @@ v1.7 makes the language that already exists feel inevitable.
 
 # **The First Impression Journey**
 
-Every engineer who discovers Lumina walks the same path. v1.7 makes every step of that path smooth.
+Every engineer who discovers Lumina walks the same path. v1.8 makes every step of that path smooth.
 
-| **Step** | **What happens**                                             | **v1.7 chapter**            |
+| **Step** | **What happens**                                             | **v1.8 chapter**            |
 | -------- | ------------------------------------------------------------ | --------------------------- |
 | 1        | Hears about Lumina -- visits lumina-lang.dev                 | Ch41 Website                |
 | 2        | Sees playground alive above the fold -- tries it immediately | Ch48 Playground Polish      |
@@ -60,7 +60,7 @@ Every engineer who discovers Lumina walks the same path. v1.7 makes every step o
 | 8        | First real alert fires                                       | Ch45 Complete               |
 | 9        | Shares it with a colleague                                   | Ch41 + Ch48 Share URL       |
 
-That entire journey -- from first touch to first real program -- should take under 15 minutes. If any step breaks or confuses, the engineer drops off and does not come back. v1.7 exists to make every step work perfectly.
+That entire journey -- from first touch to first real program -- should take under 15 minutes. If any step breaks or confuses, the engineer drops off and does not come back. v1.8 exists to make every step work perfectly.
 
 **Chapter 41**
 
@@ -198,19 +198,19 @@ Not all package managers are equal in effort and audience. Build in this order:
 
 **NOTE Realistic Timeline Note**
 
-Homebrew and direct binaries ship with v1.7.
+Homebrew and direct binaries ship with v1.8.
 
 APT requires PPA setup and Ubuntu packaging -- may slip to v1.8.
 
 Winget requires Microsoft review process -- timeline uncertain.
 
-Do not block v1.7 launch on APT or Winget.
+Do not block v1.8 launch on APT or Winget.
 
 # **43.2 Homebrew Formula**
 
 | **Formula/lumina.rb -- the Homebrew formula**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| class Lumina < Formula<br><br>desc "Declarative reactive language for IoT and infrastructure monitoring"<br><br>homepage "<https://lumina-lang.dev>"<br><br>version "1.7.0"<br><br>on_macos do<br><br>if Hardware::CPU.arm?<br><br>url "<https://github.com/luminalang/lumina/releases/download/v1.7.0/lumina-macos-arm64.tar.gz>"<br><br>sha256 "REPLACE_WITH_ACTUAL_SHA256"<br><br>else<br><br>url "<https://github.com/luminalang/lumina/releases/download/v1.7.0/lumina-macos-x64.tar.gz>"<br><br>sha256 "REPLACE_WITH_ACTUAL_SHA256"<br><br>end<br><br>end<br><br>def install<br><br>bin.install "lumina"<br><br>bin.install "lumina-lsp"<br><br>end<br><br>test do<br><br>system "#{bin}/lumina", "--version"<br><br>end<br><br>end |
+| class Lumina < Formula<br><br>desc "Declarative reactive language for IoT and infrastructure monitoring"<br><br>homepage "<https://lumina-lang.dev>"<br><br>version "1.8.0"<br><br>on_macos do<br><br>if Hardware::CPU.arm?<br><br>url "<https://github.com/luminalang/lumina/releases/download/v1.8.0/lumina-macos-arm64.tar.gz>"<br><br>sha256 "REPLACE_WITH_ACTUAL_SHA256"<br><br>else<br><br>url "<https://github.com/luminalang/lumina/releases/download/v1.8.0/lumina-macos-x64.tar.gz>"<br><br>sha256 "REPLACE_WITH_ACTUAL_SHA256"<br><br>end<br><br>end<br><br>def install<br><br>bin.install "lumina"<br><br>bin.install "lumina-lsp"<br><br>end<br><br>test do<br><br>system "#{bin}/lumina", "--version"<br><br>end<br><br>end |
 
 # **43.3 Direct Binary Downloads**
 
@@ -232,7 +232,7 @@ Each binary ships alongside a .sha256 checksum file. Engineers verify before run
 
 _Search "Lumina" in VS Code -- install in one click -- LSP works immediately_
 
-The VS Code extension is currently installed manually from a .vsix file. v1.7 puts it on the official marketplace. This is one of the most important distribution channels for Lumina because many engineers discover languages through their editor, not through websites or package managers.
+The VS Code extension is currently installed manually from a .vsix file. v1.8 puts it on the official marketplace. This is one of the most important distribution channels for Lumina because many engineers discover languages through their editor, not through websites or package managers.
 
 # **44.1 Why the Marketplace Matters**
 
@@ -261,7 +261,7 @@ The marketplace also signals legitimacy. A language with a marketplace extension
 
 | **package.json -- marketplace fields**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| {<br><br>"name": "lumina-lang",<br><br>"displayName": "Lumina",<br><br>"description": "Declarative reactive language for IoT and infrastructure monitoring",<br><br>"version": "1.7.0",<br><br>"publisher": "luminalang",<br><br>"categories": \["Programming Languages", "Linters"\],<br><br>"keywords": \["lumina", "reactive", "IoT", "monitoring", "declarative"\],<br><br>"icon": "images/lumina-icon.png",<br><br>"homepage": "<https://lumina-lang.dev>",<br><br>"repository": { "type": "git", "url": "<https://github.com/luminalang/lumina>" },<br><br>"engines": { "vscode": "^1.75.0" },<br><br>"activationEvents": \["onLanguage:lumina"\],<br><br>"contributes": {<br><br>"languages": \[{ "id": "lumina", "extensions": \[".lum"\], "aliases": \["Lumina"\] }\]<br><br>}<br><br>} |
+| {<br><br>"name": "lumina-lang",<br><br>"displayName": "Lumina",<br><br>"description": "Declarative reactive language for IoT and infrastructure monitoring",<br><br>"version": "1.8.0",<br><br>"publisher": "luminalang",<br><br>"categories": \["Programming Languages", "Linters"\],<br><br>"keywords": \["lumina", "reactive", "IoT", "monitoring", "declarative"\],<br><br>"icon": "images/lumina-icon.png",<br><br>"homepage": "<https://lumina-lang.dev>",<br><br>"repository": { "type": "git", "url": "<https://github.com/luminalang/lumina>" },<br><br>"engines": { "vscode": "^1.75.0" },<br><br>"activationEvents": \["onLanguage:lumina"\],<br><br>"contributes": {<br><br>"languages": \[{ "id": "lumina", "extensions": \[".lum"\], "aliases": \["Lumina"\] }\]<br><br>}<br><br>} |
 
 # **44.4 Publication Process**
 
@@ -270,7 +270,7 @@ The marketplace also signals legitimacy. A language with a marketplace extension
 | 1\. Create publisher account  | Register at marketplace.visualstudio.com as "luminalang" |
 | 2\. Get Personal Access Token | Azure DevOps PAT with Marketplace publish scope          |
 | 3\. Install vsce              | npm install -g @vscode/vsce                              |
-| 4\. Package extension         | vsce package -- produces lumina-lang-1.7.0.vsix          |
+| 4\. Package extension         | vsce package -- produces lumina-lang-1.8.0.vsix          |
 | 5\. Publish                   | vsce publish -- submits to marketplace                   |
 | 6\. Verify                    | Search "Lumina" in VS Code -- confirm it appears         |
 | 7\. Automate                  | GitHub Action to publish on every tagged release         |
@@ -335,7 +335,7 @@ No assumed knowledge beyond basic programming concepts.
 
 _Every error from L001 to L042 reviewed -- errors that teach instead of confuse_
 
-Error messages are the most underrated part of a language. They are the first thing a confused engineer reads. If the message teaches -- the engineer fixes the problem and continues. If it confuses -- the engineer gives up and uninstalls. v1.7 reviews every error code and rewrites any that does not meet the teaching standard.
+Error messages are the most underrated part of a language. They are the first thing a confused engineer reads. If the message teaches -- the engineer fixes the problem and continues. If it confuses -- the engineer gives up and uninstalls. v1.8 reviews every error code and rewrites any that does not meet the teaching standard.
 
 **CORE The Error Message Standard**
 
@@ -355,7 +355,7 @@ An error that does not answer all three questions fails the standard.
 | ----------------------------------- |
 | L024: invalid prev() usage          |
 
-| **L024 -- After review (v1.7 standard)**                                                                                                                                                                                                                                                                                                            |
+| **L024 -- After review (v1.8 standard)**                                                                                                                                                                                                                                                                                                            |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | L024: prev() cannot be applied to a derived field.<br><br>batteryDrop := prev(batteryDrop) - batteryDrop -- ERROR here<br><br>^^^^^^^^^^^<br><br>"batteryDrop" is a derived field. It has no stored previous value.<br><br>prev() only works on fields declared with a type (Number, Boolean, Text).<br><br>Did you mean: prev(battery) - battery ? |
 
@@ -424,7 +424,7 @@ Build and publish the image but do not over-prioritize vs the installer and play
 
 _The real entry point -- the playground is where engineers first feel Lumina_
 
-The playground is not a secondary feature. It is the primary entry point for most engineers who discover Lumina. They will not install anything before trying it. The playground must be excellent -- fast, responsive, alive on arrival, and smooth enough that the first experience is the one that converts. v1.7 polishes every rough edge.
+The playground is not a secondary feature. It is the primary entry point for most engineers who discover Lumina. They will not install anything before trying it. The playground must be excellent -- fast, responsive, alive on arrival, and smooth enough that the first experience is the one that converts. v1.8 polishes every rough edge.
 
 **CORE The Playground Is the Killer Demo**
 
@@ -438,7 +438,7 @@ Building a separate demo system adds complexity without adding value.
 
 Every hour spent on a separate demo is an hour not spent polishing the playground.
 
-# **48.1 What Changes in v1.7**
+# **48.1 What Changes in v1.8**
 
 | **Area**              | **Change**                                                                        |
 | --------------------- | --------------------------------------------------------------------------------- |
@@ -487,7 +487,7 @@ A dropdown in the playground header lets engineers switch between pre-built doma
 
 **Appendix**
 
-**v1.7 Chapter Summary**
+**v1.8 Chapter Summary**
 
 _Eight chapters -- no new language features -- the experience that makes Lumina ready_
 
@@ -502,7 +502,7 @@ _Eight chapters -- no new language features -- the experience that makes Lumina 
 | 47 -- Docker Image           | luminalang/runtime on Docker Hub for infrastructure users          |
 | 48 -- Playground Polish      | Pre-loaded example, WASM performance, mobile layout, error display |
 
-# **What Comes After v1.7**
+# **What Comes After v1.8**
 
 | **Version** | **Identity**                                                                               |
 | ----------- | ------------------------------------------------------------------------------------------ |
@@ -510,7 +510,7 @@ _Eight chapters -- no new language features -- the experience that makes Lumina 
 | v1.9        | Performance and stability -- conditional on v1.8 findings                                  |
 | v2          | Scale + first public users -- namespaces, rule templates, Lumina State Store design begins |
 
-**YES v1.7 Definition of Done**
+**YES v1.8 Definition of Done**
 
 lumina-lang.dev is live and loads in under 2 seconds.
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION=${1:-"1.7.0"}
+VERSION=${1:-"1.8.0"}
 TARGET=${2:-"target/x86_64-unknown-linux-gnu/release"}
 DEB_DIR="lumina_${VERSION}_amd64"
 

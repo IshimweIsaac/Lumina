@@ -1,7 +1,7 @@
 class Lumina < Formula
   desc "Declarative reactive language for IoT and infrastructure monitoring"
   homepage "https://lumina-lang.dev"
-  version "1.7.0"
+  version "1.8.0"
 
   on_macos do
     if Hardware::CPU.arm?
@@ -26,7 +26,7 @@ class Lumina < Formula
 
   def caveats
     <<~EOS
-      Lumina 1.7 requires an initial setup to configure your IDE (VS Code/VSCodium).
+      Lumina 1.8 requires an initial setup to configure your IDE (VS Code/VSCodium).
       Please run the following command after installation:
 
         lumina setup

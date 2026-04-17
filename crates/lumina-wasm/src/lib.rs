@@ -4,7 +4,7 @@ use lumina_parser::parse;
 use lumina_parser::ast::*;
 use lumina_analyzer::analyze;
 use lumina_runtime::engine::Evaluator;
-use lumina_diagnostics::DiagnosticRenderer;
+use lumina_diagnostics::{Diagnostic, DiagnosticRenderer, SourceLocation};
 
 #[wasm_bindgen(start)]
 pub fn init() {
@@ -22,12 +22,23 @@ impl LuminaRuntime {
     #[wasm_bindgen(constructor)]
     pub fn new(source: &str) -> Result<LuminaRuntime, JsValue> {
         let now = js_sys::Date::now();
-        let program = parse(source)
-            .map_err(|e| JsValue::from_str(&format!("Parse error: {e}")))?;
+        let program = match parse(source) {
+            Ok(p) => p,
+            Err(e) => {
+                let diag = Diagnostic::new(
+                    "LEX/PARSE",
+                    e.to_string(),
+                    SourceLocation::new("<WASM>", 1, 1, 1),
+                    "",
+                    Some("Check your syntax — maybe you missed a brace or a semicolon?".to_string())
+                );
+                return Err(JsValue::from_str(&serde_json::to_string(&vec![diag]).unwrap_or_else(|e| format!("[\"Internal Error during parsing: {}\"]", e))));
+            }
+        };
 
         let analyzed = analyze(program, source, "<WASM>", false)
             .map_err(|errors| {
-                JsValue::from_str(&DiagnosticRenderer::render_all(&errors))
+                JsValue::from_str(&serde_json::to_string(&errors).unwrap_or_else(|e| format!("[\"Internal Error during analysis: {}\"]", e)))
             })?;
 
         let mut rules = Vec::new();
@@ -70,7 +81,7 @@ impl LuminaRuntime {
                 _ => {}
             }
         }
-        evaluator.agg_store.recompute(&evaluator.store);
+        evaluator.agg_store.recompute(&evaluator.store, Some(&evaluator.cluster_state));
 
         let mut pending_alerts = Vec::new();
 
@@ -124,16 +135,16 @@ impl LuminaRuntime {
         };
 
         match self.evaluator.apply_event(instance_name, field_name, value) {
-            Ok(result) => Ok(serde_json::to_string(&result).unwrap()),
+            Ok(result) => Ok(serde_json::to_string(&result).unwrap_or_else(|e| format!("\"Serialization error: {}\"", e))),
             Err(rollback) => Err(JsValue::from_str(
-                &serde_json::to_string(&rollback.diagnostic).unwrap()
+                &serde_json::to_string(&rollback.diagnostic).unwrap_or_else(|e| format!("\"Rollback serialization error: {}\"", e))
             )),
         }
     }
 
     #[wasm_bindgen]
     pub fn export_state(&self) -> String {
-        serde_json::to_string_pretty(&self.evaluator.export_state()).unwrap()
+        serde_json::to_string_pretty(&self.evaluator.export_state()).unwrap_or_else(|e| format!("\"State export error: {}\"", e))
     }
 
     #[wasm_bindgen]
@@ -144,9 +155,9 @@ impl LuminaRuntime {
         match self.evaluator.tick() {
             Ok(events) => {
                 all_events.extend(events);
-                serde_json::to_string(&all_events).unwrap()
+                serde_json::to_string(&all_events).unwrap_or_else(|e| format!("\"Tick error: {}\"", e))
             }
-            Err(rb) => format!("ERROR:{}", serde_json::to_string(&rb.diagnostic).unwrap()),
+            Err(rb) => format!("ERROR:{}", serde_json::to_string(&rb.diagnostic).unwrap_or_else(|e| format!("\"Rollback error: {}\"", e))),
         }
     }
 
@@ -160,10 +171,19 @@ impl LuminaRuntime {
     #[wasm_bindgen]
     pub fn check(source: &str) -> String {
         match parse(source) {
-            Err(e) => format!("Parse error: {e}"),
+            Err(e) => {
+                let diag = Diagnostic::new(
+                    "LEX/PARSE",
+                    e.to_string(),
+                    SourceLocation::new("<WASM>", 1, 1, 1),
+                    "",
+                    Some("Check your syntax rules.".to_string())
+                );
+                serde_json::to_string(&vec![diag]).unwrap_or_else(|e| format!("[\"Check parse error: {}\"]", e))
+            },
             Ok(program) => match analyze(program, source, "<WASM>", false) {
-                Err(errors) => DiagnosticRenderer::render_all(&errors),
-                Ok(_) => String::new(),
+                Err(errors) => serde_json::to_string(&errors).unwrap_or_else(|e| format!("[\"Check analysis error: {}\"]", e)),
+                Ok(_) => "[]".to_string(),
             }
         }
     }

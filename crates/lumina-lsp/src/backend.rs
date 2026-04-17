@@ -208,4 +208,17 @@ impl LanguageServer for LuminaBackend {
         }
         Ok(None)
     }
+
+    async fn document_symbol(&self, p: DocumentSymbolParams) -> Result<Option<DocumentSymbolResponse>> {
+        let uri = p.text_document.uri;
+        if let Some(doc) = self.docs.get(&uri) {
+            if let Some(prog) = &doc.value().1 {
+                let symbols = crate::symbols::get_document_symbols(prog);
+                if !symbols.is_empty() {
+                    return Ok(Some(DocumentSymbolResponse::Nested(symbols)));
+                }
+            }
+        }
+        Ok(None)
+    }
 }

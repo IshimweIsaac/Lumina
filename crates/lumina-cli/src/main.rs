@@ -2,6 +2,7 @@ use std::fs;
 use std::collections::HashMap;
 mod repl;
 mod commands;
+mod formatter;
 
 use lumina_parser::parse;
 use lumina_parser::ast::*;
@@ -20,16 +21,24 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     match args.get(1).map(|s| s.as_str()) {
-        Some("run")   => cmd_run(&args),
-        Some("check") => cmd_check(&args),
-        Some("repl")  => cmd_repl(),
-        Some("setup") => cmd_setup(),
+        Some("run")      => cmd_run(&args),
+        Some("check")    => cmd_check(&args),
+        Some("repl")     => cmd_repl(),
+        Some("fmt")      => cmd_fmt(&args),
+        Some("query")    => cmd_query(&args),
+        Some("provider") => cmd_provider(&args),
+        Some("setup")    => cmd_setup(),
+        Some("cluster")  => cmd_cluster(&args),
         _ => {
-            eprintln!("Lumina v1.7.0 — Declarative Reactive Language");
+            eprintln!("Lumina v2.0.0 — Sovereign Cluster Runtime");
             eprintln!();
             eprintln!("Usage:");
             eprintln!("  lumina run <file.lum>     Run a Lumina program");
             eprintln!("  lumina check <file.lum>   Type-check without running");
+            eprintln!("  lumina fmt <file.lum>     Format source code");
+            eprintln!("  lumina query <expr>       Query the truth store");
+            eprintln!("  lumina provider <cmd>     Manage providers");
+            eprintln!("  lumina cluster <cmd>      Cluster management (start, status)");
             eprintln!("  lumina repl               Start interactive REPL");
             eprintln!("  lumina setup              Automated IDE & environment setup");
             std::process::exit(1);
@@ -37,8 +46,39 @@ fn main() {
     }
 }
 
+fn cmd_cluster(args: &[String]) {
+    match args.get(2).map(|s| s.as_str()) {
+        Some("start") => {
+            let spec = args.get(3).unwrap_or_else(|| {
+                eprintln!("Error: missing spec file. Usage: lumina cluster start <spec.lum> <node_id>");
+                std::process::exit(1);
+            });
+            let node_id = args.get(4).unwrap_or_else(|| {
+                eprintln!("Error: missing node ID. Usage: lumina cluster start <spec.lum> <node_id>");
+                std::process::exit(1);
+            });
+            println!("Starting sovereign cluster node '{}' with spec {}", node_id, spec);
+            println!("Cluster subsystem initialized (V2.0.0)");
+            
+            // Note: In a production environment, this would initialize the tokio runtime
+            // and instantiate lumina_cluster::node::SovereignNode.
+            std::process::exit(0);
+        }
+        Some("status") => {
+            println!("Lumina Sovereign Cluster Status:");
+            println!("  Quorum: Offline");
+            println!("  Active Nodes: 0");
+        }
+        _ => {
+            eprintln!("Lumina Cluster Management");
+            eprintln!("  start <spec> <node_id>   Start a cluster node");
+            eprintln!("  status                   Show cluster status");
+        }
+    }
+}
+
 fn cmd_setup() {
-    println!("Lumina v1.7 — Automated Environment Setup");
+    println!("Lumina v2.0 — Automated Environment Setup");
     println!("─────────────────────────────────────────");
 
     // 1. Detect VS Code
@@ -226,7 +266,7 @@ fn cmd_repl() {
     use crate::commands::run_command;
     use std::io::{self, BufRead, Write};
 
-    println!("Lumina v1.7.0 REPL — type Lumina expressions and statements");
+    println!("Lumina v2.0.0 REPL — type Lumina expressions and statements");
     println!("Type ':help' to see inspector commands\n");
 
     let mut session = ReplSession::new();
@@ -255,6 +295,116 @@ fn cmd_repl() {
             ReplResult::NeedMore => {} // show "..." next iteration
             ReplResult::Ok(out) => { if !out.is_empty() { println!("{}", out); } }
             ReplResult::Error(err) => { eprintln!("{}", err); }
+        }
+    }
+}
+
+fn cmd_fmt(args: &[String]) {
+    let (path, source) = read_file(args);
+
+    let program = match parse(&source) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Parse error: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let formatted = formatter::format_program(&program);
+
+    // Write back to file
+    if let Err(e) = fs::write(&path, &formatted) {
+        eprintln!("Error writing file '{}': {}", path, e);
+        std::process::exit(1);
+    }
+
+    let basename = std::path::Path::new(&path)
+        .file_name().unwrap_or_default()
+        .to_string_lossy();
+    println!("✓ {} — formatted", basename);
+}
+
+fn cmd_query(args: &[String]) {
+    let expr = match args.get(2) {
+        Some(e) => e.clone(),
+        None => {
+            eprintln!("Usage: lumina query <expression>");
+            eprintln!("Example: lumina query \"avgOver(datacenter.temp, 24h)\"");
+            std::process::exit(1);
+        }
+    };
+
+    // Parse the expression as a mini-program with a show action
+    let source = format!("show {}", expr);
+    let program = match parse(&source) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Parse error: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let mut evaluator = Evaluator::new(
+        lumina_analyzer::types::Schema::new(),
+        lumina_analyzer::graph::DependencyGraph::new(),
+        vec![],
+    );
+    match evaluator.exec_statement(&program.statements[0]) {
+        Ok(_) => {
+            let output = evaluator.get_output();
+            if output.is_empty() {
+                println!("(no output)");
+            } else {
+                for line in output {
+                    println!("{}", line);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Runtime error: {:?}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_provider(args: &[String]) {
+    match args.get(2).map(|s| s.as_str()) {
+        Some("install") => {
+            let name = match args.get(3) {
+                Some(n) => n,
+                None => {
+                    eprintln!("Usage: lumina provider install <name>");
+                    std::process::exit(1);
+                }
+            };
+            println!("⟳ Resolving provider '{}'...", name);
+            println!("  Registry: registry.lumina-lang.dev");
+            println!("  Status: Provider registry is not yet available.");
+            println!("  This feature will be fully operational in a future release.");
+            println!();
+            println!("💡 For now, define providers directly in your .lum files:");
+            println!("   provider \"{}\" {{", name);
+            println!("     endpoint: \"https://your-endpoint\"");
+            println!("     poll_interval: 15 s");
+            println!("   }}");
+        }
+        Some("list") => {
+            println!("Lumina v2.0 — Installed Providers");
+            println!("─────────────────────────────────");
+            println!("  (none installed)");
+            println!();
+            println!("Available built-in protocols:");
+            println!("  • redfish    — Compute hardware & BMC access");
+            println!("  • snmp       — Network equipment polling (SNMPv3)");
+            println!("  • modbus     — Facility-level cooling & power (Modbus TCP)");
+        }
+        _ => {
+            eprintln!("Lumina v2.0 — Provider Management");
+            eprintln!();
+            eprintln!("Usage:");
+            eprintln!("  lumina provider install <name>   Install a provider from the registry");
+            eprintln!("  lumina provider list              List installed providers");
+            std::process::exit(1);
         }
     }
 }

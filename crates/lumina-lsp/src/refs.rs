@@ -133,7 +133,7 @@ fn collect_from_statement(stmt: &Statement, name: &str, uri: &Url, locs: &mut Ve
             if a.name == name { locs.push(span_to_location(&a.span, &a.name, uri)); }
             if a.over == name { locs.push(span_to_location(&a.span, &a.over, uri)); }
         }
-        Statement::Import(_) | Statement::Action(_) => {}
+        Statement::Import(_) | Statement::Action(_) | Statement::PluginImport(_) | Statement::Provider(_) | Statement::Cluster(_) => {}
     }
 }
 
@@ -232,6 +232,13 @@ fn collect_from_expr(expr: &Expr, name: &str, uri: &Url, locs: &mut Vec<Location
             }
         }
         Expr::Prev { .. } | Expr::Number(_) | Expr::Text(_) | Expr::Bool(_) | Expr::Duration(_) => {}
+        Expr::ClusterAccess { .. } => {} // Field accesses on cluster are handled statically
+        Expr::Migrate { workloads, target, .. } => {
+            collect_from_expr(workloads, name, uri, locs);
+            collect_from_expr(target, name, uri, locs);
+        }
+        Expr::Evacuate { entities, .. } => collect_from_expr(entities, name, uri, locs),
+        Expr::Deploy { spec, .. } => collect_from_expr(spec, name, uri, locs),
     }
 }
 

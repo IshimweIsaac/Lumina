@@ -1,5 +1,6 @@
 use lumina_lexer::token::Span;
 use serde::{Serialize, Deserialize};
+use std::fmt;
 
 // ── Top-level program ──────────────────────────────────────────────────────
 
@@ -27,6 +28,9 @@ pub enum Statement {
     Fn(FnDecl),
     Import(ImportDecl),
     Aggregate(AggregateDecl),
+    PluginImport(PluginImportDecl),
+    Provider(ProviderDecl),
+    Cluster(ClusterDecl),
 }
 
 // ── Function declaration ───────────────────────────────────────────────────
@@ -50,6 +54,44 @@ pub struct FnParam {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportDecl {
     pub path: String,
+    /// v1.9: Optional LSL namespace segments, e.g. ["LSL", "datacenter", "Server"]
+    pub namespace: Option<Vec<String>>,
+    pub span: Span,
+}
+
+// ── Plugin import declaration (v1.8) ───────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginImportDecl {
+    pub path:  String,
+    pub alias: String,
+    pub span:  Span,
+}
+
+// ── Provider declaration (v1.9) ────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderDecl {
+    pub protocol: String,
+    pub config: Vec<ProviderConfigEntry>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderConfigEntry {
+    pub key: String,
+    pub value: Expr,
+    pub span: Span,
+}
+
+// ── Cluster declaration (v2.0) ─────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterDecl {
+    pub node_id: String,
+    pub peers: Vec<String>,
+    pub quorum: u32,
+    pub election_timeout: Duration,
     pub span: Span,
 }
 
@@ -110,6 +152,7 @@ pub enum LuminaType {
     Boolean,
     Timestamp,
     Duration,
+    Secret,
     Entity(String),
     List(Box<LuminaType>),
 }
@@ -124,6 +167,8 @@ pub struct ExternalEntityDecl {
     pub sync_strategy: SyncStrategy,
     pub sync_fields:   Vec<String>,
     pub poll_interval: Option<Duration>,
+    pub sync_timeout:  Option<Duration>,
+    pub fallible:      bool,
     pub span:          Span,
 }
 
@@ -314,6 +359,28 @@ pub enum Expr {
         field: String,
         span:  Span,
     },
+    /// v2.0: Access cluster state — `cluster.{node_id}.{field}` or `cluster.all.{field}`
+    ClusterAccess {
+        node_id: String,
+        field: String,
+        span: Span,
+    },
+    /// v2.0: Orchestration — `migrate(workloads, to: target)`
+    Migrate {
+        workloads: Box<Expr>,
+        target: Box<Expr>,
+        span: Span,
+    },
+    /// v2.0: Orchestration — `evacuate(entities)`
+    Evacuate {
+        entities: Box<Expr>,
+        span: Span,
+    },
+    /// v2.0: Orchestration — `deploy(spec)`
+    Deploy {
+        spec: Box<Expr>,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -329,10 +396,41 @@ pub enum BinOp {
     And, Or,
 }
 
+impl fmt::Display for BinOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            BinOp::Add => "+",
+            BinOp::Sub => "-",
+            BinOp::Mul => "*",
+            BinOp::Div => "/",
+            BinOp::Mod => "%",
+            BinOp::Eq => "==",
+            BinOp::Ne => "!=",
+            BinOp::Gt => ">",
+            BinOp::Lt => "<",
+            BinOp::Ge => ">=",
+            BinOp::Le => "<=",
+            BinOp::And => "and",
+            BinOp::Or => "or",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum UnOp {
     Neg,
     Not,
+}
+
+impl fmt::Display for UnOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            UnOp::Neg => "-",
+            UnOp::Not => "not",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 // ── Aggregates ─────────────────────────────────────────────────────────────
@@ -342,7 +440,19 @@ pub struct AggregateDecl {
     pub name:   String,
     pub over:   String,
     pub fields: Vec<AggregateField>,
+    pub scope:  AggregateScope,
     pub span:   Span,
+}
+
+/// v2.0: Scope for aggregate computation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AggregateScope {
+    /// Local node only (v1.x default)
+    Local,
+    /// Across the entire cluster
+    Cluster,
+    /// Scoped to a specific region
+    Region(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,6 +1,6 @@
 # Installing Lumina
 
-Lumina v1.7 "Experience Release" offers multiple ways to get started on your machine.
+Lumina v1.8 "Experience Release" offers multiple ways to get started on your machine.
 
 ## 1. Automated Installer (Recommended)
 
@@ -51,4 +51,4 @@ Once installed, verify the installation by checking the version:
 lumina --version
 ```
 
-Expected output: `Lumina v1.7.0` (or similar).
+Expected output: `Lumina v1.8.0` (or similar).

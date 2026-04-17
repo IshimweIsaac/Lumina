@@ -74,7 +74,10 @@ impl Analyzer {
                     if self.fn_defs.contains_key(&decl.name) {
                         self.errors.push(AnalyzerError {
                             code: "L011",
-                            message: format!("duplicate fn name: {}", decl.name),
+                            message: format!(
+                                "I've already seen a function named '{}()'. Every function in Lumina must have a unique name so the engine can build a distinct calculation node. Please use a different name for this definition.",
+                                decl.name
+                            ),
                             span: decl.span,
                         });
                     } else {
@@ -82,7 +85,27 @@ impl Analyzer {
                     }
                 }
                 Statement::Import(decl) => {
-                    if !self.allow_imports {
+                    if let Some(ref ns) = decl.namespace {
+                        // v1.9: LSL namespace import — validate the path statically
+                        let known_namespaces = [
+                            "LSL::datacenter::Server", "LSL::datacenter::Rack",
+                            "LSL::datacenter::PDU", "LSL::datacenter::CRAC",
+                            "LSL::network::Switch", "LSL::network::Router",
+                            "LSL::network::Firewall",
+                            "LSL::k8s::Pod", "LSL::k8s::Node", "LSL::k8s::Deployment",
+                            "LSL::power::UPS", "LSL::power::Generator",
+                        ];
+                        if !known_namespaces.contains(&decl.path.as_str()) {
+                            self.errors.push(AnalyzerError {
+                                code: "L054",
+                                message: format!(
+                                    "Unknown LSL schema '{}'. Available: datacenter, network, k8s, power.",
+                                    decl.path
+                                ),
+                                span: decl.span,
+                            });
+                        }
+                    } else if !self.allow_imports {
                         self.errors.push(AnalyzerError {
                             code: "L018",
                             message: "import is not supported in single-file (WASM) mode".to_string(),
@@ -107,6 +130,61 @@ impl Analyzer {
                     // numeric provider so that references like `fleet_stats.avg_temp`
                     // resolve correctly during type checking.
                     self.instances.insert(decl.name.clone(), LuminaType::Entity(decl.name.clone()));
+                }
+                Statement::PluginImport(decl) => {
+                    // v1.8: Register plugin alias as a known name
+                    if self.instances.contains_key(&decl.alias) {
+                        self.errors.push(AnalyzerError {
+                            code: "L052",
+                            message: format!(
+                                "The plugin alias '{}' conflicts with an existing name. Each plugin alias must be unique.",
+                                decl.alias
+                            ),
+                            span: decl.span,
+                        });
+                    }
+                }
+                Statement::Provider(decl) => {
+                    // v1.9: Validate provider has required config
+                    let has_endpoint = decl.config.iter().any(|e| e.key == "endpoint");
+                    if !has_endpoint {
+                        self.errors.push(AnalyzerError {
+                            code: "L053",
+                            message: format!(
+                                "Provider '{}' is missing an 'endpoint' configuration. Every provider must specify where to connect.",
+                                decl.protocol
+                            ),
+                            span: decl.span,
+                        });
+                    }
+                }
+                Statement::Cluster(decl) => {
+                    // v2.0: Validate cluster configuration
+                    if decl.node_id.is_empty() {
+                        self.errors.push(AnalyzerError {
+                            code: "L060",
+                            message: "Cluster 'node_id' must be a non-empty string. Each node in the cluster needs a unique identifier.".to_string(),
+                            span: decl.span,
+                        });
+                    }
+                    if decl.peers.is_empty() {
+                        self.errors.push(AnalyzerError {
+                            code: "L061",
+                            message: "Cluster 'peers' must contain at least one peer address for the cluster to form a quorum.".to_string(),
+                            span: decl.span,
+                        });
+                    }
+                    let total_nodes = decl.peers.len() as u32 + 1;
+                    if decl.quorum > total_nodes {
+                        self.errors.push(AnalyzerError {
+                            code: "L062",
+                            message: format!(
+                                "Quorum size {} exceeds total nodes ({}). Quorum must be ≤ peers + 1.",
+                                decl.quorum, total_nodes
+                            ),
+                            span: decl.span,
+                        });
+                    }
                 }
                 _ => {}
             }
@@ -240,13 +318,16 @@ impl Analyzer {
                 Statement::ExternalEntity(e) => Some((&e.fields, e.span)),
                 _ => None,
             };
-            if let Some((fields, span)) = fields {
+            if let Some((fields, _span)) = fields {
                 for field in fields {
                     if let Field::Ref(r) = field {
                         if !self.schema.entities.contains_key(&r.target_entity) {
                             return Err(vec![AnalyzerError {
                                 code: "L036",
-                                message: format!("ref target entity '{}' does not exist", r.target_entity),
+                                message: format!(
+                                    "I can't find the entity '{}' referenced in this 'ref'. Every 'ref' must point to a defined entity so Lumina can bridge the graph between them. Did you forget to define '{}'?",
+                                    r.target_entity, r.target_entity
+                                ),
                                 span: r.span,
                             }]);
                         }
@@ -271,7 +352,10 @@ impl Analyzer {
                         } else {
                             return Err(vec![AnalyzerError {
                                 code: "L026",
-                                message: format!("Unknown entity '{}' in rule parameter", param.entity),
+                                message: format!(
+                                    "I don't recognize the entity type '{}'. You're trying to use it as a parameter in this rule, but I only know about entities that were declared earlier. Did you forget to define '{}'?",
+                                    param.entity, param.entity
+                                ),
                                 span: rule.span,
                             }]);
                         }
@@ -316,14 +400,17 @@ impl Analyzer {
                                     if freq.count < 2 {
                                         return Err(vec![AnalyzerError {
                                             code: "L039",
-                                            message: format!("frequency count must be >= 2, got {}", freq.count),
+                                            message: format!(
+                                                "A frequency condition requires at least 2 occurrences, but you've specified {}. Lumina uses frequency to detect patterns over time (like 'at least twice in 5s'). Change this to 2 or more.",
+                                                freq.count
+                                            ),
                                             span: freq.span,
                                         }]);
                                     }
                                     if freq.within.to_seconds() <= 0.0 {
                                         return Err(vec![AnalyzerError {
                                             code: "L040",
-                                            message: "frequency window duration must be > 0".to_string(),
+                                            message: "A frequency 'within' duration must be greater than 0 seconds. Lumina cannot calculate a rate over a zero-length time window. Please provide a positive duration (e.g., 'within 5s').".to_string(),
                                             span: freq.span,
                                         }]);
                                     }
@@ -410,13 +497,19 @@ impl Analyzer {
                         if body_type != decl.returns {
                             self.errors.push(AnalyzerError {
                                 code: "L014",
-                                message: "return type mismatch".to_string(),
+                                message: format!(
+                                    "The function's body returns a {:?}, but the signature says it should return a {:?}. Lumina requires functions to strictly follow their return type to ensure the reactive graph remains stable.",
+                                    body_type, decl.returns
+                                ),
                                 span: decl.span,
                             });
                         }
                     }
                 }
                 Statement::Aggregate(_) => {}
+                Statement::PluginImport(_) => {} // Validated in pass1
+                Statement::Provider(_) => {}     // Validated in pass1
+                Statement::Cluster(_) => {}      // Validated in pass1
                 _ => {}
             }
         }
@@ -425,7 +518,10 @@ impl Analyzer {
         if let Err(err) = self.graph.compute_topo_order() {
             return Err(vec![AnalyzerError {
                 code: "L004",
-                message: format!("Circular dependency detected: {}", err.chain.join(" -> ")),
+                message: format!(
+                    "I've detected a circular dependency: {}. Lumina is a Directed Acyclic Graph (DAG); fields cannot depend on themselves (directly or indirectly) because the engine would loop forever trying to calculate the final truth.",
+                    err.chain.join(" -> ")
+                ),
                 span: program.span,
             }]);
         }
@@ -442,6 +538,17 @@ impl Analyzer {
             match field {
                 Field::Derived(df) => {
                     let ty = self.infer_type_ctx(&df.expr, Some(entity_name), None, true).map_err(|e| vec![e])?;
+                    // v1.8: L051 — Secret values cannot be used in derived fields
+                    if ty == LuminaType::Secret {
+                        return Err(vec![AnalyzerError {
+                            code: "L051",
+                            message: format!(
+                                "The derived field '{}' resolves to a Secret type. Derived fields are automatically computed and their values may be exposed through the reactive graph. Move secret handling into a 'write' action instead.",
+                                df.name
+                            ),
+                            span: df.span,
+                        }]);
+                    }
                     if let Some(entity) = self.schema.entities.get_mut(entity_name) {
                         if let Some(f_schema) = entity.fields.get_mut(&df.name) {
                             f_schema.ty = ty;
@@ -477,7 +584,7 @@ impl Analyzer {
                 } else {
                     self.errors.push(AnalyzerError {
                         code: "L015",
-                        message: "fn body cannot access entity fields".to_string(),
+                        message: "Functions are 'pure' logic and cannot directly access entity fields. They can only use the parameters passed to them. Move the field value into an argument to use it here.".to_string(),
                         span,
                     });
                 }
@@ -558,7 +665,10 @@ impl Analyzer {
                 } else {
                     Err(AnalyzerError {
                         code: "L001",
-                        message: format!("Unknown identifier: {}", name),
+                        message: format!(
+                            "I don't recognize the identifier '{}'. Lumina needs all names (entities, fields, or functions) to be declared before they are used to ensure the safety of the reactive graph. Have you defined this name elsewhere, or is there a typo?",
+                            name
+                        ),
                         span: Span::default(),
                     })
                 }
@@ -572,7 +682,10 @@ impl Analyzer {
                         } else {
                             Err(AnalyzerError {
                                 code: "L010",
-                                message: format!("Unknown field '{}' on entity '{}'", field, e_name),
+                                message: format!(
+                                    "I can't find a field named '.{}' on the entity '{}'. Entities are strict schemas; you can only access fields that were explicitly defined in the 'entity {} {{ ... }}' block. Did you mean one of: {:?}?",
+                                    field, e_name, e_name, self.schema.get_entity(&e_name).unwrap().fields.keys().collect::<Vec<_>>()
+                                ),
                                 span: *span,
                             })
                         }
@@ -606,7 +719,10 @@ impl Analyzer {
                         } else {
                             Err(AnalyzerError {
                                 code: "L002",
-                                message: format!("I can only perform math ('{}') on two Numbers. You've provided a {:?} and a {:?}.", op, l_ty, r_ty),
+                                message: format!(
+                                    "I can only perform math ('{}') on two Numbers. You've provided a {:?} and a {:?}. Lumina's reactive engine needs consistent math types to guarantee that sensor values doesn't cause a runtime crash.",
+                                    op, l_ty, r_ty
+                                ),
                                 span: *span,
                             })
                         }
@@ -617,7 +733,10 @@ impl Analyzer {
                         } else {
                             Err(AnalyzerError {
                                 code: "L002",
-                                message: format!("I can't compare a {:?} with a {:?}. Both sides must be the same type to check for equality or order.", l_ty, r_ty),
+                                message: format!(
+                                    "I can't compare a {:?} with a {:?}. To check for equality or order, both sides must be the same type. This prevents 'comparing apples to oranges' which would break rule logic.",
+                                    l_ty, r_ty
+                                ),
                                 span: *span,
                             })
                         }
@@ -774,7 +893,10 @@ impl Analyzer {
                     None => {
                         return Err(AnalyzerError {
                             code: "L012",
-                            message: format!("unknown fn: {}", name),
+                            message: format!(
+                                "I don't recognize the function '{}()'. In Lumina, functions must be declared with 'fn' before they can be called. This ensures that every calculation in the DAG is accounted for. Did you forget to define it?",
+                                name
+                            ),
                             span: *span,
                         });
                     }
@@ -782,7 +904,10 @@ impl Analyzer {
                 if args.len() != decl.params.len() {
                     return Err(AnalyzerError {
                         code: "L013",
-                        message: format!("fn {} expects {} args, got {}", name, decl.params.len(), args.len()),
+                        message: format!(
+                            "The function '{}()' expects {} arguments, but you've provided {}. Lumina uses strict function signatures to ensure that every input is accounted for in the reactive graph. Did you miss an argument or provide too many?",
+                            name, decl.params.len(), args.len()
+                        ),
                         span: *span,
                     });
                 }
@@ -791,7 +916,10 @@ impl Analyzer {
                     if arg_ty != param.type_ {
                         return Err(AnalyzerError {
                             code: "L013",
-                            message: format!("argument type mismatch for parameter {}", param.name),
+                            message: format!(
+                                "Argument type mismatch for parameter '{}'. I expected a {:?}, but you provided a {:?}. Lumina's functions require exact type matches to guarantee safe calculations.",
+                                param.name, param.type_, arg_ty
+                            ),
                             span: *span,
                         });
                     }
@@ -830,7 +958,10 @@ impl Analyzer {
                     LuminaType::List(inner) => Ok(*inner),
                     _ => Err(AnalyzerError {
                         code: "L002",
-                        message: "index access only allowed on lists".to_string(),
+                        message: format!(
+                            "I can only use index access ([]) on Lists. You're trying to index into a {:?}. Lumina enforces strict typing to prevent runtime 'undefined' errors.",
+                            list_ty
+                        ),
                         span: *span,
                     }),
                 }
@@ -852,7 +983,10 @@ impl Analyzer {
                 
                 let field_schema = self.schema.get_field(entity_name, field).ok_or_else(|| AnalyzerError {
                     code: "L010",
-                    message: format!("Unknown field '{}' for prev()", field),
+                    message: format!(
+                        "I can't look back at the history of '.{}' because that field doesn't exist on '{}'. 'prev()' requires a valid stored field to track its previous state.",
+                        field, entity_name
+                    ),
                     span: *span,
                 })?;
                 
@@ -865,6 +999,14 @@ impl Analyzer {
                 }
                 
                 Ok(field_schema.ty.clone())
+            }
+            Expr::ClusterAccess { .. } => {
+                // Return Text by default for cluster fields unless we want to map known schema
+                Ok(LuminaType::Text)
+            }
+            Expr::Migrate { .. } | Expr::Evacuate { .. } | Expr::Deploy { .. } => {
+                // Orchestration actions evaluate to a Boolean indicating success
+                Ok(LuminaType::Boolean)
             }
         }
     }
@@ -933,7 +1075,15 @@ impl Analyzer {
     fn check_action(&mut self, action: &Action, rule_span: Span, locals: Option<&HashMap<String, LuminaType>>) -> Result<(), Vec<AnalyzerError>> {
         match action {
             Action::Show(expr) => {
-                self.infer_type(expr, None, locals).map_err(|e| vec![e])?;
+                // v1.8: L050 — Secret values cannot be displayed
+                let ty = self.infer_type(expr, None, locals).map_err(|e| vec![e])?;
+                if ty == LuminaType::Secret {
+                    return Err(vec![AnalyzerError {
+                        code: "L050",
+                        message: "You can't use 'show' with a Secret value. Secret fields are designed to never appear in output to prevent credential leakage. Use 'write' to pass secrets to external adapters instead.".to_string(),
+                        span: rule_span,
+                    }]);
+                }
                 Ok(())
             }
             Action::Update { target, value } => {
@@ -972,7 +1122,10 @@ impl Analyzer {
             Action::Create { entity, fields } => {
                 let schema_entity = self.schema.get_entity(entity).ok_or_else(|| vec![AnalyzerError {
                     code: "L008",
-                    message: format!("Unknown entity type: {}", entity),
+                    message: format!(
+                        "I don't know what a '{}' is. You're trying to create one in a rule, but I only know about entities that have been defined earlier. Did you forget to add 'entity {} {{ ... }}' to your code?",
+                        entity, entity
+                    ),
                     span: rule_span,
                 }])?;
 
@@ -999,7 +1152,10 @@ impl Analyzer {
                     if !field.is_derived && !provided_fields.contains_key(name) {
                         return Err(vec![AnalyzerError {
                             code: "L007",
-                            message: format!("Stored field '{}' missing on entity creation", name),
+                            message: format!(
+                                "I can't create this entity because the field '.{}' is missing. Every stored field must be given a value during creation so the system starts with a valid 'truth'.",
+                                name
+                            ),
                             span: rule_span,
                         }]);
                     }
@@ -1032,7 +1188,10 @@ impl Analyzer {
                     if !entity_schema.is_external {
                         return Err(vec![AnalyzerError {
                             code: "L038",
-                            message: format!("write action can only target external entities, '{}' is not external", entity_name),
+                            message: format!(
+                                "I can't use a 'write' action on '{}' because it is a local entity. 'write' is reserved for sending data to external hardware or systems. For local data, use 'update' instead.",
+                                entity_name
+                            ),
                             span: target.span,
                         }]);
                     }

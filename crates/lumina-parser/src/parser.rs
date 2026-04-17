@@ -142,6 +142,8 @@ impl Parser {
             Token::KwFn       => self.parse_fn_decl(),
             Token::Import     => self.parse_import(),
             Token::Aggregate  => self.parse_aggregate(),
+            Token::KwProvider => self.parse_provider(),
+            Token::KwCluster  => self.parse_cluster(),
             _ => Err(ParseError::new(
                 format!("I didn't expect to see {} at the start of a statement. Did you mean to use 'let', 'entity', or 'rule'?", self.current().to_human_string()),
                 self.current_span(),
@@ -152,12 +154,83 @@ impl Parser {
     fn parse_import(&mut self) -> Result<Statement, ParseError> {
         let span = self.current_span();
         self.expect(&Token::Import)?;
-        // Expect a string literal as the path
+
+        // v1.8: Check for `import plugin "name" as alias`
+        if self.check(&Token::KwPlugin) {
+            self.advance(); // consume 'plugin'
+            let path = match self.current().clone() {
+                Token::Text(s) => { self.advance(); s }
+                _ => return Err(ParseError::new(
+                    "I expected a string path after 'import plugin', like: import plugin \"my-plugin\"",
+                    self.current_span(),
+                )),
+            };
+            self.expect(&Token::KwAs)?;
+            let alias = self.expect_ident("plugin alias name")?;
+            return Ok(Statement::PluginImport(PluginImportDecl { path, alias, span }));
+        }
+
+        // v1.9: Check for `import LSL::namespace::Entity` (namespace import)
+        if let Token::Ident(first) = self.current().clone() {
+            if first == "LSL" {
+                let mut segments = vec![first.clone()];
+                self.advance(); // consume 'LSL'
+                while self.check(&Token::ColonColon) {
+                    self.advance(); // consume '::'
+                    let seg = self.expect_ident("namespace segment")?;
+                    segments.push(seg);
+                }
+                let path = segments.join("::");
+                return Ok(Statement::Import(ImportDecl { path: path.clone(), namespace: Some(segments), span }));
+            }
+        }
+
+        // Standard module import
         let path = match self.current().clone() {
             Token::Text(s) => { let p = s.clone(); self.advance(); p }
             _ => return Err(ParseError::new("expected string path after import", self.current_span())),
         };
-        Ok(Statement::Import(ImportDecl { path, span }))
+        Ok(Statement::Import(ImportDecl { path, namespace: None, span }))
+    }
+
+    // ── provider (v1.9) ───────────────────────────────────
+
+    fn parse_provider(&mut self) -> Result<Statement, ParseError> {
+        let span = self.current_span();
+        self.expect(&Token::KwProvider)?;
+
+        let protocol = match self.current().clone() {
+            Token::Text(s) => { self.advance(); s }
+            _ => return Err(ParseError::new(
+                "I expected a protocol name string after 'provider', like: provider \"redfish\" { ... }",
+                self.current_span(),
+            )),
+        };
+
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+
+        let mut config = Vec::new();
+        while !self.check(&Token::RBrace) && !self.is_at_end() {
+            let entry_span = self.current_span();
+            let key = match self.current().clone() {
+                Token::Ident(s) => { self.advance(); s }
+                Token::KwEndpoint => { self.advance(); "endpoint".to_string() }
+                Token::KwCredentials => { self.advance(); "credentials".to_string() }
+                Token::KwPollInterval => { self.advance(); "poll_interval".to_string() }
+                _ => return Err(ParseError::new(
+                    format!("Expected a configuration key inside provider block, got {}", self.current().to_human_string()),
+                    self.current_span(),
+                )),
+            };
+            self.expect(&Token::Colon)?;
+            let value = self.parse_expr(0)?;
+            config.push(ProviderConfigEntry { key, value, span: entry_span });
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+
+        Ok(Statement::Provider(ProviderDecl { protocol, config, span }))
     }
 
     // ── entity ────────────────────────────────────────────
@@ -239,6 +312,7 @@ impl Parser {
             Token::KwTypeNumber  => { self.advance(); LuminaType::Number }
             Token::KwTypeBoolean => { self.advance(); LuminaType::Boolean }
             Token::KwTypeTimestamp => { self.advance(); LuminaType::Timestamp }
+            Token::KwTypeSecret  => { self.advance(); LuminaType::Secret }
             Token::Ident(_) => {
                 let name = self.expect_ident("type name")?;
                 LuminaType::Entity(name)
@@ -269,6 +343,8 @@ impl Parser {
         let mut sync_strategy = SyncStrategy::Realtime;
         let mut sync_fields = Vec::new();
         let mut poll_interval = None;
+        let mut sync_timeout = None;
+        let mut fallible = false;
 
         while !self.check(&Token::RBrace) && !self.is_at_end() {
             if self.check(&Token::KwSync) {
@@ -289,6 +365,12 @@ impl Parser {
                 self.advance();
                 self.expect(&Token::Colon)?;
                 poll_interval = Some(self.parse_duration()?);
+            } else if self.check(&Token::KwTimeout) {
+                self.advance();
+                sync_timeout = Some(self.parse_duration()?);
+            } else if self.check(&Token::KwFallible) {
+                self.advance();
+                fallible = true;
             } else if self.check(&Token::KwSyncOn) {
                 self.advance();
                 if self.check(&Token::LParen) {
@@ -310,7 +392,8 @@ impl Parser {
         self.expect(&Token::RBrace)?;
 
         Ok(Statement::ExternalEntity(ExternalEntityDecl {
-            name, fields, sync_path, sync_strategy, sync_fields, poll_interval, span: start,
+            name, fields, sync_path, sync_strategy, sync_fields,
+            poll_interval, sync_timeout, fallible, span: start,
         }))
     }
 
@@ -323,7 +406,7 @@ impl Parser {
         self.expect(&Token::Eq)?;
 
         // Peek: if Ident followed by '{', it's an EntityInit
-        let value = if matches!(self.current(), Token::Ident(_))
+        let value = if !self.is_at_end() && matches!(self.current(), Token::Ident(_))
             && self.peek() == Some(&Token::LBrace)
         {
             let entity_name = self.expect_ident("entity name")?;
@@ -493,6 +576,21 @@ impl Parser {
         let name = self.expect_ident("aggregate name")?;
         self.expect(&Token::Over)?;
         let over = self.expect_ident("entity name")?;
+
+        // v2.0: Optional scope — `over cluster` or `over region["name"]`
+        let scope = if self.check(&Token::KwCluster) {
+            self.advance();
+            AggregateScope::Cluster
+        } else if self.check(&Token::KwRegion) {
+            self.advance();
+            self.expect(&Token::LBracket)?;
+            let region = self.expect_text("region name")?;
+            self.expect(&Token::RBracket)?;
+            AggregateScope::Region(region)
+        } else {
+            AggregateScope::Local
+        };
+
         self.expect(&Token::LBrace)?;
         self.skip_newlines();
 
@@ -548,7 +646,63 @@ impl Parser {
         }
         self.expect(&Token::RBrace)?;
 
-        Ok(Statement::Aggregate(AggregateDecl { name, over, fields, span }))
+        Ok(Statement::Aggregate(AggregateDecl { name, over, fields, scope, span }))
+    }
+
+    // ── cluster (v2.0) ────────────────────────────────────
+
+    fn parse_cluster(&mut self) -> Result<Statement, ParseError> {
+        let span = self.current_span();
+        self.expect(&Token::KwCluster)?;
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+
+        let mut node_id = String::new();
+        let mut peers = Vec::new();
+        let mut quorum: u32 = 3;
+        let mut election_timeout = Duration { value: 500.0, unit: TimeUnit::Seconds };
+
+        while !self.check(&Token::RBrace) && !self.is_at_end() {
+            match self.current().clone() {
+                Token::KwNodeId => {
+                    self.advance();
+                    self.expect(&Token::Colon)?;
+                    node_id = self.expect_text("node_id value")?;
+                }
+                Token::KwPeers => {
+                    self.advance();
+                    self.expect(&Token::Colon)?;
+                    self.expect(&Token::LBracket)?;
+                    self.skip_newlines();
+                    while !self.check(&Token::RBracket) && !self.is_at_end() {
+                        peers.push(self.expect_text("peer address")?);
+                        if self.check(&Token::Comma) { self.advance(); }
+                        self.skip_newlines();
+                    }
+                    self.expect(&Token::RBracket)?;
+                }
+                Token::KwQuorum => {
+                    self.advance();
+                    self.expect(&Token::Colon)?;
+                    quorum = self.expect_number("quorum value")? as u32;
+                }
+                Token::KwElectionTimeout => {
+                    self.advance();
+                    self.expect(&Token::Colon)?;
+                    election_timeout = self.parse_duration()?;
+                }
+                _ => return Err(ParseError::new(
+                    format!("unexpected token in cluster block: {}", self.current().to_human_string()),
+                    self.current_span(),
+                )),
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+
+        Ok(Statement::Cluster(ClusterDecl {
+            node_id, peers, quorum, election_timeout, span,
+        }))
     }
 
     fn parse_fleet_condition(&mut self) -> Result<FleetCondition, ParseError> {
@@ -726,6 +880,9 @@ impl Parser {
                 // Parse key: value pairs separated by commas
                 loop {
                     self.skip_newlines();
+                    if self.is_at_end() {
+                        break;
+                    }
                     let key = match self.current() {
                         Token::Severity => { self.advance(); "severity".to_string() },
                         Token::Ident(s) if s == "message" => { self.advance(); "message".to_string() },
@@ -822,8 +979,9 @@ impl Parser {
             Token::Number(n) => {
                 self.advance();
                 
-                if let Token::Ident(ref unit) = self.current() {
-                    let maybe_unit = match unit.as_str() {
+                if !self.is_at_end() {
+                    if let Token::Ident(ref unit) = self.current() {
+                        let maybe_unit = match unit.as_str() {
                         "s" => Some(TimeUnit::Seconds),
                         "m" => Some(TimeUnit::Minutes),
                         "h" => Some(TimeUnit::Hours),
@@ -834,6 +992,7 @@ impl Parser {
                         self.advance();
                         return Ok(Expr::Duration(Duration { value: n, unit: u }));
                     }
+                }
                 }
                 
                 Ok(Expr::Number(n))
@@ -847,6 +1006,9 @@ impl Parser {
                 self.advance();
                 let mut segments = Vec::new();
                 loop {
+                    if self.is_at_end() {
+                        return Err(ParseError::new("unexpected end of input in interpolated string", self.current_span()));
+                    }
                     match self.current().clone() {
                         Token::InterpPart(s) => {
                             segments.push(StringSegment::Literal(s));
@@ -911,6 +1073,65 @@ impl Parser {
                 }
                 
                 Ok(Expr::Ident(name))
+            }
+            Token::KwEnv => {
+                // v1.9: env("VAR_NAME") built-in
+                let name = "env".to_string();
+                self.advance();
+                self.expect(&Token::LParen)?;
+                let arg = self.parse_expr(0)?;
+                self.expect(&Token::RParen)?;
+                Ok(Expr::Call { name, args: vec![arg], span })
+            }
+            // v2.0: cluster.{node_id}.{field} access
+            Token::KwCluster => {
+                self.advance(); // consume 'cluster'
+                self.expect(&Token::Dot)?;
+                let node_id = self.expect_ident("node identifier or 'all'")?;
+                self.expect(&Token::Dot)?;
+                let field = self.expect_ident("field name")?;
+                Ok(Expr::ClusterAccess { node_id, field, span })
+            }
+            // v2.0: migrate(workloads, to: target)
+            Token::KwMigrate => {
+                self.advance();
+                self.expect(&Token::LParen)?;
+                let workloads = self.parse_expr(0)?;
+                self.expect(&Token::Comma)?;
+                // Accept both `to:` keyword syntax and plain positional
+                if self.check(&Token::KwTo) {
+                    self.advance();
+                    self.expect(&Token::Colon)?;
+                }
+                let target = self.parse_expr(0)?;
+                self.expect(&Token::RParen)?;
+                Ok(Expr::Migrate {
+                    workloads: Box::new(workloads),
+                    target: Box::new(target),
+                    span,
+                })
+            }
+            // v2.0: evacuate(entities)
+            Token::KwEvacuate => {
+                self.advance();
+                self.expect(&Token::LParen)?;
+                let entities = self.parse_expr(0)?;
+                self.expect(&Token::RParen)?;
+                Ok(Expr::Evacuate {
+                    entities: Box::new(entities),
+                    span,
+                })
+            }
+            // v2.0: deploy(spec)
+            Token::KwDeploy => {
+                self.advance();
+                self.expect(&Token::LParen)?;
+                let spec = self.parse_expr(0)?;
+                self.expect(&Token::RParen)?;
+                Ok(Expr::Deploy {
+                    spec: Box::new(spec),
+                    span,
+                })
             }
             Token::LParen => {
                 self.advance();

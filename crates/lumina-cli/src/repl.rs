@@ -61,7 +61,7 @@ impl ReplSession {
             Err(e) => return ReplResult::Error(format!("parse error: {}", e)),
         };
 
-        // Note: the REPL in v1.7.0 evaluates statements progressively, but the analyzer needs the full program context.
+        // Note: the REPL in v1.8.0 evaluates statements progressively, but the analyzer needs the full program context.
         // For the REPL, we analyze the current snippet. Realistically it needs full history, but for simplicity
         // based on the spec, we pass `&program` to `analyze` here.
         let full_program = match parse(&self.full_history) {

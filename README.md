@@ -1,8 +1,8 @@
-# Lumina: A Declarative and Reactive Programming Language for State-Driven Systems
+# Lumina: A Reactive Language for Target Infrastructure and Distributed State
 
 ## Abstract
 
-Lumina is a statically typed, declarative, and reactive programming language engineered in Rust, designed specifically for modeling complex state-driven systems. Unlike traditional imperative languages where state transitions are manually coordinated, Lumina employs a continuous evaluation model. Domain entities are defined with intrinsic storage and derived mathematical relationships. Reactive rule cascades autonomously compute state changes, temporal triggers enforce duration and interval-based logic, and invariant assertions ensure computational consistency. The resulting execution model provides a robust framework for asynchronous and deterministic system state resolution, suitable for both embedded logic and high-level behavioral orchestration.
+Lumina is a statically typed, declarative, and reactive programming language engineered in Rust, designed specifically for modeling and managing **Target Infrastructure**. Unlike traditional imperative languages where state transitions are manually coordinated, Lumina employs a continuous evaluation model to synchronize desired state with physical and digital reality. Domain entities are defined with intrinsic storage and derived mathematical relationships, allowing for autonomous infrastructure orchestration, fleet-wide monitoring, and deterministic system state resolution.
 
 ---
 
@@ -12,9 +12,23 @@ Modern software architecture frequently struggles with the synchronization of di
 
 ### 1.1 Evolution & Feature History
 
-Lumina has evolved from a simple reactive engine into a production-grade infrastructure monitoring language.
+Lumina has evolved from a simple reactive engine into a **Sovereign Infrastructure Language**.
 
-#### **v1.7: The Experience Release (Latest Stable)**
+#### **v1.9: The Metal Release (Latest Stable)**
+*   **Lumina Standard Library (LSL)**: Pre-defined entity schemas for datacenter, network, Kubernetes, and power infrastructure — composed, not inherited.
+*   **Native Southbound Protocols**: Agentless hardware polling via `provider` blocks (Redfish, SNMP v3, Modbus TCP).
+*   **Declarative Security**: Security as a structural truth in the DAG. Write operations are blocked when auth context evaluates false (`L039`).
+*   **`env()` Built-in**: Secure environment variable access, returning `Secret` values.
+*   **Query Interface (`lumina query`)**: Interrogate the truth store from the CLI.
+*   **Provider Management (`lumina provider`)**: Install and manage southbound protocol adapters.
+
+#### **v1.8: The Ecosystem Release**
+*   **Plugin System (`import plugin`)**: Dynamically load external adapters and components.
+*   **Secret Management (`Secret`)**: Secure handling of credentials, preventing accidental leakage.
+*   **Distributed State Consistency**: Introduces `timeout`, `fallible`, and `unknown` states to handle unreliable infrastructure.
+*   **Opinionated Formatter (`lumina fmt`)**: Standardized canonical formatting for all Lumina source files.
+
+#### **v1.8: The Experience Release**
 *   **Zero-Configuration Installer**: Native `.deb`, `.exe`, and Homebrew support with automated `lumina setup`.
 *   **"Teaching" Diagnostics**: Rewritten compiler errors that provide mentoring and actionable hints.
 *   **Professional Branding**: Dedicated documentation site and high-fidelity VS Code extension.
@@ -52,8 +66,8 @@ Lumina has evolved from a simple reactive engine into a production-grade infrast
 
 ## 2. Documentation
 
-*   **[Lumina Complete Guide (v1.7)](./docs/Lumina_Complete_Guide.md)**: The technical bible of the Lumina language.
-*   **[Language Specification](./docs/SPEC.md)**: EBNF grammar and v1.7 syntax reference.
+*   **[Lumina Complete Guide (v1.8)](./docs/Lumina_Complete_Guide.md)**: The technical bible of the Lumina language.
+*   **[Language Specification](./docs/SPEC.md)**: EBNF grammar and v1.8 syntax reference.
 *   **[Architecture Overview](./docs/ARCHITECTURE.md)**: Deep dive into the reactive engine, adapters, and the write-back cycle.
 
 ---
@@ -70,7 +84,7 @@ The Lumina compiler and runtime pipeline is implemented in Rust. Every program f
 
 ---
 
-## 4. Language Specification (v1.7 Example)
+## 4. Language Specification (v1.8 Example)
 
 ```lua
 -- Infrastructure modeling with v1.6 features
@@ -122,7 +136,7 @@ cargo build --release -p lumina-ffi
 ---
 
 ## 6. Development & Testing
-Run the full regression suite to verify v1.7 compliance:
+Run the full regression suite to verify v1.8 compliance:
 ```bash
 cargo test --workspace
 ```

@@ -1,4 +1,6 @@
-#[derive(Debug, Clone)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SourceLocation {
     pub file: String,
     pub line: u32, // 1-indexed

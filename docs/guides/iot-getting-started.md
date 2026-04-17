@@ -1,6 +1,6 @@
-# IoT Monitoring with Lumina
+# [Sector Guide] Industrial IoT with Lumina
 
-Lumina was born to simplify IoT monitoring. In this guide, we'll build a simple system that monitors temperature spikes across a fleet of sensors.
+Lumina's **Target Infrastructure** philosophy extends directly into the physical world. In this sector-specific guide, we'll build an Industrial IoT monitoring system that tracks temperature threshold violations across a fleet of physical hardware sensors.
 
 ## 1. The Scenario
 You have a set of temperature sensors publishing to an MQTT broker. You want to:

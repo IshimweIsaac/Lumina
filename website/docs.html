@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lumina Documentation</title>
-  <meta name="description" content="Complete reference and documentation for the Lumina programming language." />
+  <title>Lumina Documentation — The Reactive Language for IoT & Monitoring</title>
+  <meta name="description" content="Complete reference documentation for the Lumina programming language. Entities, rules, reactive triggers, fleet monitoring, external entities, and more." />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
@@ -17,7 +17,7 @@
       <a href="/" class="nav__brand">
         <img src="/logo.png" alt="Lumina" class="nav__logo" />
         <span class="nav__name">Lumina</span>
-        <span class="nav__version">v1.5</span>
+        <span class="nav__version">v1.8</span>
       </a>
       <div class="nav__links" id="nav-links">
         <a href="/#features" class="nav__link">Features</a>
@@ -27,7 +27,7 @@
         <a href="/#install" class="nav__link">Install</a>
       </div>
       <div class="nav__actions">
-        <a href="https://github.com/IshimweIsaac/Lumina" target="_blank" class="nav__link nav__github">
+        <a href="https://github.com/IshimweIsaac/Lumina" target="_blank" class="nav__link nav__github" aria-label="GitHub">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
         </a>
         <a href="/#install" class="btn btn--primary btn--sm">Get Started</a>
@@ -36,36 +36,84 @@
     </div>
   </nav>
 
+  <!-- MOBILE DOCS HEADER -->
+  <div class="docs-mobile-header" id="docs-mobile-header">
+    <button class="docs-mobile-btn" id="docs-trigger-sidebar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+      <span>Menu</span>
+    </button>
+    <div class="docs-mobile-title" id="docs-mobile-active-tab">Introduction</div>
+  </div>
+
   <!-- DOCUMENTATION LAYOUT -->
   <div class="docs-layout">
     <!-- SIDEBAR -->
-    <aside class="docs-sidebar">
+    <aside class="docs-sidebar" id="docs-sidebar">
       <div class="docs-sidebar__inner">
-        <h4 class="docs-sidebar__title">Documentation</h4>
-        <div class="docs-nav-vertical" id="docs-nav">
-          <button class="docs-nav__tab active" data-tab="getting_started">Getting Started</button>
-          <button class="docs-nav__tab" data-tab="entities">Entities & Fields</button>
-          <button class="docs-nav__tab" data-tab="rules">Rules & Triggers</button>
-          <button class="docs-nav__tab" data-tab="functions">Pure Functions</button>
-          <button class="docs-nav__tab" data-tab="types">Types & Lists</button>
-          <button class="docs-nav__tab" data-tab="modules">Modules</button>
-          <button class="docs-nav__tab" data-tab="external">External Entities</button>
-          <button class="docs-nav__tab" data-tab="fleet">Fleet & Aggregates</button>
-          <button class="docs-nav__tab" data-tab="tooling">Tooling</button>
+
+        <!-- Search bar -->
+        <div class="docs-search">
+          <input type="text" class="docs-search__input" id="docs-search-input" placeholder="Search docs..." autocomplete="off" />
+          <svg class="docs-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         </div>
-        
-        <h4 class="docs-sidebar__title" style="margin-top: var(--sp-8);">Resources</h4>
+
+        <h4 class="docs-sidebar__title">Welcome</h4>
         <div class="docs-nav-vertical">
-          <a href="#examples" class="docs-nav__tab docs-nav__link">Examples</a>
-          <a href="https://github.com/IshimweIsaac/Lumina" target="_blank" class="docs-nav__tab docs-nav__link">GitHub</a>
+          <button class="docs-nav__tab active" data-tab="getting_started">Getting Started</button>
+        </div>
+
+        <h4 class="docs-sidebar__title">The Foundations</h4>
+        <div class="docs-nav-vertical">
+          <button class="docs-nav__tab" data-tab="chapter0">Introduction</button>
+          <button class="docs-nav__tab" data-tab="chapter1">Living Blueprint</button>
+          <button class="docs-nav__tab" data-tab="chapter2">Automatic Reactions</button>
+          <button class="docs-nav__tab" data-tab="chapter3">Constants & Bindings</button>
+          <button class="docs-nav__tab" data-tab="chapter4">State Guardrails</button>
+        </div>
+
+        <h4 class="docs-sidebar__title">Expressive Logic</h4>
+        <div class="docs-nav-vertical">
+          <button class="docs-nav__tab" data-tab="chapter5">Alerting Engine</button>
+          <button class="docs-nav__tab" data-tab="chapter6">Fleet Intelligence</button>
+          <button class="docs-nav__tab" data-tab="chapter7">Reusable Logic</button>
+          <button class="docs-nav__tab" data-tab="chapter8">Managed Collections</button>
+        </div>
+
+        <h4 class="docs-sidebar__title">Professional Systems</h4>
+        <div class="docs-nav-vertical">
+          <button class="docs-nav__tab" data-tab="chapter9">The Web of Data</button>
+          <button class="docs-nav__tab" data-tab="chapter10">Filtering Noise</button>
+          <button class="docs-nav__tab" data-tab="chapter11">Frequency Control</button>
+          <button class="docs-nav__tab" data-tab="chapter12">The Time Dimension</button>
+          <button class="docs-nav__tab" data-tab="chapter13">The External World</button>
+          <button class="docs-nav__tab" data-tab="chapter14">Automated Write-Back</button>
+        </div>
+
+        <h4 class="docs-sidebar__title">Appendices</h4>
+        <div class="docs-nav-vertical">
+          <button class="docs-nav__tab" data-tab="error_reference">Error Reference</button>
+          <button class="docs-nav__tab" data-tab="changelog">Changelog</button>
+        </div>
+
+        <h4 class="docs-sidebar__title">Resources</h4>
+        <div class="docs-nav-vertical">
+          <a href="#examples" class="docs-nav__tab docs-nav__link">Examples Gallery</a>
+          <a href="https://github.com/IshimweIsaac/Lumina" target="_blank" class="docs-nav__tab docs-nav__link">GitHub Source ↗</a>
         </div>
       </div>
     </aside>
 
     <!-- MAIN CONTENT -->
     <main class="docs-main">
+      <div id="docs-breadcrumbs" class="docs-breadcrumbs"></div>
+
       <!-- Tab Content injected by docs.js -->
       <div class="docs-content" id="docs-content"></div>
+
+      <!-- Footer Navigation -->
+      <nav class="docs-footer-nav" id="docs-footer-nav"></nav>
 
       <!-- EXAMPLES -->
       <section class="examples-section" id="examples">
@@ -76,6 +124,14 @@
         <div class="examples-grid" id="examples-grid"></div>
       </section>
     </main>
+
+    <!-- TABLE OF CONTENTS (Desktop) -->
+    <aside class="docs-toc" id="docs-toc">
+      <div class="docs-toc__inner">
+        <h4 class="docs-toc__title">On This Page</h4>
+        <div class="docs-toc__links" id="toc-links"></div>
+      </div>
+    </aside>
   </div>
 
   <script type="module" src="/main.js"></script>

@@ -39,6 +39,11 @@ fn help_for_code(code: &str) -> Option<String> {
         "L006" => Some("ensure all field names within the same entity are unique".into()),
         "L010" => Some("double-check the field name spelling in your entity definition".into()),
         "L041" => Some("try shifting the time-dependent logic into a rule action instead of a := field".into()),
+        "L050" => Some("Secret values are designed to never appear in output. Use 'write' to pass them to adapters".into()),
+        "L051" => Some("derived fields are computed automatically and may be exposed. Move secret handling into a 'write' action".into()),
+        "L052" => Some("choose a different alias name that doesn't conflict with existing entities, instances, or plugins".into()),
+        "L039" => Some("the write action was blocked because the security context (authenticated branch) evaluated to false".into()),
+        "L053" => Some("every provider block must include an 'endpoint' configuration specifying where to connect".into()),
         "R004" => Some("verify your index value is within the bounds of the list".into()),
         _ => None,
     }

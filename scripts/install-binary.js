@@ -4,7 +4,7 @@ const https = require('https');
 const os = require('os');
 
 const DOWNLOAD_BASE_URL = 'https://lumina-lang.web.app';
-const VERSION = '1.7.0';
+const VERSION = '1.8.0';
 
 const platform = os.platform(); // 'linux', 'darwin', 'win32'
 const arch = os.arch(); // 'x64', 'arm64'
