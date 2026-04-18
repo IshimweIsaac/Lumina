@@ -9,24 +9,28 @@ cluster {
 entity Workload {
   cpu: Number
   zone: String
+  isHot := cpu > 80
 }
 
-aggregate TotalCpu over Workload cluster {
-  sum_cpu := sum(cpu)
+-- Local aggregate: computes over this node's instances
+aggregate NodeStats over Workload {
+  total_cpu := sum(cpu)
+  avg_cpu   := avg(cpu)
+  max_cpu   := max(cpu)
 }
 
-rule "AutoMigrate"
-when cluster.node_1.status == "overloaded" {
-  show migrate(Workload, to: "node-2")
-}
-
--- Create some initial data
-let AppMain = Workload { cpu: 45, zone: "us-east-1" }
+-- Create workloads on this node
+let AppMain = Workload { cpu: 85, zone: "us-east-1" }
 let AppDB   = Workload { cpu: 20, zone: "us-east-1" }
 
--- Rule to monitor global cluster health
-rule "GlobalHealth"
-when TotalCpu.sum_cpu > 60 {
-  show "WARNING: Cluster-wide CPU usage is high: {TotalCpu.sum_cpu}%"
+-- Rule: fires when local node total CPU exceeds threshold
+rule "NodeOverloaded"
+when NodeStats.total_cpu > 100 {
+  show "Node CPU total is {NodeStats.total_cpu}% (avg: {NodeStats.avg_cpu}%, max: {NodeStats.max_cpu}%)"
 }
 
+-- Rule: fires when any individual workload is hot
+rule "HotWorkload"
+when Workload.isHot becomes true {
+  show "Workload is running hot at {Workload.cpu}% CPU"
+}

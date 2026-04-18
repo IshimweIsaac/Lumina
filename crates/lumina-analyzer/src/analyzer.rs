@@ -130,6 +130,19 @@ impl Analyzer {
                     // numeric provider so that references like `fleet_stats.avg_temp`
                     // resolve correctly during type checking.
                     self.instances.insert(decl.name.clone(), LuminaType::Entity(decl.name.clone()));
+
+                    // v2.0 Fix: Register aggregate fields into the schema as a
+                    // virtual entity so that FieldAccess (e.g. ClusterAvg.avg_cpu)
+                    // resolves correctly instead of panicking on unwrap().
+                    for agg_field in &decl.fields {
+                        let field_ty = match &agg_field.expr {
+                            AggregateExpr::Avg(_) | AggregateExpr::Min(_) |
+                            AggregateExpr::Max(_) | AggregateExpr::Sum(_) |
+                            AggregateExpr::Count(_) => LuminaType::Number,
+                            AggregateExpr::Any(_) | AggregateExpr::All(_) => LuminaType::Boolean,
+                        };
+                        self.schema.register_field(&decl.name, &agg_field.name, &field_ty);
+                    }
                 }
                 Statement::PluginImport(decl) => {
                     // v1.8: Register plugin alias as a known name
@@ -680,11 +693,14 @@ impl Analyzer {
                         if let Some(f) = self.schema.get_field(&e_name, field) {
                             Ok(f.ty.clone())
                         } else {
+                            let known_fields = self.schema.get_entity(&e_name)
+                                .map(|e| e.fields.keys().cloned().collect::<Vec<_>>())
+                                .unwrap_or_default();
                             Err(AnalyzerError {
                                 code: "L010",
                                 message: format!(
-                                    "I can't find a field named '.{}' on the entity '{}'. Entities are strict schemas; you can only access fields that were explicitly defined in the 'entity {} {{ ... }}' block. Did you mean one of: {:?}?",
-                                    field, e_name, e_name, self.schema.get_entity(&e_name).unwrap().fields.keys().collect::<Vec<_>>()
+                                    "I can't find a field named '.{}' on '{}'. Known fields: {:?}",
+                                    field, e_name, known_fields
                                 ),
                                 span: *span,
                             })
