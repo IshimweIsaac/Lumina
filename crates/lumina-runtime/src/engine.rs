@@ -14,32 +14,123 @@ use crate::fleet::FleetState;
 
 pub const MAX_DEPTH: usize = 100;
 
-pub struct Evaluator {
-    pub schema:    Schema,
-    pub graph:     DependencyGraph,
-    pub rules:     Vec<RuleDecl>,
-    pub store:     EntityStore,
-    pub snapshots: SnapshotStack,
-    pub env:       HashMap<String, Value>,
-    pub instances: HashMap<String, String>,
-    pub derived_exprs: HashMap<(String, String), Expr>,
-    pub functions: HashMap<String, FnDecl>,
-    pub timers:    TimerHeap,
-    pub adapters:  Vec<Box<dyn LuminaAdapter>>,
-    pub prev_store: Option<EntityStore>,
-    pub fleet_state: FleetState,
-    prev_fleet_any: HashMap<(String, String), bool>,
-    prev_fleet_all: HashMap<(String, String), bool>,
-    depth:         usize,
-    fired_this_cycle: HashSet<String>,
-    output:        Vec<String>,
-    prev_rule_conditions: HashMap<(String, String), bool>,
+// ── Sub-struct: Rule evaluation state ──────────────────────────────────────
+/// Tracks all state related to rule firing, cooldowns, and transition detection.
+/// Extracted from Evaluator to isolate rule-evaluation concerns.
+pub struct RuleState {
+    pub rules: Vec<RuleDecl>,
+    pub prev_rule_conditions: HashMap<(String, String), bool>,
     pub cooldown_map: HashMap<(String, String), f64>,
     pub rule_active: HashMap<(String, String), bool>,
     pub frequency_events: HashMap<(String, String), Vec<f64>>,
-    pub agg_store: AggregateStore,
+    pub fired_this_cycle: HashSet<String>,
+}
+
+impl RuleState {
+    pub fn new(rules: Vec<RuleDecl>) -> Self {
+        Self {
+            rules,
+            prev_rule_conditions: HashMap::new(),
+            cooldown_map: HashMap::new(),
+            rule_active: HashMap::new(),
+            frequency_events: HashMap::new(),
+            fired_this_cycle: HashSet::new(),
+        }
+    }
+}
+
+impl Default for RuleState {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+// ── Sub-struct: Fleet & Cluster context ────────────────────────────────────
+/// Holds all distributed/fleet-level state: fleet booleans, cluster node state,
+/// and aggregate computations.
+pub struct FleetContext {
+    pub fleet_state: FleetState,
+    pub prev_fleet_any: HashMap<(String, String), bool>,
+    pub prev_fleet_all: HashMap<(String, String), bool>,
     pub cluster_state: HashMap<String, HashMap<String, Value>>,
-    pub now:       f64,
+    pub agg_store: AggregateStore,
+}
+
+impl FleetContext {
+    pub fn new() -> Self {
+        Self {
+            fleet_state: FleetState::new(),
+            prev_fleet_any: HashMap::new(),
+            prev_fleet_all: HashMap::new(),
+            cluster_state: HashMap::new(),
+            agg_store: AggregateStore::new(),
+        }
+    }
+}
+
+impl Default for FleetContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ── Sub-struct: Expression evaluation context ──────────────────────────────
+/// Holds all state needed for expression evaluation: derived field definitions,
+/// user-defined functions, environment variables, and recursion depth tracking.
+pub struct ExprContext {
+    pub derived_exprs: HashMap<(String, String), Expr>,
+    pub functions: HashMap<String, FnDecl>,
+    pub env: HashMap<String, Value>,
+    pub depth: usize,
+}
+
+impl ExprContext {
+    pub fn new() -> Self {
+        Self {
+            derived_exprs: HashMap::new(),
+            functions: HashMap::new(),
+            env: HashMap::new(),
+            depth: 0,
+        }
+    }
+}
+
+impl Default for ExprContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ── Main Evaluator ─────────────────────────────────────────────────────────
+/// The reactive Snapshot VM. Evaluates rules, manages state, and orchestrates
+/// the propagation cycle.
+///
+/// Organized into logical sub-groups:
+/// - `rule_state`: Rule firing, cooldowns, and transition tracking
+/// - `fleet_ctx`:  Fleet-level triggers, cluster state, and aggregates
+/// - `expr_ctx`:   Expression evaluation, derived fields, and functions
+/// - Core fields:  Schema, store, snapshots, timers, adapters, output
+pub struct Evaluator {
+    // ── Analysis metadata ──
+    pub schema: Schema,
+    pub graph:  DependencyGraph,
+
+    // ── State management ──
+    pub store:      EntityStore,
+    pub snapshots:  SnapshotStack,
+    pub instances:  HashMap<String, String>,
+    pub prev_store: Option<EntityStore>,
+
+    // ── Sub-systems ──
+    pub rule_state: RuleState,
+    pub fleet_ctx:  FleetContext,
+    pub expr_ctx:   ExprContext,
+
+    // ── Infrastructure ──
+    pub timers:   TimerHeap,
+    pub adapters: Vec<Box<dyn LuminaAdapter>>,
+    pub now:      f64,
+    output:       Vec<String>,
 }
 impl Evaluator {
     pub fn get_output(&self) -> &[String] {
@@ -54,29 +145,18 @@ impl Evaluator {
         let mut timers = TimerHeap::new();
         timers.register_every_rules(&rules);
         Self {
-            schema, graph, rules,
+            schema, graph,
             store: EntityStore::new(),
             snapshots: SnapshotStack::new(),
-            env: HashMap::new(),
             instances: HashMap::new(),
-            derived_exprs: HashMap::new(),
-            functions: HashMap::new(),
+            prev_store: None,
+            rule_state: RuleState::new(rules),
+            fleet_ctx: FleetContext::new(),
+            expr_ctx: ExprContext::new(),
             timers,
             adapters: Vec::new(),
-            prev_store: None,
-            fleet_state: FleetState::new(),
-            prev_fleet_any: HashMap::new(),
-            prev_fleet_all: HashMap::new(),
-            depth: 0,
-            fired_this_cycle: HashSet::new(),
-            output: Vec::new(),
-            prev_rule_conditions: HashMap::new(),
-            cooldown_map: HashMap::new(),
-            rule_active: HashMap::new(),
-            frequency_events: HashMap::new(),
-            agg_store: AggregateStore::new(),
-            cluster_state: HashMap::new(),
             now: 0.0,
+            output: Vec::new(),
         }
     }
 
@@ -105,7 +185,7 @@ impl Evaluator {
     }
 
     pub fn should_fire(&self, rule_name: &str, instance_name: &str, cooldown: &Duration) -> bool {
-        if let Some(last_fired) = self.cooldown_map.get(&(rule_name.to_string(), instance_name.to_string())) {
+        if let Some(last_fired) = self.rule_state.cooldown_map.get(&(rule_name.to_string(), instance_name.to_string())) {
             (self.now - *last_fired) >= (cooldown.to_seconds() * 1000.0)
         } else {
             true
@@ -113,11 +193,11 @@ impl Evaluator {
     }
 
     pub fn record_firing(&mut self, rule_name: &str, instance_name: &str) {
-        self.cooldown_map.insert((rule_name.to_string(), instance_name.to_string()), self.now);
+        self.rule_state.cooldown_map.insert((rule_name.to_string(), instance_name.to_string()), self.now);
     }
 
     pub fn register_derived(&mut self, entity: &str, field: &str, expr: Expr) {
-        self.derived_exprs.insert((entity.to_string(), field.to_string()), expr);
+        self.expr_ctx.derived_exprs.insert((entity.to_string(), field.to_string()), expr);
     }
 
     /// Register an external entity adapter.
@@ -146,10 +226,10 @@ impl Evaluator {
                         }
                     }
                 }
-                if let Some(val) = self.env.get(name) {
+                if let Some(val) = self.expr_ctx.env.get(name) {
                     return Ok(val.clone());
                 }
-                if let Some(val) = self.agg_store.get(name, "") {
+                if let Some(val) = self.fleet_ctx.agg_store.get(name, "") {
                     return Ok(val.clone());
                 }
                 // E1 Fix: Check if the identifier is a known instance name.
@@ -193,7 +273,7 @@ impl Evaluator {
                     }
                 }
 
-                if let Some(val) = self.agg_store.get(&inst_name, field) {
+                if let Some(val) = self.fleet_ctx.agg_store.get(&inst_name, field) {
                     return Ok(val.clone());
                 }
 
@@ -330,7 +410,7 @@ impl Evaluator {
                     }
                     _ => {} // Fall through to user-defined fn lookup
                 }
-                let decl = self.functions.get(name)
+                let decl = self.expr_ctx.functions.get(name)
                     .ok_or(RuntimeError::R002)?
                     .clone();
                 let arg_vals: Vec<Value> = args.iter()
@@ -376,7 +456,7 @@ impl Evaluator {
             }
             Expr::ClusterAccess { node_id, field, .. } => {
                 // v2.0: Access cluster state.
-                if let Some(node_state) = self.cluster_state.get(node_id) {
+                if let Some(node_state) = self.fleet_ctx.cluster_state.get(node_id) {
                     if let Some(val) = node_state.get(field) {
                         return Ok(val.clone());
                     }
@@ -528,19 +608,19 @@ impl Evaluator {
         match stmt {
             Statement::Entity(_) | Statement::ExternalEntity(_) | Statement::Rule(_) => Ok(vec![]),
             Statement::Aggregate(decl) => {
-                self.agg_store.register(decl.clone());
-                self.agg_store.recompute(&self.store, Some(&self.cluster_state));
+                self.fleet_ctx.agg_store.register(decl.clone());
+                self.fleet_ctx.agg_store.recompute(&self.store, Some(&self.fleet_ctx.cluster_state));
                 Ok(vec![])
             }
             Statement::Fn(decl) => {
-                self.functions.insert(decl.name.clone(), decl.clone());
+                self.expr_ctx.functions.insert(decl.name.clone(), decl.clone());
                 Ok(vec![])
             }
             Statement::Let(ls) => {
                 match &ls.value {
                     LetValue::Expr(expr) => {
                         let val = self.eval_expr(expr, None)?;
-                        self.env.insert(ls.name.clone(), val);
+                        self.expr_ctx.env.insert(ls.name.clone(), val);
                         Ok(vec![])
                     }
                     LetValue::EntityInit(init) => {
@@ -554,7 +634,7 @@ impl Evaluator {
                         self.store.insert(inst_name.clone(), Instance::new(&entity_name, fields));
                         // Compute derived fields for the new instance
                         self.propagate_derived(&inst_name, &entity_name)?;
-                        self.agg_store.recompute(&self.store, Some(&self.cluster_state));
+                        self.fleet_ctx.agg_store.recompute(&self.store, Some(&self.fleet_ctx.cluster_state));
                         self.store.commit_all();
                         
                         // Initial rule evaluation for this new instance
@@ -628,14 +708,14 @@ impl Evaluator {
                 for (fname, val) in &fv {
                     if let Value::Bool(b) = val {
                         let total = self.store.all_of_entity(entity).count() + 1;
-                        self.fleet_state.update(entity, fname, false, *b, total);
+                        self.fleet_ctx.fleet_state.update(entity, fname, false, *b, total);
                     }
                 }
 
                 self.store.insert(inst_name, Instance::new(entity, fv));
 
                 // Recompute aggregates to include the new instance
-                self.agg_store.recompute(&self.store, Some(&self.cluster_state));
+                self.fleet_ctx.agg_store.recompute(&self.store, Some(&self.fleet_ctx.cluster_state));
 
                 Ok(vec![])
             }
@@ -722,14 +802,14 @@ impl Evaluator {
         field_name: &str,
         new_value: Value,
     ) -> Result<Vec<FiredEvent>, RuntimeError> {
-        self.depth += 1;
-        if self.depth > MAX_DEPTH {
-            self.depth -= 1;
-            return Err(RuntimeError::R003 { depth: self.depth });
+        self.expr_ctx.depth += 1;
+        if self.expr_ctx.depth > MAX_DEPTH {
+            self.expr_ctx.depth -= 1;
+            return Err(RuntimeError::R003 { depth: self.expr_ctx.depth });
         }
 
         // Capture pre-update state for `prev()` expressions
-        if self.depth == 1 {
+        if self.expr_ctx.depth == 1 {
             self.prev_store = Some(self.store.clone());
         }
 
@@ -740,9 +820,9 @@ impl Evaluator {
             .ok_or(RuntimeError::R001 { instance: instance_name.to_string() })?
             .entity_name.clone();
         // Check if field is derived (cannot be manually updated)
-        if self.derived_exprs.contains_key(&(entity_name.clone(), field_name.to_string())) {
+        if self.expr_ctx.derived_exprs.contains_key(&(entity_name.clone(), field_name.to_string())) {
             self.snapshots.pop();
-            self.depth -= 1;
+            self.expr_ctx.depth -= 1;
             return Err(RuntimeError::R009 { field: field_name.to_string() });
         }
 
@@ -752,7 +832,7 @@ impl Evaluator {
                 if let Some((min, max)) = fs.metadata.range {
                     if *n < min || *n > max {
                         self.snapshots.pop();
-                        self.depth -= 1;
+                        self.expr_ctx.depth -= 1;
                         return Err(RuntimeError::R006 { field: field_name.into(), value: *n, min, max });
                     }
                 }
@@ -772,7 +852,7 @@ impl Evaluator {
         // Update fleet state for Boolean fields
         if let Value::Bool(new_b) = &new_value {
             let total = self.store.all_of_entity(&entity_name).count();
-            self.fleet_state.update(
+            self.fleet_ctx.fleet_state.update(
                 &entity_name, field_name,
                 old_bool.unwrap_or(false), *new_b, total,
             );
@@ -790,7 +870,7 @@ impl Evaluator {
             if let Some(snap) = self.snapshots.pop() {
                 self.store = snap.store;
             }
-            self.depth -= 1;
+            self.expr_ctx.depth -= 1;
             return Err(e);
         }
 
@@ -818,29 +898,29 @@ impl Evaluator {
                 if let Some(snap) = self.snapshots.pop() {
                     self.store = snap.store;
                 }
-                self.depth -= 1;
+                self.expr_ctx.depth -= 1;
                 return Err(e);
             }
         }
 
-        self.agg_store.recompute(&self.store, Some(&self.cluster_state));
+        self.fleet_ctx.agg_store.recompute(&self.store, Some(&self.fleet_ctx.cluster_state));
 
         // Evaluate rules
         let all_events = self.evaluate_rules(instance_name)?;
 
         // Only commit at outermost level to prevent re-triggering becomes
-        if self.depth == 1 {
+        if self.expr_ctx.depth == 1 {
             self.store.commit_all();
-            self.fired_this_cycle.clear();
+            self.rule_state.fired_this_cycle.clear();
         }
         self.snapshots.pop();
-        self.depth -= 1;
+        self.expr_ctx.depth -= 1;
         Ok(all_events)
     }
 
     fn evaluate_rules(&mut self, instance_name: &str) -> Result<Vec<FiredEvent>, RuntimeError> {
         let mut all_events = Vec::new();
-        let rules_clone = self.rules.clone();
+        let rules_clone = self.rule_state.rules.clone();
         for rule in &rules_clone {
             // FIX Issue 6: Check if instance was deleted by a previous rule in this cycle
             if self.store.get(instance_name).is_none() {
@@ -873,23 +953,23 @@ impl Evaluator {
                     // E2 Fix: Rising Edge Detection for triggers.
                     // Only fire when condition transitions false→true.
                     let edge_key = (rule.name.clone(), instance_name.to_string());
-                    let prev_met = self.prev_rule_conditions.get(&edge_key).copied().unwrap_or(false);
+                    let prev_met = self.rule_state.prev_rule_conditions.get(&edge_key).copied().unwrap_or(false);
                     let is_rising_edge = all_met && !prev_met;
-                    self.prev_rule_conditions.insert(edge_key, all_met);
+                    self.rule_state.prev_rule_conditions.insert(edge_key, all_met);
 
                     match all_met {
                         true if is_rising_edge => {
                             let fire_key = format!("{}::{}", rule.name, instance_name);
-                            if self.fired_this_cycle.contains(&fire_key) {
+                            if self.rule_state.fired_this_cycle.contains(&fire_key) {
                                 // Mark as active even if we skip firing
-                                self.rule_active.insert(active_key.clone(), true);
+                                self.rule_state.rule_active.insert(active_key.clone(), true);
                                 continue;
                             }
 
                             // Evaluate sliding window for frequency triggers
                             let freq = conditions.first().and_then(|c| c.frequency.as_ref());
                             if let Some(f) = freq {
-                                let history = self.frequency_events.entry(active_key.clone()).or_default();
+                                let history = self.rule_state.frequency_events.entry(active_key.clone()).or_default();
                                 history.push(self.now);
 
                                 // Retain timestamps within the window
@@ -897,7 +977,7 @@ impl Evaluator {
                                 history.retain(|&ts| ts >= cutoff);
 
                                 if history.len() < f.count as usize {
-                                    self.rule_active.insert(active_key.clone(), true);
+                                    self.rule_state.rule_active.insert(active_key.clone(), true);
                                     continue;
                                 }
 
@@ -914,13 +994,13 @@ impl Evaluator {
                             } else {
                                 if let Some(cd) = &rule.cooldown {
                                     if !self.should_fire(&rule.name, instance_name, cd) {
-                                        self.rule_active.insert(active_key, true);
+                                        self.rule_state.rule_active.insert(active_key, true);
                                         continue;
                                     }
                                 }
                                 self.record_firing(&rule.name, instance_name);
 
-                                self.fired_this_cycle.insert(fire_key);
+                                self.rule_state.fired_this_cycle.insert(fire_key);
                                  for action in &rule.actions {
                                     let evts = self.exec_action(action, Some(instance_name))?;
                                     all_events.extend(evts);
@@ -933,18 +1013,18 @@ impl Evaluator {
                                     ts: self.now,
                                 });
                             }
-                            self.rule_active.insert(active_key, true);
+                            self.rule_state.rule_active.insert(active_key, true);
                         }
                         true => {
                             // Condition is true but not a rising edge — don't fire
-                            self.rule_active.insert(active_key, true);
+                            self.rule_state.rule_active.insert(active_key, true);
                         }
                         false => {
                             self.timers.cancel_for_timer(&rule.name, instance_name);
                             // on_clear: if rule was previously active, fire on_clear actions
-                            let was_active = self.rule_active.get(&active_key).copied().unwrap_or(false);
+                            let was_active = self.rule_state.rule_active.get(&active_key).copied().unwrap_or(false);
                             if was_active {
-                                self.rule_active.insert(active_key, false);
+                                self.rule_state.rule_active.insert(active_key, false);
                                 if let Some(clear_actions) = &rule.on_clear {
                                     let clear_actions = clear_actions.clone();
                                     for action in &clear_actions {
@@ -967,11 +1047,11 @@ impl Evaluator {
                     let key = (fc.entity.clone(), fc.field.clone());
                     let target = matches!(&fc.becomes, Expr::Bool(true));
                     let now_met = if target {
-                        self.fleet_state.any_true(&fc.entity, &fc.field)
+                        self.fleet_ctx.fleet_state.any_true(&fc.entity, &fc.field)
                     } else {
-                        !self.fleet_state.all_true(&fc.entity, &fc.field)
+                        !self.fleet_ctx.fleet_state.all_true(&fc.entity, &fc.field)
                     };
-                    let prev = self.prev_fleet_any.get(&key).copied().unwrap_or(false);
+                    let prev = self.fleet_ctx.prev_fleet_any.get(&key).copied().unwrap_or(false);
                     let active_key = (rule.name.clone(), "fleet".to_string());
                     let fire_key = format!("{}::fleet_any", rule.name);
 
@@ -981,8 +1061,8 @@ impl Evaluator {
                             if let Some(dur) = &fc.for_duration {
                                 let _ = self.timers.start_for_timer(&rule.name, "fleet", dur.to_seconds());
                             } else {
-                                if !self.fired_this_cycle.contains(&fire_key) {
-                                    self.fired_this_cycle.insert(fire_key);
+                                if !self.rule_state.fired_this_cycle.contains(&fire_key) {
+                                    self.rule_state.fired_this_cycle.insert(fire_key);
                                     for action in &rule.actions {
                                         let evts = self.exec_action(action, None)?;
                                         all_events.extend(evts);
@@ -997,12 +1077,12 @@ impl Evaluator {
                                 }
                             }
                         }
-                        self.rule_active.insert(active_key, true);
+                        self.rule_state.rule_active.insert(active_key, true);
                     } else {
                         self.timers.cancel_for_timer(&rule.name, "fleet");
-                        let was_active = self.rule_active.get(&active_key).copied().unwrap_or(false);
+                        let was_active = self.rule_state.rule_active.get(&active_key).copied().unwrap_or(false);
                         if was_active {
-                            self.rule_active.insert(active_key, false);
+                            self.rule_state.rule_active.insert(active_key, false);
                             if let Some(clear_actions) = &rule.on_clear {
                                 for action in clear_actions {
                                     let evts = self.exec_action(action, None)?;
@@ -1018,17 +1098,17 @@ impl Evaluator {
                             }
                         }
                     }
-                    self.prev_fleet_any.insert(key, now_met);
+                    self.fleet_ctx.prev_fleet_any.insert(key, now_met);
                 }
                 RuleTrigger::All(fc) => {
                     let key = (fc.entity.clone(), fc.field.clone());
                     let target = matches!(&fc.becomes, Expr::Bool(true));
                     let now_met = if target {
-                        self.fleet_state.all_true(&fc.entity, &fc.field)
+                        self.fleet_ctx.fleet_state.all_true(&fc.entity, &fc.field)
                     } else {
-                        !self.fleet_state.any_true(&fc.entity, &fc.field)
+                        !self.fleet_ctx.fleet_state.any_true(&fc.entity, &fc.field)
                     };
-                    let prev = self.prev_fleet_all.get(&key).copied().unwrap_or(false);
+                    let prev = self.fleet_ctx.prev_fleet_all.get(&key).copied().unwrap_or(false);
                     let active_key = (rule.name.clone(), "fleet".to_string());
                     let fire_key = format!("{}::fleet_all", rule.name);
 
@@ -1038,8 +1118,8 @@ impl Evaluator {
                             if let Some(dur) = &fc.for_duration {
                                 let _ = self.timers.start_for_timer(&rule.name, "fleet", dur.to_seconds());
                             } else {
-                                if !self.fired_this_cycle.contains(&fire_key) {
-                                    self.fired_this_cycle.insert(fire_key);
+                                if !self.rule_state.fired_this_cycle.contains(&fire_key) {
+                                    self.rule_state.fired_this_cycle.insert(fire_key);
                                     for action in &rule.actions {
                                         let evts = self.exec_action(action, None)?;
                                         all_events.extend(evts);
@@ -1054,12 +1134,12 @@ impl Evaluator {
                                 }
                             }
                         }
-                        self.rule_active.insert(active_key, true);
+                        self.rule_state.rule_active.insert(active_key, true);
                     } else {
                         self.timers.cancel_for_timer(&rule.name, "fleet");
-                        let was_active = self.rule_active.get(&active_key).copied().unwrap_or(false);
+                        let was_active = self.rule_state.rule_active.get(&active_key).copied().unwrap_or(false);
                         if was_active {
-                            self.rule_active.insert(active_key, false);
+                            self.rule_state.rule_active.insert(active_key, false);
                             if let Some(clear_actions) = &rule.on_clear {
                                 for action in clear_actions {
                                     let evts = self.exec_action(action, None)?;
@@ -1075,7 +1155,7 @@ impl Evaluator {
                             }
                         }
                     }
-                    self.prev_fleet_all.insert(key, now_met);
+                    self.fleet_ctx.prev_fleet_all.insert(key, now_met);
                 }
                 RuleTrigger::Every(_) => {} // handled in tick()
             }
@@ -1097,14 +1177,14 @@ impl Evaluator {
     }
 
     fn propagate_derived(&mut self, instance_name: &str, entity_name: &str) -> Result<(), RuntimeError> {
-        let mut derived: Vec<(String, String)> = self.derived_exprs.keys()
+        let mut derived: Vec<(String, String)> = self.expr_ctx.derived_exprs.keys()
             .filter(|(ent, _)| ent == entity_name)
             .cloned()
             .collect();
         derived.sort_by_key(|(e, f)| self.graph.get_node(e, f).unwrap_or(u32::MAX));
 
         for (ent, field) in derived {
-            if let Some(expr) = self.derived_exprs.get(&(ent.clone(), field.clone())).cloned() {
+            if let Some(expr) = self.expr_ctx.derived_exprs.get(&(ent.clone(), field.clone())).cloned() {
                 // Capture old value for fleet tracking
                 let old_val = self.store.get(instance_name).and_then(|inst| inst.get(&field)).cloned();
                 
@@ -1114,7 +1194,7 @@ impl Evaluator {
                 if let Value::Bool(new_b) = &val {
                     let old_b = if let Some(Value::Bool(b)) = old_val { b } else { false };
                     let total = self.store.all_of_entity(&ent).count();
-                    self.fleet_state.update(&ent, &field, old_b, *new_b, total);
+                    self.fleet_ctx.fleet_state.update(&ent, &field, old_b, *new_b, total);
                 }
 
                 if let Some(inst) = self.store.get_mut(instance_name) {
@@ -1183,7 +1263,7 @@ impl Evaluator {
         // ── Fire elapsed `for` timers ──────────────────────────────────
         let elapsed = self.timers.drain_elapsed_for_timers();
         for timer in elapsed {
-            let rule = self.rules.iter()
+            let rule = self.rule_state.rules.iter()
                 .find(|r| r.name == timer.rule_name)
                 .cloned();
             if let Some(rule) = rule {
@@ -1197,17 +1277,17 @@ impl Evaluator {
                     RuleTrigger::Any(fc) => {
                         let target = matches!(&fc.becomes, Expr::Bool(true));
                         if target {
-                            self.fleet_state.any_true(&fc.entity, &fc.field)
+                            self.fleet_ctx.fleet_state.any_true(&fc.entity, &fc.field)
                         } else {
-                            !self.fleet_state.all_true(&fc.entity, &fc.field)
+                            !self.fleet_ctx.fleet_state.all_true(&fc.entity, &fc.field)
                         }
                     }
                     RuleTrigger::All(fc) => {
                         let target = matches!(&fc.becomes, Expr::Bool(true));
                         if target {
-                            self.fleet_state.all_true(&fc.entity, &fc.field)
+                            self.fleet_ctx.fleet_state.all_true(&fc.entity, &fc.field)
                         } else {
-                            !self.fleet_state.any_true(&fc.entity, &fc.field)
+                            !self.fleet_ctx.fleet_state.any_true(&fc.entity, &fc.field)
                         }
                     }
                     RuleTrigger::Every(_) => false,
@@ -1237,7 +1317,7 @@ impl Evaluator {
         // ── Fire due `every` timers ────────────────────────────────────
         let due_rules = self.timers.drain_due_every_timers();
         for rule_name in due_rules {
-            let rule = self.rules.iter()
+            let rule = self.rule_state.rules.iter()
                 .find(|r| r.name == rule_name)
                 .cloned();
             if let Some(rule) = rule {
@@ -1297,7 +1377,7 @@ impl Evaluator {
             instances.insert(name.clone(), serde_json::json!({
                 "entity": instance.entity_name,
                 "fields": fields,
-                "active_alert": self.rule_active.iter().any(|((_, inst), active)| inst == name && *active),
+                "active_alert": self.rule_state.rule_active.iter().any(|((_, inst), active)| inst == name && *active),
             }));
         }
         serde_json::json!({
@@ -1350,29 +1430,17 @@ impl Default for Evaluator {
         Self {
             schema: Schema::new(),
             graph: DependencyGraph::new(),
-            rules: Vec::new(),
             store: EntityStore::new(),
             snapshots: SnapshotStack::new(),
-            env: HashMap::new(),
             instances: HashMap::new(),
-            derived_exprs: HashMap::new(),
-            functions: HashMap::new(),
+            prev_store: None,
+            rule_state: RuleState::default(),
+            fleet_ctx: FleetContext::default(),
+            expr_ctx: ExprContext::default(),
             timers: TimerHeap::new(),
             adapters: Vec::new(),
-            prev_store: None,
-            fleet_state: FleetState::new(),
-            prev_fleet_any: HashMap::new(),
-            prev_fleet_all: HashMap::new(),
-            depth: 0,
-            fired_this_cycle: HashSet::new(),
-            output: Vec::new(),
-            prev_rule_conditions: HashMap::new(),
-            cooldown_map: HashMap::new(),
-            rule_active: HashMap::new(),
-            frequency_events: HashMap::new(),
-            agg_store: AggregateStore::new(),
-            cluster_state: HashMap::new(),
             now: 0.0,
+            output: Vec::new(),
         }
     }
 }
@@ -1409,8 +1477,8 @@ mod tests {
             }
         }
         let mut ev = Evaluator::new(analyzed.schema, analyzed.graph, rules);
-        ev.derived_exprs = derived;
-        ev.functions = analyzed.fn_defs;
+        ev.expr_ctx.derived_exprs = derived;
+        ev.expr_ctx.functions = analyzed.fn_defs;
         ev
     }
 
@@ -1459,8 +1527,8 @@ mod tests {
     #[test]
     fn test_interpolation() {
         let mut ev = empty_eval();
-        ev.env.insert("name".into(), Value::Text("Isaac".into()));
-        ev.env.insert("age".into(), Value::Number(26.0));
+        ev.expr_ctx.env.insert("name".into(), Value::Text("Isaac".into()));
+        ev.expr_ctx.env.insert("age".into(), Value::Number(26.0));
         let expr = Expr::InterpolatedString(vec![
             StringSegment::Literal("Hello ".into()),
             StringSegment::Expr(Box::new(Expr::Ident("name".into()))),

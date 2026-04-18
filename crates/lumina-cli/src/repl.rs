@@ -91,7 +91,7 @@ impl ReplSession {
                 }
             }
             if let Statement::Rule(r) = stmt {
-                self.evaluator.rules.push(r.clone());
+                self.evaluator.rule_state.rules.push(r.clone());
             }
 
             match self.evaluator.exec_statement(stmt) {

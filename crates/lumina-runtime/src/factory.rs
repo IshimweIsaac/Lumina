@@ -39,7 +39,7 @@ pub fn build_evaluator(analyzed: &AnalyzedProgram) -> Evaluator {
     }
 
     let mut ev = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), rules);
-    ev.derived_exprs = derived;
+    ev.expr_ctx.derived_exprs = derived;
 
     // Pass 2: Process external entities, functions, and aggregates
     for stmt in &analyzed.program.statements {
@@ -50,22 +50,22 @@ pub fn build_evaluator(analyzed: &AnalyzedProgram) -> Evaluator {
                 // Add derived fields from external entities
                 for f in &e.fields {
                     if let Field::Derived(df) = f {
-                        ev.derived_exprs.insert((e.name.clone(), df.name.clone()), df.expr.clone());
+                        ev.expr_ctx.derived_exprs.insert((e.name.clone(), df.name.clone()), df.expr.clone());
                     }
                 }
             }
             Statement::Fn(f) => {
-                ev.functions.insert(f.name.clone(), f.clone());
+                ev.expr_ctx.functions.insert(f.name.clone(), f.clone());
             }
             Statement::Aggregate(a) => {
-                ev.agg_store.register(a.clone());
+                ev.fleet_ctx.agg_store.register(a.clone());
             }
             _ => {}
         }
     }
 
     // Compute initial aggregate values
-    ev.agg_store.recompute(&ev.store, Some(&ev.cluster_state));
+    ev.fleet_ctx.agg_store.recompute(&ev.store, Some(&ev.fleet_ctx.cluster_state));
 
     ev
 }
