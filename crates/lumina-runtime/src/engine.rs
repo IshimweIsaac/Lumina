@@ -212,6 +212,10 @@ impl Evaluator {
     // ── Expression evaluator ──────────────────────────────
 
     pub fn eval_expr(&self, expr: &Expr, ctx: Option<&str>) -> Result<Value, RuntimeError> {
+        self.eval_expr_internal(expr, ctx, None)
+    }
+
+    fn eval_expr_internal(&self, expr: &Expr, ctx: Option<&str>, locals: Option<&HashMap<String, Value>>) -> Result<Value, RuntimeError> {
         match expr {
             Expr::Number(n) => Ok(Value::Number(*n)),
             Expr::Text(s) => Ok(Value::Text(s.clone())),
@@ -219,6 +223,12 @@ impl Evaluator {
             Expr::Duration(d) => Ok(Value::Duration(d.to_seconds())),
 
             Expr::Ident(name) => {
+                if let Some(locs) = locals {
+                    if let Some(val) = locs.get(name) {
+                        return Ok(val.clone());
+                    }
+                    return Err(RuntimeError::R005 { instance: name.clone(), field: name.clone() });
+                }
                 if let Some(inst) = ctx {
                     if let Some(instance) = self.store.get(inst) {
                         if let Some(val) = instance.get(name) {
@@ -242,7 +252,7 @@ impl Evaluator {
             }
 
             Expr::FieldAccess { obj, field, .. } => {
-                let obj_val = self.eval_expr(obj, ctx);
+                let obj_val = self.eval_expr_internal(obj, ctx, locals);
 
                 if let Ok(Value::Timestamp(ts)) = obj_val {
                     if field == "age" {
@@ -294,25 +304,25 @@ impl Evaluator {
             Expr::Binary { op, left, right, .. } => {
                 // Short-circuit
                 if *op == BinOp::And {
-                    let l = self.eval_expr(left, ctx)?;
+                    let l = self.eval_expr_internal(left, ctx, locals)?;
                     if l == Value::Bool(false) { return Ok(Value::Bool(false)); }
-                    let r = self.eval_expr(right, ctx)?;
+                    let r = self.eval_expr_internal(right, ctx, locals)?;
                     return Ok(Value::Bool(l == Value::Bool(true) && r == Value::Bool(true)));
                 }
                 if *op == BinOp::Or {
-                    let l = self.eval_expr(left, ctx)?;
+                    let l = self.eval_expr_internal(left, ctx, locals)?;
                     if l == Value::Bool(true) { return Ok(Value::Bool(true)); }
-                    let r = self.eval_expr(right, ctx)?;
+                    let r = self.eval_expr_internal(right, ctx, locals)?;
                     return Ok(Value::Bool(r == Value::Bool(true)));
                 }
 
-                let l = self.eval_expr(left, ctx)?;
-                let r = self.eval_expr(right, ctx)?;
+                let l = self.eval_expr_internal(left, ctx, locals)?;
+                let r = self.eval_expr_internal(right, ctx, locals)?;
                 self.apply_binop(op, l, r)
             }
 
             Expr::Unary { op, operand, .. } => {
-                let v = self.eval_expr(operand, ctx)?;
+                let v = self.eval_expr_internal(operand, ctx, locals)?;
                 match op {
                     UnOp::Neg => match v {
                         Value::Number(n) => Ok(Value::Number(-n)),
@@ -326,10 +336,10 @@ impl Evaluator {
             }
 
             Expr::If { cond, then_, else_, .. } => {
-                if self.eval_expr(cond, ctx)? == Value::Bool(true) {
-                    self.eval_expr(then_, ctx)
+                if self.eval_expr_internal(cond, ctx, locals)? == Value::Bool(true) {
+                    self.eval_expr_internal(then_, ctx, locals)
                 } else {
-                    self.eval_expr(else_, ctx)
+                    self.eval_expr_internal(else_, ctx, locals)
                 }
             }
 
@@ -339,7 +349,7 @@ impl Evaluator {
                     match seg {
                         StringSegment::Literal(s) => out.push_str(s),
                         StringSegment::Expr(e) => {
-                            let v = self.eval_expr(e, ctx)?;
+                            let v = self.eval_expr_internal(e, ctx, locals)?;
                             out.push_str(&v.to_string());
                         }
                     }
@@ -370,7 +380,7 @@ impl Evaluator {
                     }
                     "append" => {
                         let mut list = self.eval_to_list(&args[0], ctx)?;
-                        let val = self.eval_expr(&args[1], ctx)?;
+                        let val = self.eval_expr_internal(&args[1], ctx, locals)?;
                         list.push(val);
                         return Ok(Value::List(list));
                     }
@@ -386,7 +396,7 @@ impl Evaluator {
                     }
                     "at" => {
                         let list = self.eval_to_list(&args[0], ctx)?;
-                        let idx = self.eval_expr(&args[1], ctx)?.as_number()
+                        let idx = self.eval_expr_internal(&args[1], ctx, locals)?.as_number()
                             .ok_or(RuntimeError::R002)? as usize;
                         if idx >= list.len() {
                             return Err(RuntimeError::R004 { index: idx, len: list.len() });
@@ -399,7 +409,7 @@ impl Evaluator {
                     "env" => {
                         // v1.9: Read environment variable, return as Secret
                         if let Some(arg) = args.first() {
-                            let var_name = match self.eval_expr(arg, ctx)? {
+                            let var_name = match self.eval_expr_internal(arg, ctx, locals)? {
                                 Value::Text(s) => s,
                                 _ => return Err(RuntimeError::R002),
                             };
@@ -414,23 +424,23 @@ impl Evaluator {
                     .ok_or(RuntimeError::R002)?
                     .clone();
                 let arg_vals: Vec<Value> = args.iter()
-                    .map(|a| self.eval_expr(a, ctx))
+                    .map(|a| self.eval_expr_internal(a, ctx, locals))
                     .collect::<Result<_, _>>()?;
                 let mut local: HashMap<String, Value> = HashMap::new();
                 for (param, val) in decl.params.iter().zip(arg_vals) {
                     local.insert(param.name.clone(), val);
                 }
-                self.eval_expr_local(&decl.body, &local)
+                self.eval_expr_internal(&decl.body, None, Some(&local))
             }
             Expr::ListLiteral(elems) => {
                 let vals: Vec<Value> = elems.iter()
-                    .map(|e| self.eval_expr(e, ctx))
+                    .map(|e| self.eval_expr_internal(e, ctx, locals))
                     .collect::<Result<_, _>>()?;
                 Ok(Value::List(vals))
             }
             Expr::Index { list, index, .. } => {
                 let list_val = self.eval_to_list(list, ctx)?;
-                let idx = self.eval_expr(index, ctx)?.as_number()
+                let idx = self.eval_expr_internal(index, ctx, locals)?.as_number()
                     .ok_or(RuntimeError::R002)? as usize;
                 if idx >= list_val.len() {
                     return Err(RuntimeError::R004 { index: idx, len: list_val.len() });
@@ -533,78 +543,7 @@ impl Evaluator {
         self.apply_binop(op, l.clone(), r.clone())
     }
 
-    fn eval_expr_local(&self, expr: &Expr, locals: &HashMap<String, Value>) -> Result<Value, RuntimeError> {
-        match expr {
-            Expr::Ident(name) => locals.get(name)
-                .cloned()
-                .ok_or(RuntimeError::R005 { instance: name.clone(), field: name.clone() }),
-            Expr::Number(n) => Ok(Value::Number(*n)),
-            Expr::Text(s) => Ok(Value::Text(s.clone())),
-            Expr::Bool(b) => Ok(Value::Bool(*b)),
-            Expr::Binary { op, left, right, .. } => {
-                if *op == BinOp::And {
-                    let l = self.eval_expr_local(left, locals)?;
-                    if l == Value::Bool(false) { return Ok(Value::Bool(false)); }
-                    let r = self.eval_expr_local(right, locals)?;
-                    return Ok(Value::Bool(r == Value::Bool(true)));
-                }
-                if *op == BinOp::Or {
-                    let l = self.eval_expr_local(left, locals)?;
-                    if l == Value::Bool(true) { return Ok(Value::Bool(true)); }
-                    let r = self.eval_expr_local(right, locals)?;
-                    return Ok(Value::Bool(r == Value::Bool(true)));
-                }
-                let l = self.eval_expr_local(left, locals)?;
-                let r = self.eval_expr_local(right, locals)?;
-                self.apply_binop(op, l, r)
-            }
-            Expr::If { cond, then_, else_, .. } => {
-                let c = self.eval_expr_local(cond, locals)?;
-                if c == Value::Bool(true) {
-                    self.eval_expr_local(then_, locals)
-                } else {
-                    self.eval_expr_local(else_, locals)
-                }
-            }
-            Expr::InterpolatedString(segments) => {
-                let mut out = String::new();
-                for seg in segments {
-                    match seg {
-                        StringSegment::Literal(s) => out.push_str(s),
-                        StringSegment::Expr(e) => {
-                            let v = self.eval_expr_local(e, locals)?;
-                            out.push_str(&v.to_string());
-                        }
-                    }
-                }
-                Ok(Value::Text(out))
-            }
-            Expr::ListLiteral(elems) => {
-                let vals: Vec<Value> = elems.iter()
-                    .map(|e| self.eval_expr_local(e, locals))
-                    .collect::<Result<_, _>>()?;
-                Ok(Value::List(vals))
-            }
-            Expr::Index { list, index, .. } => {
-                let list_val = self.eval_expr_local(list, locals)?;
-                let items = match list_val {
-                    Value::List(l) => l,
-                    _ => return Err(RuntimeError::R002),
-                };
-                let idx = self.eval_expr_local(index, locals)?.as_number()
-                    .ok_or(RuntimeError::R002)? as usize;
-                if idx >= items.len() {
-                    return Err(RuntimeError::R004 { index: idx, len: items.len() });
-                }
-                Ok(items[idx].clone())
-            }
-            _ => Err(RuntimeError::R002), // unsupported expr in fn body
-        }
-    }
-
-    // ── Statement executor ────────────────────────────────
-
-    pub fn exec_statement(&mut self, stmt: &Statement) -> Result<Vec<FiredEvent>, RuntimeError> {
+        pub fn exec_statement(&mut self, stmt: &Statement) -> Result<Vec<FiredEvent>, RuntimeError> {
         match stmt {
             Statement::Entity(_) | Statement::ExternalEntity(_) | Statement::Rule(_) => Ok(vec![]),
             Statement::Aggregate(decl) => {
