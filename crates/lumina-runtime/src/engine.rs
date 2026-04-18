@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::time::Instant;
 use crate::aggregate::AggregateStore;
 use lumina_analyzer::types::Schema;
 use lumina_analyzer::graph::DependencyGraph;
@@ -84,33 +83,7 @@ impl Evaluator {
     /// Creates an empty evaluator with no entities, rules, or instances.
     /// Used by the REPL - statements are added one at a time via exec_statement().
     pub fn new_empty() -> Self {
-        Self {
-            schema: Schema::new(),
-            graph: DependencyGraph::new(),
-            rules: Vec::new(),
-            store: EntityStore::new(),
-            snapshots: SnapshotStack::new(),
-            env: HashMap::new(),
-            instances: HashMap::new(),
-            derived_exprs: HashMap::new(),
-            functions: HashMap::new(),
-            timers: TimerHeap::new(),
-            adapters: Vec::new(),
-            prev_store: None,
-            fleet_state: FleetState::new(),
-            prev_fleet_any: HashMap::new(),
-            prev_fleet_all: HashMap::new(),
-            depth: 0,
-            fired_this_cycle: HashSet::new(),
-            output: Vec::new(),
-            prev_rule_conditions: HashMap::new(),
-            cooldown_map: HashMap::new(),
-            rule_active: HashMap::new(),
-            frequency_events: HashMap::new(),
-            agg_store: AggregateStore::new(),
-            cluster_state: HashMap::new(),
-            now: 0.0,
-        }
+        Self::default()
     }
 
     /// Describe all declared entities as a human-readable string.
@@ -261,8 +234,14 @@ impl Evaluator {
             Expr::Unary { op, operand, .. } => {
                 let v = self.eval_expr(operand, ctx)?;
                 match op {
-                    UnOp::Neg => match v { Value::Number(n) => Ok(Value::Number(-n)), _ => Ok(Value::Number(0.0)) },
-                    UnOp::Not => match v { Value::Bool(b) => Ok(Value::Bool(!b)), _ => Ok(Value::Bool(false)) },
+                    UnOp::Neg => match v {
+                        Value::Number(n) => Ok(Value::Number(-n)),
+                        other => Err(RuntimeError::R018 { op: "negate".into(), left: other.type_name().into(), right: "N/A".into() }),
+                    },
+                    UnOp::Not => match v {
+                        Value::Bool(b) => Ok(Value::Bool(!b)),
+                        other => Err(RuntimeError::R018 { op: "not".into(), left: other.type_name().into(), right: "N/A".into() }),
+                    },
                 }
             }
 
@@ -417,42 +396,52 @@ impl Evaluator {
 
     fn apply_binop(&self, op: &BinOp, l: Value, r: Value) -> Result<Value, RuntimeError> {
         match op {
-            BinOp::Add => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)), _ => Ok(Value::Number(0.0)) },
-            BinOp::Sub => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a - b)), _ => Ok(Value::Number(0.0)) },
-            BinOp::Mul => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a * b)), _ => Ok(Value::Number(0.0)) },
-            BinOp::Div => match (l, r) {
-                (Value::Number(a), Value::Number(b)) => {
-                    if b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a / b)) }
-                }
-                _ => Ok(Value::Number(0.0)),
+            BinOp::Add => match (&l, &r) {
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+                (Value::Text(a), Value::Text(b)) => Ok(Value::Text(format!("{}{}", a, b))),
+                _ => Err(RuntimeError::R018 { op: "+".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Mod => match (l, r) {
+            BinOp::Sub => match (&l, &r) {
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a - b)),
+                _ => Err(RuntimeError::R018 { op: "-".into(), left: l.type_name().into(), right: r.type_name().into() }),
+            },
+            BinOp::Mul => match (&l, &r) {
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a * b)),
+                _ => Err(RuntimeError::R018 { op: "*".into(), left: l.type_name().into(), right: r.type_name().into() }),
+            },
+            BinOp::Div => match (&l, &r) {
                 (Value::Number(a), Value::Number(b)) => {
-                    if b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a % b)) }
+                    if *b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a / b)) }
                 }
-                _ => Ok(Value::Number(0.0)),
+                _ => Err(RuntimeError::R018 { op: "/".into(), left: l.type_name().into(), right: r.type_name().into() }),
+            },
+            BinOp::Mod => match (&l, &r) {
+                (Value::Number(a), Value::Number(b)) => {
+                    if *b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a % b)) }
+                }
+                _ => Err(RuntimeError::R018 { op: "%".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
             BinOp::Eq => Ok(Value::Bool(l == r)),
             BinOp::Ne => Ok(Value::Bool(l != r)),
-            BinOp::Gt  => match (l, r) { 
+            BinOp::Gt  => match (&l, &r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a > b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a > b)),
-                _ => Ok(Value::Bool(false)) 
+                _ => Err(RuntimeError::R018 { op: ">".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Lt  => match (l, r) { 
+            BinOp::Lt  => match (&l, &r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a < b)),
-                _ => Ok(Value::Bool(false)) 
+                _ => Err(RuntimeError::R018 { op: "<".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Ge  => match (l, r) { 
+            BinOp::Ge  => match (&l, &r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a >= b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a >= b)),
-                _ => Ok(Value::Bool(false)) 
+                _ => Err(RuntimeError::R018 { op: ">=".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Le  => match (l, r) { 
+            BinOp::Le  => match (&l, &r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a <= b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a <= b)),
-                _ => Ok(Value::Bool(false)) 
+                _ => Err(RuntimeError::R018 { op: "<=".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
             BinOp::And | BinOp::Or => unreachable!(),
         }
@@ -798,8 +787,9 @@ impl Evaluator {
 
         // Propagate derived fields
         if let Err(e) = self.propagate_derived(instance_name, &entity_name) {
-            let snap = self.snapshots.pop().unwrap();
-            self.store = snap.store;
+            if let Some(snap) = self.snapshots.pop() {
+                self.store = snap.store;
+            }
             self.depth -= 1;
             return Err(e);
         }
@@ -825,8 +815,9 @@ impl Evaluator {
 
         for (ref_inst_name, ref_entity_name) in referencing_instances {
             if let Err(e) = self.propagate_derived(&ref_inst_name, &ref_entity_name) {
-                let snap = self.snapshots.pop().unwrap();
-                self.store = snap.store;
+                if let Some(snap) = self.snapshots.pop() {
+                    self.store = snap.store;
+                }
                 self.depth -= 1;
                 return Err(e);
             }
@@ -1348,6 +1339,40 @@ impl Evaluator {
             Value::Duration(d) => serde_json::json!(*d),
             Value::Secret(_) => serde_json::json!("***SECRET***"),
             Value::Unknown => serde_json::Value::Null,
+        }
+    }
+}
+
+// ── Default ────────────────────────────────────────────────────────────────
+
+impl Default for Evaluator {
+    fn default() -> Self {
+        Self {
+            schema: Schema::new(),
+            graph: DependencyGraph::new(),
+            rules: Vec::new(),
+            store: EntityStore::new(),
+            snapshots: SnapshotStack::new(),
+            env: HashMap::new(),
+            instances: HashMap::new(),
+            derived_exprs: HashMap::new(),
+            functions: HashMap::new(),
+            timers: TimerHeap::new(),
+            adapters: Vec::new(),
+            prev_store: None,
+            fleet_state: FleetState::new(),
+            prev_fleet_any: HashMap::new(),
+            prev_fleet_all: HashMap::new(),
+            depth: 0,
+            fired_this_cycle: HashSet::new(),
+            output: Vec::new(),
+            prev_rule_conditions: HashMap::new(),
+            cooldown_map: HashMap::new(),
+            rule_active: HashMap::new(),
+            frequency_events: HashMap::new(),
+            agg_store: AggregateStore::new(),
+            cluster_state: HashMap::new(),
+            now: 0.0,
         }
     }
 }
