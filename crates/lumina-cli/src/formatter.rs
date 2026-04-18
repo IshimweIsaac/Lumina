@@ -1,4 +1,4 @@
-//! Lumina v1.8 — Opinionated Code Formatter
+//! Lumina v2.0 — Opinionated Code Formatter
 //!
 //! Pretty-prints a parsed AST back to canonical Lumina source code.
 //! Enforces consistent indentation (2 spaces), spacing, and ordering.

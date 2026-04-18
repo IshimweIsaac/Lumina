@@ -1,6 +1,6 @@
-# Extended Backus-Naur Form (EBNF) Specification (v1.8.0)
+# Extended Backus-Naur Form (EBNF) Specification (v2.0.0)
 
-This document contains the formal grammar and error registry for Lumina v1.8.0.
+This document contains the formal grammar and error registry for Lumina v2.0.0.
 
 ## 1. Global Program Structure
 ```ebnf

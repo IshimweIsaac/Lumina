@@ -1,10 +1,8 @@
 use wasm_bindgen::prelude::*;
-use std::collections::HashMap;
 use lumina_parser::parse;
-use lumina_parser::ast::*;
 use lumina_analyzer::analyze;
 use lumina_runtime::engine::Evaluator;
-use lumina_diagnostics::{Diagnostic, DiagnosticRenderer, SourceLocation};
+use lumina_diagnostics::{Diagnostic, SourceLocation};
 
 #[wasm_bindgen(start)]
 pub fn init() {
@@ -41,47 +39,8 @@ impl LuminaRuntime {
                 JsValue::from_str(&serde_json::to_string(&errors).unwrap_or_else(|e| format!("[\"Internal Error during analysis: {}\"]", e)))
             })?;
 
-        let mut rules = Vec::new();
-        let mut derived = HashMap::new();
-        for stmt in &analyzed.program.statements {
-            match stmt {
-                Statement::Rule(r) => rules.push(r.clone()),
-                Statement::Entity(e) => {
-                    for f in &e.fields {
-                        if let Field::Derived(df) = f {
-                            derived.insert((e.name.clone(), df.name.clone()), df.expr.clone());
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        let mut evaluator = Evaluator::new(analyzed.schema, analyzed.graph, rules);
+        let mut evaluator = lumina_runtime::factory::build_evaluator(&analyzed);
         evaluator.now = now;
-        evaluator.derived_exprs = derived;
-        
-        for stmt in &analyzed.program.statements {
-            match stmt {
-                Statement::ExternalEntity(e) => {
-                    let adapter = lumina_runtime::adapters::static_adapter::StaticAdapter::new(&e.name);
-                    evaluator.register_adapter(Box::new(adapter));
-                    for f in &e.fields {
-                        if let Field::Derived(df) = f {
-                            evaluator.derived_exprs.insert((e.name.clone(), df.name.clone()), df.expr.clone());
-                        }
-                    }
-                }
-                Statement::Fn(f) => {
-                    evaluator.functions.insert(f.name.clone(), f.clone());
-                }
-                Statement::Aggregate(a) => {
-                    evaluator.agg_store.register(a.clone());
-                }
-                _ => {}
-            }
-        }
-        evaluator.agg_store.recompute(&evaluator.store, Some(&evaluator.cluster_state));
 
         let mut pending_alerts = Vec::new();
 

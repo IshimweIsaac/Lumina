@@ -1,11 +1,10 @@
--- This file should fail analysis with known error codes
+-- This file should fail analysis with L003: update of a derived field
 
 entity Person {
   age: Number
   isAdult := age >= 18
 }
 
-rule "bad update"
-when true {
-  update Person.isAdult to false
+rule bad_update when Person.age > 10 becomes true {
+  update Person.isAdult to true
 }

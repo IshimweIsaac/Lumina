@@ -9,6 +9,7 @@ pub mod adapters;
 pub mod fleet;
 pub mod aggregate;
 pub mod lsl;
+pub mod factory;
 
 pub use value::Value;
 pub use store::{Instance, EntityStore};
@@ -43,6 +44,10 @@ pub enum RuntimeError {
     R016 { reason: String },
     /// v2.0: Migration target has insufficient capacity
     R017 { target: String, reason: String },
+    /// v2.0: Type mismatch in binary/unary operation (replaces silent coercion)
+    R018 { op: String, left: String, right: String },
+    /// v2.0: Snapshot stack corrupted during rollback
+    R019,
 }
 
 impl RuntimeError {
@@ -65,6 +70,8 @@ impl RuntimeError {
             RuntimeError::R015 { .. } => "L064",
             RuntimeError::R016 { .. } => "L065",
             RuntimeError::R017 { .. } => "L066",
+            RuntimeError::R018 { .. } => "R018",
+            RuntimeError::R019        => "R019",
         }
     }
 
@@ -87,6 +94,8 @@ impl RuntimeError {
             RuntimeError::R015 { target }          => format!("Orchestration write target unreachable: {target}"),
             RuntimeError::R016 { reason }          => format!("Cluster aggregate computation timeout: {reason}"),
             RuntimeError::R017 { target, reason }  => format!("Migration target '{target}' has insufficient capacity: {reason}"),
+            RuntimeError::R018 { op, left, right }  => format!("Type mismatch: cannot apply '{op}' to {left} and {right}"),
+            RuntimeError::R019                      => "Internal error: snapshot stack corrupted during rollback. This is a bug.".to_string(),
         }
     }
 }
