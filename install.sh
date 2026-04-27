@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Lumina Toolchain Installer -- lumina-lang.web.app
-# Usage: curl -fsSL https://lumina-lang.web.app/install.sh | sh
+# Usage: curl -fsSL https://lumina-lang.web.app/install.sh | sh && . ~/.lumina/env
 #
 
 set -e
@@ -106,26 +106,38 @@ download_binary() {
 download_binary core
 download_binary lsp
 
-# --- Path Injection ─────────────────────────────────────
+# --- Environment File & Path Injection ──────────────────
+ENV_FILE="$LUMINA_HOME/env"
+
+# Create the env file (like rustup's ~/.cargo/env)
+cat > "$ENV_FILE" << 'ENVEOF'
+# Lumina environment
+# This file is sourced by your shell profile and by the install command.
+export PATH="$HOME/.lumina/bin:$PATH"
+ENVEOF
+
+log_info "Created $ENV_FILE"
+
+# Add sourcing of env file to shell profiles
 add_to_path() {
-    EXPORT_LINE="export PATH=\"$BIN_DIR:\$PATH\""
+    SOURCE_LINE=". \"$ENV_FILE\""
     ADDED=false
     for PROFILE in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
         if [ -f "$PROFILE" ]; then
-            if ! grep -q "$BIN_DIR" "$PROFILE" 2>/dev/null; then
-                log_info "Adding $BIN_DIR to $PROFILE"
+            if ! grep -q ".lumina/env" "$PROFILE" 2>/dev/null; then
+                log_info "Adding Lumina to $PROFILE"
                 echo "" >> "$PROFILE"
-                echo "$EXPORT_LINE" >> "$PROFILE"
+                echo "# Lumina" >> "$PROFILE"
+                echo "$SOURCE_LINE" >> "$PROFILE"
                 ADDED=true
             fi
         fi
     done
     
     if [ "$ADDED" = "false" ]; then
-        log_info "$BIN_DIR is already in your PATH or no profile found."
-    else
-        log_info "Please run: source $PROFILE (or restart your terminal)"
+        log_info "Lumina is already in your shell profiles."
     fi
+    # Make PATH available for the rest of this script
     export PATH="$BIN_DIR:$PATH"
 }
 
@@ -144,35 +156,13 @@ if [ -x "$BIN_DIR/lumina" ]; then
     echo "  Check: lumina check your-program.lum"
     echo "  Docs:  https://lumina-lang.web.app/docs"
     echo ""
-
-    # Detect current shell to suggest the right profile
-    CURRENT_SHELL=$(basename "$SHELL")
-    PREFERRED_PROFILE=""
-    
-    case "$CURRENT_SHELL" in
-        zsh)  PREFERRED_PROFILE="$HOME/.zshrc" ;;
-        bash) PREFERRED_PROFILE="$HOME/.bashrc" ;;
-        *)    PREFERRED_PROFILE="" ;;
-    esac
-
-    # Find which profile actually contains the path
-    ACTIVE_PROFILE=""
-    # Check preferred first, then fall back to others
-    FOR_PROFILES="$PREFERRED_PROFILE $HOME/.bashrc $HOME/.zshrc $HOME/.bash_profile $HOME/.profile"
-    
-    for P in $FOR_PROFILES; do
-        if [ -f "$P" ] && grep -q ".lumina/bin" "$P" 2>/dev/null; then
-            ACTIVE_PROFILE="$P"
-            break
-        fi
-    done
-
-    if [ -n "$ACTIVE_PROFILE" ]; then
-        echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-        echo "${BOLD}  To start using Lumina in THIS terminal, run:${RESET}"
-        echo ""
-        echo "    ${GREEN}source ${ACTIVE_PROFILE}${RESET}"
-        echo ""
-        echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-    fi
+    echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo "${BOLD}  Run this to activate Lumina in your current terminal:${RESET}"
+    echo ""
+    echo "    ${GREEN}. ~/.lumina/env${RESET}"
+    echo ""
+    echo "  Or if you installed with the full command, it's already active:"
+    echo "    curl -fsSL https://lumina-lang.web.app/install.sh | sh ${GREEN}&& . ~/.lumina/env${RESET}"
+    echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 fi
+

@@ -92,8 +92,7 @@ fn cmd_cluster(args: &[String]) {
 }
 
 fn cmd_setup() {
-    println!("Lumina v2.0 — Automated Environment Setup");
-    println!("─────────────────────────────────────────");
+    // Silent header — this runs automatically during install
 
     // All VS Code-compatible IDEs (they all support --install-extension)
     let ide_commands: &[(&str, &str)] = &[
@@ -268,7 +267,7 @@ fn cmd_uninstall() {
             if let Ok(contents) = std::fs::read_to_string(&profile) {
                 let cleaned: String = contents
                     .lines()
-                    .filter(|line| !line.contains(".lumina/bin"))
+                    .filter(|line| !line.contains(".lumina/bin") && !line.contains(".lumina/env") && line.trim() != "# Lumina")
                     .collect::<Vec<_>>()
                     .join("\n");
                 if cleaned != contents {
