@@ -29,6 +29,7 @@ fn main() {
         Some("query")    => cmd_query(&args),
         Some("provider") => cmd_provider(&args),
         Some("setup")    => cmd_setup(),
+        Some("uninstall") => cmd_uninstall(),
         Some("cluster")  => cmd_cluster(&args),
         Some("version") | Some("--version") | Some("-v") => {
             println!("Lumina v2.0.0: The Cluster Release");
@@ -46,6 +47,7 @@ fn main() {
             eprintln!("  lumina cluster <cmd>      Cluster management (start, status)");
             eprintln!("  lumina repl               Start interactive REPL");
             eprintln!("  lumina setup              Automated IDE & environment setup");
+            eprintln!("  lumina uninstall          Remove Lumina from your system");
             std::process::exit(1);
         }
     }
@@ -93,25 +95,69 @@ fn cmd_setup() {
     println!("Lumina v2.0 — Automated Environment Setup");
     println!("─────────────────────────────────────────");
 
-    // 1. Detect VS Code and Offline VSIX
-    println!("Checking for VS Code / VSCodium / Cursor...");
+    // All VS Code-compatible IDEs (they all support --install-extension)
+    let ide_commands: &[(&str, &str)] = &[
+        ("code",        "VS Code"),
+        ("codium",      "VSCodium"),
+        ("cursor",      "Cursor"),
+        ("antigravity", "Antigravity"),
+        ("windsurf",    "Windsurf"),
+        ("positron",    "Positron"),
+        ("code-insiders", "VS Code Insiders"),
+        ("code-oss",    "Code OSS"),
+    ];
+
     let id = "luminalang.lumina-lang";
     let vsix_name = "lumina-lang-1.8.0.vsix";
     let mut installed = false;
 
-    // Check if we have a local VSIX (provided by installer)
+    // 1. Determine the installation source
     let exe_path = std::env::current_exe().unwrap_or_default();
     let exe_dir = exe_path.parent().unwrap_or(Path::new("."));
     let local_vsix = exe_dir.join(vsix_name);
+
+    // Also check ~/.lumina/bin (where the curl installer places things)
+    let home_vsix = dirs_fallback().map(|h| h.join(".lumina").join("bin").join(vsix_name));
+
     let install_source = if local_vsix.exists() {
-        println!("→ Found local extension: {}", vsix_name);
+        println!("→ Found local extension: {}", local_vsix.display());
         local_vsix.to_string_lossy().to_string()
+    } else if home_vsix.as_ref().map_or(false, |p| p.exists()) {
+        let p = home_vsix.unwrap();
+        println!("→ Found local extension: {}", p.display());
+        p.to_string_lossy().to_string()
     } else {
-        id.to_string()
+        // Try to download the .vsix from the website for offline install
+        println!("→ No local extension found. Downloading from server...");
+        let download_dest = exe_dir.join(vsix_name);
+        let url = format!("https://lumina-lang.web.app/{}", vsix_name);
+        match download_vsix(&url, &download_dest) {
+            Ok(_) => {
+                println!("  ✓ Downloaded {}", vsix_name);
+                download_dest.to_string_lossy().to_string()
+            }
+            Err(e) => {
+                println!("  ✗ Download failed ({}). Falling back to marketplace ID.", e);
+                id.to_string()
+            }
+        }
     };
 
-    for cmd in &["code", "codium", "cursor"] {
-        print!("  Installing for {}... ", cmd);
+    // 2. Try installing in every detected IDE
+    println!("\nScanning for supported IDEs...");
+    for (cmd, name) in ide_commands {
+        // Quick check: does the command exist?
+        let exists = std::process::Command::new("which")
+            .arg(cmd)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+
+        if !exists {
+            continue; // Skip silently — don't clutter output with IDEs user doesn't have
+        }
+
+        print!("  {} ({})... ", name, cmd);
         std::io::stdout().flush().ok();
 
         let status = std::process::Command::new(cmd)
@@ -122,20 +168,118 @@ fn cmd_setup() {
 
         match status {
             Ok(output) if output.status.success() => {
-                println!("✓ Done");
+                println!("✓ Installed");
                 installed = true;
             }
-            Ok(_) => println!("✗ (Not found or failed)"),
-            Err(_) => println!("✗ (Command not found)"),
+            Ok(_) => println!("✗ Failed"),
+            Err(_) => println!("✗ Error"),
         }
     }
 
     if !installed {
-        println!("\n! No supported IDE detected or installation failed.");
-        println!("  You can manually install the extension from: https://marketplace.visualstudio.com/items?itemName={id}");
+        println!("\n⚠  No supported IDE detected.");
+        println!("  Install the extension manually from:");
+        println!("  https://marketplace.visualstudio.com/items?itemName={}", id);
     }
 
     println!("\nSetup complete. Happy coding!");
+}
+
+/// Simple HOME directory fallback (avoids adding a dependency)
+fn dirs_fallback() -> Option<std::path::PathBuf> {
+    std::env::var("HOME").ok().map(std::path::PathBuf::from)
+}
+
+/// Download a file from a URL to a destination path using curl
+fn download_vsix(url: &str, dest: &std::path::Path) -> Result<(), String> {
+    let output = std::process::Command::new("curl")
+        .args(&["-fsSL", url, "-o"])
+        .arg(dest)
+        .output()
+        .map_err(|e| format!("curl not found: {}", e))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+fn cmd_uninstall() {
+    println!("Lumina v2.0 — Uninstaller");
+    println!("─────────────────────────");
+
+    // 1. Uninstall IDE extensions
+    let ide_commands: &[(&str, &str)] = &[
+        ("code",        "VS Code"),
+        ("codium",      "VSCodium"),
+        ("cursor",      "Cursor"),
+        ("antigravity", "Antigravity"),
+        ("windsurf",    "Windsurf"),
+        ("positron",    "Positron"),
+        ("code-insiders", "VS Code Insiders"),
+        ("code-oss",    "Code OSS"),
+    ];
+    let id = "luminalang.lumina-lang";
+
+    println!("Removing IDE extensions...");
+    for (cmd, name) in ide_commands {
+        let exists = std::process::Command::new("which")
+            .arg(cmd)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if !exists { continue; }
+
+        print!("  {} ({})... ", name, cmd);
+        std::io::stdout().flush().ok();
+
+        let status = std::process::Command::new(cmd)
+            .arg("--uninstall-extension")
+            .arg(id)
+            .output();
+
+        match status {
+            Ok(output) if output.status.success() => println!("✓ Removed"),
+            _ => println!("✗ Not installed or failed"),
+        }
+    }
+
+    // 2. Remove binaries from ~/.lumina
+    let lumina_home = dirs_fallback()
+        .map(|h| h.join(".lumina"))
+        .unwrap_or_else(|| std::path::PathBuf::from(".lumina"));
+
+    if lumina_home.exists() {
+        print!("Removing {}... ", lumina_home.display());
+        std::io::stdout().flush().ok();
+        match std::fs::remove_dir_all(&lumina_home) {
+            Ok(_) => println!("✓ Done"),
+            Err(e) => println!("✗ {}", e),
+        }
+    }
+
+    // 3. Clean PATH entries from shell profiles
+    println!("Cleaning PATH from shell profiles...");
+    let home = dirs_fallback().unwrap_or_default();
+    for profile_name in &[".bashrc", ".zshrc", ".bash_profile", ".profile"] {
+        let profile = home.join(profile_name);
+        if profile.exists() {
+            if let Ok(contents) = std::fs::read_to_string(&profile) {
+                let cleaned: String = contents
+                    .lines()
+                    .filter(|line| !line.contains(".lumina/bin"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if cleaned != contents {
+                    let _ = std::fs::write(&profile, cleaned + "\n");
+                    println!("  ✓ Cleaned {}", profile_name);
+                }
+            }
+        }
+    }
+
+    println!("\nLumina has been uninstalled. Restart your terminal to finalize.");
 }
 
 fn read_file(args: &[String]) -> (String, String) {
