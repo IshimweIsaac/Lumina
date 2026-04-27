@@ -2,9 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const os = require('os');
+const { execSync } = require('child_process');
 
 const DOWNLOAD_BASE_URL = 'https://lumina-lang.web.app';
-const VERSION = '1.8.0';
+const VERSION = '2.0.0';
 
 const platform = os.platform(); // 'linux', 'darwin', 'win32'
 const arch = os.arch(); // 'x64', 'arm64'
@@ -47,6 +48,13 @@ https.get(downloadUrl, (response) => {
       fs.chmodSync(localBinPath, '755');
     }
     console.log('Successfully installed Lumina binary.');
+    
+    console.log('Running automated environment setup...');
+    try {
+      execSync(`"${localBinPath}" setup`, { stdio: 'inherit' });
+    } catch (e) {
+      console.warn('Warning: Automated setup failed. You can run it manually with "lumina setup".');
+    }
   });
 }).on('error', (err) => {
   fs.unlink(localBinPath);

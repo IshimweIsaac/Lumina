@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 use std::collections::HashMap;
 mod repl;
 mod commands;
@@ -30,11 +31,11 @@ fn main() {
         Some("setup")    => cmd_setup(),
         Some("cluster")  => cmd_cluster(&args),
         Some("version") | Some("--version") | Some("-v") => {
-            println!("Lumina v2.0.0 — The Sovereign Cluster Release");
+            println!("Lumina v2.0.0: The Cluster Release");
             std::process::exit(0);
         }
         _ => {
-            eprintln!("Lumina v2.0.0 — Sovereign Cluster Runtime");
+            eprintln!("Lumina v2.0.0: The Cluster Release");
             eprintln!();
             eprintln!("Usage:");
             eprintln!("  lumina run <file.lum>     Run a Lumina program");
@@ -92,28 +93,45 @@ fn cmd_setup() {
     println!("Lumina v2.0 — Automated Environment Setup");
     println!("─────────────────────────────────────────");
 
-    // 1. Detect VS Code
-    println!("Checking for VS Code / VSCodium...");
+    // 1. Detect VS Code and Offline VSIX
+    println!("Checking for VS Code / VSCodium / Cursor...");
     let id = "luminalang.lumina-lang";
+    let vsix_name = "lumina-lang-1.8.0.vsix";
     let mut installed = false;
 
+    // Check if we have a local VSIX (provided by installer)
+    let exe_path = std::env::current_exe().unwrap_or_default();
+    let exe_dir = exe_path.parent().unwrap_or(Path::new("."));
+    let local_vsix = exe_dir.join(vsix_name);
+    let install_source = if local_vsix.exists() {
+        println!("→ Found local extension: {}", vsix_name);
+        local_vsix.to_string_lossy().to_string()
+    } else {
+        id.to_string()
+    };
+
     for cmd in &["code", "codium", "cursor"] {
+        print!("  Installing for {}... ", cmd);
+        std::io::stdout().flush().ok();
+
         let status = std::process::Command::new(cmd)
             .arg("--install-extension")
-            .arg(id)
+            .arg(&install_source)
             .arg("--force")
-            .status();
+            .output();
 
-        if let Ok(s) = status {
-            if s.success() {
-                println!("✓ Successfully installed Lumina extension for {cmd}!");
+        match status {
+            Ok(output) if output.status.success() => {
+                println!("✓ Done");
                 installed = true;
             }
+            Ok(_) => println!("✗ (Not found or failed)"),
+            Err(_) => println!("✗ (Command not found)"),
         }
     }
 
     if !installed {
-        println!("! No supported IDE (VS Code, VSCodium, Cursor) detected in PATH.");
+        println!("\n! No supported IDE detected or installation failed.");
         println!("  You can manually install the extension from: https://marketplace.visualstudio.com/items?itemName={id}");
     }
 

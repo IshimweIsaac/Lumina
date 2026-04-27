@@ -1,7 +1,12 @@
 This document tracks the completion of the final stages of Lumina, transforming the project from a raw engine into a **Reactive Target Infrastructure** ecosystem.
 
 > [!IMPORTANT]
-> Starting with v1.8, Lumina focuses on "Ecosystem Extensibility" — supporting robust external adapters with plugins, secrets, and strong distributed state consistency.
+> Starting with v2.0, Lumina transitions into a **Sovereign Cluster Runtime**, enabling distributed state resolution across decentralized nodes.
+
+## Phase 10: v2.0 "The Cluster Release" [IN PROGRESS]
+- **Clustering Engine**: Implementation of `lumina cluster` for distributed node management.
+- **Gossip Protocol**: Decentralized node discovery and health monitoring.
+- **Unified Branding**: Updated CLI diagnostics and versioning strings.
 
 ## Phase 9: v1.8 "The Ecosystem Release" [COMPLETED]
 - **Plugin System**: Added `import plugin "name" as alias`.

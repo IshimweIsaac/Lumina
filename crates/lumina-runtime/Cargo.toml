@@ -14,4 +14,4 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 notify = "6.1.1"
-paho-mqtt = "0.12"
+paho-mqtt = "0.14"

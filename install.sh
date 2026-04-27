@@ -49,7 +49,7 @@ if [ -z "$PLATFORM" ]; then
 fi
 
 # --- Installation ---
-log_info "Installing Lumina v1.8.0 for $PLATFORM..."
+log_info "Installing Lumina v2.0.0 for $PLATFORM..."
 mkdir -p "$BIN_DIR"
 
 download_binary() {
@@ -84,5 +84,10 @@ else
     log_info "Lumina is already in your PATH."
 fi
 
-log_success "Lumina v1.8.0 successfully installed!"
-log_success "Try running: lumina --version"
+log_success "Lumina v2.0.0 successfully installed!"
+
+# --- Automated Setup ---
+log_info "Running automated environment setup..."
+"$BIN_DIR/lumina" setup
+
+log_success "Setup complete! Try running: lumina --version"

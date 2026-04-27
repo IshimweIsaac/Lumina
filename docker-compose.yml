@@ -1,5 +1,5 @@
 # Lumina IoT Dev Environment
-version: '3.8'
+
 
 services:
   # Lumina CLI for rules

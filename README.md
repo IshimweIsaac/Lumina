@@ -14,7 +14,12 @@ Modern software architecture frequently struggles with the synchronization of di
 
 Lumina has evolved from a simple reactive engine into a **Sovereign Infrastructure Language**.
 
-#### **v1.9: The Metal Release (Latest Stable)**
+#### **v2.0: The Cluster Release (Latest Stable)**
+*   **Distributed Mesh Clustering**: Native support for `cluster` commands to manage decentralized nodes.
+*   **Sovereign Node Discovery**: Automated gossip-layer discovery for high-availability infrastructure.
+*   **Enhanced CLI Interface**: Streamlined commands and refined versioning.
+
+#### **v1.9: The Metal Release**
 *   **Lumina Standard Library (LSL)**: Pre-defined entity schemas for datacenter, network, Kubernetes, and power infrastructure — composed, not inherited.
 *   **Native Southbound Protocols**: Agentless hardware polling via `provider` blocks (Redfish, SNMP v3, Modbus TCP).
 *   **Declarative Security**: Security as a structural truth in the DAG. Write operations are blocked when auth context evaluates false (`L039`).

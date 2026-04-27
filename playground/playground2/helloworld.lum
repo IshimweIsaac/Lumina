@@ -1,13 +1,1 @@
-entity Person {
-    name: Text
-    age: Number
-}
-
-let Isaac = Person {
-    name: "Isaac",
-    age: 22
-}
-
-update Isaac.name to "Ishimwe"
-
-show Isaac.name
+show "Hello World"
