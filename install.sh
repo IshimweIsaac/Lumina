@@ -135,12 +135,7 @@ add_to_path
 log_success "Lumina successfully installed!"
 
 if [ -x "$BIN_DIR/lumina" ]; then
-    VERSION=$("$BIN_DIR/lumina" --version 2>/dev/null || echo "v2.0.0")
-    echo ""
-    log_info "Running: Lumina $VERSION"
-    
     # ── Zero-Config Hook ────────────────────────────────────
-    log_info "Running automated environment setup..."
     "$BIN_DIR/lumina" setup || true
     echo ""
 
@@ -149,4 +144,35 @@ if [ -x "$BIN_DIR/lumina" ]; then
     echo "  Check: lumina check your-program.lum"
     echo "  Docs:  https://lumina-lang.web.app/docs"
     echo ""
+
+    # Detect current shell to suggest the right profile
+    CURRENT_SHELL=$(basename "$SHELL")
+    PREFERRED_PROFILE=""
+    
+    case "$CURRENT_SHELL" in
+        zsh)  PREFERRED_PROFILE="$HOME/.zshrc" ;;
+        bash) PREFERRED_PROFILE="$HOME/.bashrc" ;;
+        *)    PREFERRED_PROFILE="" ;;
+    esac
+
+    # Find which profile actually contains the path
+    ACTIVE_PROFILE=""
+    # Check preferred first, then fall back to others
+    FOR_PROFILES="$PREFERRED_PROFILE $HOME/.bashrc $HOME/.zshrc $HOME/.bash_profile $HOME/.profile"
+    
+    for P in $FOR_PROFILES; do
+        if [ -f "$P" ] && grep -q ".lumina/bin" "$P" 2>/dev/null; then
+            ACTIVE_PROFILE="$P"
+            break
+        fi
+    done
+
+    if [ -n "$ACTIVE_PROFILE" ]; then
+        echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+        echo "${BOLD}  To start using Lumina in THIS terminal, run:${RESET}"
+        echo ""
+        echo "    ${GREEN}source ${ACTIVE_PROFILE}${RESET}"
+        echo ""
+        echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    fi
 fi
