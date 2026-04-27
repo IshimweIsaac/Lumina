@@ -100,6 +100,11 @@ download_binary() {
     fi
     
     chmod +x "$DEST"
+    
+    # macOS: remove quarantine flag if present (no developer account needed)
+    if [ "$(uname -s)" = "Darwin" ]; then
+        xattr -d com.apple.quarantine "$DEST" 2>/dev/null || true
+    fi
 }
 
 # Install core components

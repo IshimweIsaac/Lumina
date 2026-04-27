@@ -142,23 +142,7 @@ function highlightDetectedOS() {
   }
 }
 
-// Set hero download button — runs immediately
-const heroDownloadBtn = document.getElementById('hero-download-btn');
-const os = detectOS();
-const downloadUrl = getDownloadLink(os);
-
-// Immediately set the hero button
-if (heroDownloadBtn && os !== 'Unknown') {
-  heroDownloadBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download for Desktop`;
-  heroDownloadBtn.href = downloadUrl;
-}
-
-// Update mobile CTA
-const mobileCta = document.querySelector('.nav__mobile-cta');
-if (mobileCta && os !== 'Unknown') {
-  mobileCta.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download for Desktop`;
-  mobileCta.href = downloadUrl;
-}
+// (Removed direct download link logic — buttons now point to #install)
 
 window.addEventListener('DOMContentLoaded', () => {
   highlightDetectedOS();
