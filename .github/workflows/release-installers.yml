@@ -17,7 +17,7 @@ jobs:
             setup_name: lumina-setup-macos.pkg
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            setup_name: LuminaSetup.exe
+            setup_name: Lumina-v2.0.0-x64-Setup.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -44,12 +44,16 @@ jobs:
           chmod +x build_pkg.sh
           ./build_pkg.sh ${{ github.ref_name }} ${{ matrix.target }}/release
 
+      - name: Install NSIS
+        if: matrix.os == 'windows-latest'
+        run: choco install nsis -y
+
       - name: Generate Windows Installer (.exe)
         if: matrix.os == 'windows-latest'
         run: |
           cd installers\windows
-          makensis lumina.nsi
-          move LuminaSetup.exe ..\..\LuminaSetup.exe
+          makensis /DTARGET=${{ matrix.target }} lumina.nsi
+          move Lumina-v2.0.0-x64-Setup.exe ..\..\Lumina-v2.0.0-x64-Setup.exe
 
       - name: Upload Installers to Release
         uses: softprops/action-gh-release@v1

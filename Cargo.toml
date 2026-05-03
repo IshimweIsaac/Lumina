@@ -20,5 +20,4 @@ codegen-units = 1      # Single codegen unit for better optimization
 panic = "abort"        # Smaller panic handler
 strip = true           # Strip debug symbols
 
-[workspace.dependencies]
-openssl = { version = "0.10", features = ["vendored"] }
+

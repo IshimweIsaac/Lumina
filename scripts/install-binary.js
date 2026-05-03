@@ -27,10 +27,15 @@ if (!remoteName) {
 }
 
 const downloadUrl = `${DOWNLOAD_BASE_URL}/${remoteName}`;
-const localBinPath = path.join(__dirname, '..', 'bin', 'lumina-bin');
+let localBinPath = path.join(__dirname, '..', 'bin', 'lumina');
 
 if (platform === 'win32') {
   localBinPath += '.exe';
+}
+
+const binDir = path.dirname(localBinPath);
+if (!fs.existsSync(binDir)) {
+  fs.mkdirSync(binDir, { recursive: true });
 }
 
 console.log(`Downloading Lumina v${VERSION} for ${key}...`);
@@ -43,21 +48,22 @@ https.get(downloadUrl, (response) => {
   }
   response.pipe(file);
   file.on('finish', () => {
-    file.close();
-    if (platform !== 'win32') {
-      fs.chmodSync(localBinPath, '755');
-    }
-    console.log('Successfully installed Lumina binary.');
-    
-    console.log('Running automated environment setup...');
-    try {
-      execSync(`"${localBinPath}" setup`, { stdio: 'inherit' });
-    } catch (e) {
-      console.warn('Warning: Automated setup failed. You can run it manually with "lumina setup".');
-    }
+    file.close(() => {
+      if (platform !== 'win32') {
+        fs.chmodSync(localBinPath, '755');
+      }
+      console.log('Successfully installed Lumina binary.');
+      
+      console.log('Running automated environment setup...');
+      try {
+        execSync(`"${localBinPath}" setup`, { stdio: 'inherit' });
+      } catch (e) {
+        console.warn('Warning: Automated setup failed. You can run it manually with "lumina setup".');
+      }
+    });
   });
 }).on('error', (err) => {
-  fs.unlink(localBinPath);
+  try { fs.unlinkSync(localBinPath); } catch (e) {}
   console.error(`Error downloading binary: ${err.message}`);
   process.exit(1);
 });

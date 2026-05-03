@@ -56,6 +56,33 @@ jobs:
             shasum -a 256 ${{ matrix.binary }}-lsp* > ${{ matrix.binary }}-lsp.sha256
           fi
 
+      - name: Generate Linux Installer (.deb)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd installers/linux
+          chmod +x build_deb.sh
+          ./build_deb.sh 2.0.0 ${{ matrix.target }}/release
+          mv ../../lumina-setup-linux-amd64.deb ../../dist/
+
+      - name: Generate macOS Installer (.pkg)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd installers/macos
+          chmod +x build_pkg.sh
+          ./build_pkg.sh 2.0.0 ${{ matrix.target }}/release
+          mv ../../lumina-setup-macos.pkg ../../dist/
+
+      - name: Install NSIS
+        if: matrix.os == 'windows-latest'
+        run: choco install nsis -y
+
+      - name: Generate Windows Installer (.exe)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd installers\windows
+          makensis /DTARGET=${{ matrix.target }} lumina.nsi
+          move Lumina-v2.0.0-x64-Setup.exe ..\..\dist\
+
       - name: Upload Binary Artifacts
         uses: actions/upload-artifact@v4
         with:

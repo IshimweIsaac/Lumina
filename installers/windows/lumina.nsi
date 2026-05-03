@@ -1,6 +1,6 @@
 ; Lumina v2.0.0 Modern Installer Script
 !include "MUI2.nsh"
-; !include "EnvVarUpdate.nsh"
+!include "EnvVarUpdate.nsh"
 
 ; --- Product Info ---
 !define APPNAME "Lumina"
@@ -11,6 +11,13 @@
 !define VERSIONMINOR 0
 !define VERSIONBUILD 0
 
+; --- Build target selection ---
+; Pass -DTARGET=x86_64-pc-windows-msvc on the makensis command line to override.
+; Defaults to x86_64-pc-windows-gnu for local cross-compilation from Linux.
+!ifndef TARGET
+  !define TARGET "x86_64-pc-windows-gnu"
+!endif
+
 ; --- Configuration ---
 Name "${APPNAME} ${VERSION}"
 OutFile "Lumina-v${VERSION}-x64-Setup.exe"
@@ -20,15 +27,15 @@ RequestExecutionLevel admin
 
 ; --- UI Settings ---
 !define MUI_ABORTWARNING
-!define MUI_ICON "assets/logo.ico"
-!define MUI_UNICON "assets/logo.ico"
+!define MUI_ICON "assets\logo.ico"
+!define MUI_UNICON "assets\logo.ico"
 !define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "assets/header.bmp"
-!define MUI_WELCOMEFINISHPAGE_BITMAP "assets/welcome.bmp"
+!define MUI_HEADERIMAGE_BITMAP "assets\header.bmp"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "assets\welcome.bmp"
 
 ; --- Pages ---
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "../../LICENSE"
+!insertmacro MUI_PAGE_LICENSE "..\..\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -45,16 +52,16 @@ RequestExecutionLevel admin
 Section "Lumina Runtime" SecRuntime
   SetOutPath "$INSTDIR"
   
-  ; Binaries (Supports both MSVC and GNU cross-compile targets)
-  File "/oname=lumina.exe" "..\..\target\x86_64-pc-windows-gnu\release\lumina.exe"
-  File "/oname=lumina-lsp.exe" "..\..\target\x86_64-pc-windows-gnu\release\lumina-lsp.exe"
+  ; Binaries — uses the TARGET define so both local GNU and CI MSVC builds work
+  File "/oname=lumina.exe" "..\..\target\${TARGET}\release\lumina.exe"
+  File "/oname=lumina-lsp.exe" "..\..\target\${TARGET}\release\lumina-lsp.exe"
   File "..\..\extensions\lumina-vscode\lumina-lang-1.8.0.vsix"
   
   ; Write installation path to registry
   WriteRegStr HKLM "Software\${COMPANYNAME}\${APPNAME}" "Install_Dir" "$INSTDIR"
   
   ; Add to PATH (System wide)
-  ; ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR"
+  ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR"
 
   ; Uninstaller
   WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -67,15 +74,14 @@ Section "Lumina Runtime" SecRuntime
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayIcon" "$INSTDIR\lumina.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString" '"$INSTDIR\uninstall.exe"'
   
-  ; Run setup for IDE integration
-  DetailPrint "Initializing Lumina ecosystem..."
+  DetailPrint "Initializing Lumina ecosystem and IDE extensions..."
   ExecWait '"$INSTDIR\lumina.exe" setup'
 SectionEnd
 
 ; --- Uninstall Section ---
 Section "Uninstall"
   ; Remove from PATH
-  ; ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR"
+  ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR"
 
   ; Clean files
   Delete "$INSTDIR\lumina.exe"
