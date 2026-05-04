@@ -6,4 +6,8 @@ pub mod state_mesh;
 pub mod node;
 
 pub use config::ClusterConfig;
-pub use node::{ClusterNode, NodeState};
+pub use node::{ClusterNode, NodeState, ClusterStatus};
+pub use election::NodeRole;
+pub use gossip::{GossipLayer, GossipMessageKind, PeerHealth};
+pub use state_mesh::ClusterStateMesh;
+pub use wal::WriteAheadLog;

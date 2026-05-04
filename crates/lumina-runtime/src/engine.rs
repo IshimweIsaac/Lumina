@@ -40,6 +40,7 @@ pub struct Evaluator {
     pub frequency_events: HashMap<(String, String), Vec<f64>>,
     pub agg_store: AggregateStore,
     pub cluster_state: HashMap<String, HashMap<String, Value>>,
+    pub cluster_config: Option<lumina_cluster::ClusterConfig>,
     pub now:       f64,
 }
 impl Evaluator {
@@ -77,6 +78,7 @@ impl Evaluator {
             frequency_events: HashMap::new(),
             agg_store: AggregateStore::new(),
             cluster_state: HashMap::new(),
+            cluster_config: None,
             now: 0.0,
         }
     }
@@ -109,6 +111,7 @@ impl Evaluator {
             frequency_events: HashMap::new(),
             agg_store: AggregateStore::new(),
             cluster_state: HashMap::new(),
+            cluster_config: None,
             now: 0.0,
         }
     }
@@ -405,9 +408,18 @@ impl Evaluator {
                 }
                 Err(RuntimeError::R012 { reason: format!("Node {} not found in cluster state", node_id) }) // Node isolated / missing
             }
-            Expr::Migrate { .. } | Expr::Evacuate { .. } | Expr::Deploy { .. } => {
-                // v2.0: Orchestration actions return Boolean true if accepted
-                // Actual implementation happens in the cluster controller
+            Expr::Migrate { workloads, target, .. } => {
+                // v2.0: Orchestration — evaluate arguments, return success
+                let _w = self.eval_expr(workloads, ctx)?;
+                let _t = self.eval_expr(target, ctx)?;
+                Ok(Value::Bool(true))
+            }
+            Expr::Evacuate { entities, .. } => {
+                let _e = self.eval_expr(entities, ctx)?;
+                Ok(Value::Bool(true))
+            }
+            Expr::Deploy { spec, .. } => {
+                let _s = self.eval_expr(spec, ctx)?;
                 Ok(Value::Bool(true))
             }
         }
@@ -599,7 +611,14 @@ impl Evaluator {
                 self.output.push(format!("Provider '{}' registered (endpoint configured)", decl.protocol));
                 Ok(vec![])
             }
-            Statement::Cluster(_) => Ok(vec![]), // v2.0: Cluster managed separately
+            Statement::Cluster(decl) => {
+                // v2.0: Store cluster configuration for use by the CLI cluster commands
+                let config = lumina_cluster::ClusterConfig::from_decl(decl);
+                self.output.push(format!("Cluster configured: node='{}' peers={} quorum={}",
+                    config.node_id, config.peers.len(), config.quorum));
+                self.cluster_config = Some(config);
+                Ok(vec![])
+            }
         }
     }
 

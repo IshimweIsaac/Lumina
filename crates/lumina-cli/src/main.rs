@@ -46,7 +46,7 @@ fn main() {
             eprintln!("  lumina fmt <file.lum>     Format source code");
             eprintln!("  lumina query <expr>       Query the truth store");
             eprintln!("  lumina provider <cmd>     Manage providers");
-            eprintln!("  lumina cluster <cmd>      Cluster management (start, status)");
+            eprintln!("  lumina cluster <cmd>      Cluster management (start, status, join)");
             eprintln!("  lumina repl               Start interactive REPL");
             eprintln!("  lumina setup              Automated IDE & environment setup");
             eprintln!("  lumina uninstall          Remove Lumina from your system");
@@ -59,36 +59,101 @@ fn cmd_cluster(args: &[String]) {
     match args.get(2).map(|s| s.as_str()) {
         Some("start") => {
             let spec = args.get(3).unwrap_or_else(|| {
-                eprintln!("Error: missing spec file. Usage: lumina cluster start <spec.lum> <node_id>");
+                eprintln!("Error: missing spec file. Usage: lumina cluster start <spec.lum> [node_id]");
                 std::process::exit(1);
             });
-            let node_id = args.get(4).unwrap_or_else(|| {
-                eprintln!("Error: missing node ID. Usage: lumina cluster start <spec.lum> <node_id>");
+            let source = fs::read_to_string(spec).unwrap_or_else(|e| {
+                eprintln!("Error reading spec '{}': {}", spec, e);
                 std::process::exit(1);
             });
+            let program = match parse(&source) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Parse error: {}", e);
+                    std::process::exit(1);
+                }
+            };
+
+            // Extract cluster declaration from the program
+            let cluster_decl = program.statements.iter().find_map(|s| {
+                if let Statement::Cluster(c) = s { Some(c) } else { None }
+            }).unwrap_or_else(|| {
+                eprintln!("Error: no 'cluster {{ }}' block found in {}", spec);
+                std::process::exit(1);
+            });
+
+            // Allow overriding node_id from command line
+            let mut config = lumina_cluster::ClusterConfig::from_decl(cluster_decl);
+            if let Some(override_id) = args.get(4) {
+                config.node_id = override_id.clone();
+            }
+
             println!("──────────────────────────────────────────────────");
             println!("  Lumina Cluster Node — Sovereignty v2.0.0  ");
             println!("──────────────────────────────────────────────────");
-            println!("  Node ID:     {}", node_id);
-            println!("  Spec:        {}", spec);
-            println!("  Status:      Initializing Distributed Mesh...");
-            println!("  Discovery:   Gossip Layer Active");
+            println!("  Node ID:     {}", config.node_id);
+            println!("  Peers:       {:?}", config.peers);
+            println!("  Quorum:      {}", config.quorum);
+            println!("  Election:    {:.0}ms timeout", config.election_timeout.as_millis());
             println!("──────────────────────────────────────────────────");
-            println!("✓ Node '{}' is running.", node_id);
-            
-            // Note: In a production environment, this would initialize the tokio runtime
-            // and instantiate lumina_cluster::node::SovereignNode.
+
+            // Initialize the cluster node
+            let mut node = lumina_cluster::ClusterNode::new(config);
+            node.initialize();
+
+            let status = node.status();
+            println!("  Role:        {}", status.role);
+            println!("  Term:        {}", status.term);
+            println!("  State:       {}", status.state);
+            if let Some(ref leader) = status.leader_id {
+                println!("  Leader:      {}", leader);
+            }
+            println!("  Mesh Nodes:  {}", status.mesh_nodes);
+            println!("──────────────────────────────────────────────────");
+            println!("✓ Node '{}' is running.", status.node_id);
+
+            // Run a few ticks to demonstrate the event loop
+            let start = std::time::Instant::now();
+            for _ in 0..5 {
+                node.tick(std::time::Instant::now());
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+
+            let final_status = node.status();
+            println!("\n  Final Status:");
+            println!("    Role:      {}", final_status.role);
+            println!("    Term:      {}", final_status.term);
+            println!("    Uptime:    {}ms", start.elapsed().as_millis());
+            println!("\n✓ Cluster node shut down cleanly.");
             std::process::exit(0);
         }
         Some("status") => {
-            println!("Lumina Sovereign Cluster Status:");
-            println!("  Quorum: Offline");
-            println!("  Active Nodes: 0");
+            println!("Lumina Sovereign Cluster Status (v2.0.0)");
+            println!("──────────────────────────────────────────────────");
+
+            // In a real deployment, this would query a running node via IPC.
+            // For now, report the offline status with useful diagnostics.
+            println!("  Quorum:        Offline (no running nodes detected)");
+            println!("  Active Nodes:  0");
+            println!("  Leader:        None");
+            println!("──────────────────────────────────────────────────");
+            println!("  To start a node:");
+            println!("    lumina cluster start <spec.lum> [node_id]");
+        }
+        Some("join") => {
+            let address = args.get(3).unwrap_or_else(|| {
+                eprintln!("Usage: lumina cluster join <address>");
+                std::process::exit(1);
+            });
+            println!("Joining cluster at {}...", address);
+            println!("  Status: Cluster join requires a running node.");
+            println!("  Start a node first: lumina cluster start <spec.lum> <node_id>");
         }
         _ => {
-            eprintln!("Lumina Cluster Management");
-            eprintln!("  start <spec> <node_id>   Start a cluster node");
+            eprintln!("Lumina Cluster Management (v2.0.0)");
+            eprintln!("  start <spec> [node_id]   Start a cluster node");
             eprintln!("  status                   Show cluster status");
+            eprintln!("  join <address>            Join an existing cluster");
         }
     }
 }

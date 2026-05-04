@@ -822,6 +822,7 @@ name = "lumina-runtime"
 version = "2.0.0"
 dependencies = [
  "lumina-analyzer",
+ "lumina-cluster",
  "lumina-lexer",
  "lumina-parser",
  "notify",

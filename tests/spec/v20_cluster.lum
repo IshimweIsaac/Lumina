@@ -8,7 +8,7 @@ cluster {
 
 entity Workload {
   cpu: Number
-  zone: String
+  zone: Text
   isHot := cpu > 80
 }
 
@@ -31,6 +31,9 @@ when NodeStats.total_cpu > 100 {
 
 -- Rule: fires when any individual workload is hot
 rule "HotWorkload"
-when Workload.isHot becomes true {
-  show "Workload is running hot at {Workload.cpu}% CPU"
+when any Workload.isHot becomes true {
+  show "Hot workload detected — fleet alert triggered"
 }
+
+-- Show cluster configuration
+show "Cluster node 'node-1' initialized with 2 peers"

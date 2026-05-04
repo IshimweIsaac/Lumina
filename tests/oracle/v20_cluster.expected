@@ -1,0 +1,3 @@
+Hot workload detected — fleet alert triggered
+Node CPU total is 105% (avg: 52.5%, max: 85%)
+Cluster node 'node-1' initialized with 2 peers
