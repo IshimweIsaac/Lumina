@@ -41,10 +41,10 @@ function Download-Binary {
 }
 
 # The filenames uploaded by CI to Firebase Hosting:
-# lumina-windows-x64.exe
-# lumina-windows-x64-lsp.exe
-Download-Binary -Name "core" -UrlSuffix "windows-x64.exe" -BinName "lumina.exe"
-Download-Binary -Name "lsp" -UrlSuffix "windows-x64-lsp.exe" -BinName "lumina-lsp.exe"
+# lumina-windows-x64
+# lumina-windows-x64-lsp
+Download-Binary -Name "core" -UrlSuffix "windows-x64" -BinName "lumina.exe"
+Download-Binary -Name "lsp" -UrlSuffix "windows-x64-lsp" -BinName "lumina-lsp.exe"
 
 # --- Path Injection ---
 $UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")

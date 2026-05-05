@@ -398,11 +398,14 @@ cooldown 1h</code></pre>
             <div class="install__tab-content active" id="tab-windows">
               <div class="install__method-card">
                 <div class="install__method-header">
-                  <div class="install__method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                  <div class="install__method-icon" style="font-family: monospace; font-size: 1.2rem; font-weight: bold;">&gt;</div>
                   <h5 class="install__method-title">PowerShell (Windows)</h5>
                 </div>
                 <div class="install__terminal">
-                  <div class="install__terminal-header"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                  <div class="install__terminal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                    <button class="gs-install__copy" style="background:none;border:none;color:inherit;opacity:0.6;cursor:pointer;font-size:0.8rem;" onclick="navigator.clipboard.writeText('irm https://lumina-lang.web.app/install.ps1 | iex').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)})">Copy</button>
+                  </div>
                   <pre class="install__terminal-body"><code>> irm https://lumina-lang.web.app/install.ps1 | iex</code></pre>
                 </div>
               </div>
@@ -412,11 +415,14 @@ cooldown 1h</code></pre>
             <div class="install__tab-content" id="tab-macos">
               <div class="install__method-card">
                 <div class="install__method-header">
-                  <div class="install__method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                  <div class="install__method-icon" style="font-family: monospace; font-size: 1.2rem; font-weight: bold;">$</div>
                   <h5 class="install__method-title">Shell (macOS)</h5>
                 </div>
                 <div class="install__terminal">
-                  <div class="install__terminal-header"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                  <div class="install__terminal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                    <button class="gs-install__copy" style="background:none;border:none;color:inherit;opacity:0.6;cursor:pointer;font-size:0.8rem;" onclick="navigator.clipboard.writeText('curl -fsSL https://lumina-lang.web.app/install.sh | sh').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)})">Copy</button>
+                  </div>
                   <pre class="install__terminal-body"><code>$ curl -fsSL https://lumina-lang.web.app/install.sh | sh</code></pre>
                 </div>
               </div>
@@ -426,11 +432,14 @@ cooldown 1h</code></pre>
             <div class="install__tab-content" id="tab-linux">
               <div class="install__method-card">
                 <div class="install__method-header">
-                  <div class="install__method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                  <div class="install__method-icon" style="font-family: monospace; font-size: 1.2rem; font-weight: bold;">$</div>
                   <h5 class="install__method-title">Shell (Linux)</h5>
                 </div>
                 <div class="install__terminal">
-                  <div class="install__terminal-header"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                  <div class="install__terminal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                    <button class="gs-install__copy" style="background:none;border:none;color:inherit;opacity:0.6;cursor:pointer;font-size:0.8rem;" onclick="navigator.clipboard.writeText('curl -fsSL https://lumina-lang.web.app/install.sh | sh').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)})">Copy</button>
+                  </div>
                   <pre class="install__terminal-body"><code>$ curl -fsSL https://lumina-lang.web.app/install.sh | sh</code></pre>
                 </div>
               </div>

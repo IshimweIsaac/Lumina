@@ -20,7 +20,7 @@ jobs:
             binary: lumina-macos-x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: lumina-windows-x64.exe
+            binary: lumina-windows-x64
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -41,7 +41,7 @@ jobs:
           mkdir -p dist
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             cp target/${{ matrix.target }}/release/lumina-cli.exe dist/${{ matrix.binary }}
-            cp target/${{ matrix.target }}/release/lumina-lsp.exe dist/${{ matrix.binary }}-lsp.exe
+            cp target/${{ matrix.target }}/release/lumina-lsp.exe dist/${{ matrix.binary }}-lsp
           else
             cp target/${{ matrix.target }}/release/lumina-cli dist/${{ matrix.binary }}
             cp target/${{ matrix.target }}/release/lumina-lsp dist/${{ matrix.binary }}-lsp
