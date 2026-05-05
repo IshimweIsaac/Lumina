@@ -40,7 +40,7 @@ function Download-Binary {
     }
 }
 
-# The filenames uploaded by CI to Firebase Hosting:
+# The filenames hosted on Firebase:
 # lumina-windows-x64.exe
 # lumina-windows-x64-lsp.exe
 Download-Binary -Name "core" -UrlSuffix "windows-x64.exe" -BinName "lumina.exe"
