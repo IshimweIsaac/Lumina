@@ -1,5 +1,5 @@
 #!/bin/bash
-# Phase 0: Chapter 41 - WASM Deployment Script
+# Phase 0: Chapter 41 WASM Deployment Script
 # Copies the latest wasm-pack build into the website public directory.
 
 SOURCE_DIR="../crates/lumina-wasm/pkg"

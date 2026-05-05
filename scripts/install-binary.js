@@ -4,7 +4,7 @@ const https = require('https');
 const os = require('os');
 const { execSync } = require('child_process');
 
-const DOWNLOAD_BASE_URL = 'https://lumina-lang.web.app';
+const DOWNLOAD_BASE_URL = 'https://github.com/IshimweIsaac/Lumina/releases/download/v2.0.0';
 const VERSION = '2.0.0';
 
 const platform = os.platform(); // 'linux', 'darwin', 'win32'

@@ -7,7 +7,7 @@
   <title>Lumina | The Reactive Language for State-Driven Systems</title>
   <meta name="description"
     content="Lumina is a statically typed, declarative, and reactive programming language engineered in Rust for modeling complex state-driven systems. Full documentation, examples, and guides." />
-  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet" />
@@ -20,7 +20,7 @@
   <nav class="nav" id="nav">
     <div class="nav__container">
       <a href="#" class="nav__brand">
-        <img src="/logo.png" alt="Lumina" class="nav__logo" />
+        <img src="/logo.svg" alt="Lumina" class="nav__logo" />
         <span class="nav__name">Lumina</span>
         <span class="nav__version">v2.0.0</span>
       </a>
@@ -71,7 +71,7 @@
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>Install Lumina</a>
+            </svg>Download Lumina</a>
           <a href="/docs.html" class="btn btn--outline btn--lg"><svg width="18" height="18" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2">
               <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
@@ -82,7 +82,7 @@
       <div class="hero__code reveal reveal--delay-1">
         <div class="code-window">
           <div class="code-window__header">
-            <div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div><span
+            <div class="code-window__dots"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div><span
               class="code-window__filename">security.lum</span>
           </div>
           <pre class="code-window__body"><code class="language-lumina">entity SecuritySensor {
@@ -144,7 +144,7 @@ cooldown 1h</code></pre>
             </svg></div>
           <h3 class="feature-card__title">Self-Healing</h3>
           <p class="feature-card__desc">Before every state mutation, the runtime deep-copy snapshots memory. If an
-            <code>@range</code> invariant is violated or recursion limit is breached, it rolls back instantly —
+            <code>@range</code> invariant is violated or recursion limit is breached, it rolls back instantly -
             guaranteed stable state.
           </p>
         </div>
@@ -152,7 +152,7 @@ cooldown 1h</code></pre>
     </div>
   </section>
 
-  <!-- WHY LUMINA — Comparison -->
+  <!-- WHY LUMINA Comparison -->
   <section class="section" id="why-lumina">
     <div class="container">
       <div class="section__header reveal">
@@ -193,9 +193,9 @@ cooldown 1h</code></pre>
         <div class="code-example__info">
           <div class="code-example__number" style="color: rgba(52, 211, 153, 0.3);">Lumina</div>
           <h3 class="code-example__title">The Declarative Way</h3>
-          <p class="code-example__desc">You describe the <strong>truth</strong> — the engine handles edge detection, evaluation order, and alerting. <strong>No loops. No state tracking. No bugs.</strong></p>
+          <p class="code-example__desc">You describe the <strong>truth</strong> the engine handles edge detection, evaluation order, and alerting. <strong>No loops. No state tracking. No bugs.</strong></p>
           <ul class="code-example__highlights">
-            <li>Reactive — fires on state transition</li>
+            <li>Reactive fires on state transition</li>
             <li>Self-healing with automatic rollback</li>
             <li>Auto-clear when condition resolves</li>
             <li><code>cooldown</code> built into the language</li>
@@ -203,7 +203,7 @@ cooldown 1h</code></pre>
         </div>
         <div class="code-window">
           <div class="code-window__header">
-            <div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
+            <div class="code-window__dots"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
             <span class="code-window__filename">monitor.lum</span>
           </div>
           <pre class="code-window__body"><code class="language-lumina">entity SecuritySensor {
@@ -314,6 +314,12 @@ cooldown 1h</code></pre>
             </svg></div>
           <h4>VS Code Extension</h4>
           <p>Syntax highlighting, snippets, bracket matching, and LSP (v1.5) for <code>.lum</code> files.</p>
+          <a href="/lumina-lang-1.8.0.vsix" class="btn btn--outline btn--sm" style="margin-top: 1rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download VSIX
+          </a>
         </div>
         <div class="ecosystem__card">
           <div class="ecosystem__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -321,7 +327,7 @@ cooldown 1h</code></pre>
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg></div>
-          <h4>FFI — C / Python / Go</h4>
+          <h4>FFI: C / Python / Go</h4>
           <p>Stable C ABI via <code>liblumina_ffi.so</code>. Python wrapper via <code>ctypes</code>, Go wrapper via
             <code>cgo</code>.
           </p>
@@ -368,94 +374,84 @@ cooldown 1h</code></pre>
       </div>
       <div class="install__grid reveal">
         <div class="install__card">
-          <div class="install__step">1</div>
-          <h4 class="install__title">Get the CLI</h4>
+          <h4 class="install__title">Installation</h4>
           <p class="install__desc">Choose your preferred way to install the Lumina binary.</p>
           
           <div class="install__tabs" style="margin-top: 1.5rem;">
-            <!-- OS Selection Grid -->
-            <div class="download-grid" style="display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 2rem;">
-              <!-- Windows -->
-              <a href="/Lumina-v2.0.0-x64-Setup.exe" id="download-windows" class="btn btn--outline os-download">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1L9.75 11.25L0 11.25L0 3.449ZM0 12.75L9.75 12.75L9.75 21.9L0 20.55L0 12.75ZM11.25 1.901L24 0L24 11.25L11.25 11.25L11.25 1.901ZM11.25 12.75L24 12.75L24 24L11.25 22.099L11.25 12.75Z"/></svg>
-                <span>Download for Windows</span>
-              </a>
-              <!-- macOS -->
-              <a href="/lumina-setup-macos.pkg" id="download-macos" class="btn btn--outline os-download">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.004-2.117 3.669-.54 9.103 1.519 12.087 1.007 1.456 2.196 3.085 3.773 3.03 1.526-.067 2.09-.988 3.935-.988 1.83 0 2.356.988 3.939.954 1.625-.027 2.641-1.477 3.645-2.93 1.153-1.688 1.636-3.325 1.663-3.415-.026-.027-3.182-1.217-3.217-4.826-.026-3.011 2.447-4.454 2.56-4.521-1.407-2.05-3.565-2.279-4.321-2.327-1.835-.152-3.111.967-3.977.967zm.32-4.723C12.472 1.391 11.758.332 10.744.1c-.08-.013-.159-.022-.24-.03-.024-.002-.047-.008-.073-.01-.018-.002-.036-.008-.053-.01-1.042 0-2.197.643-2.88 1.442-.693.816-1.22 1.956-1.025 3.031.022.122.059.24.113.351.008.017.02.03.028.046.012.023.016.05.031.071.868.046 2.056-.566 2.748-1.393.684-.817 1.258-2.046 1.014-3.04z"/></svg>
-                <span>Install for macOS</span>
-              </a>
-              <!-- Linux -->
-              <a href="/lumina-setup-linux-amd64.deb" id="download-linux" class="btn btn--outline os-download">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-4.418 0-8 3.582-8 8 0 1.246.286 2.424.796 3.476L2 19l2.707-.902C5.9 19.349 7.828 20 10 20c4.418 0 8-3.582 8-8s-3.582-8-8-8zm0 14.5c-3.59 0-6.5-2.91-6.5-6.5s2.91-6.5 6.5-6.5 6.5 2.91 6.5 6.5-2.91 6.5-6.5 6.5zm3.5-6.5c0 1.933-1.567 3.5-3.5 3.5S8.5 9.933 8.5 8 10.067 4.5 12 4.5s3.5 1.567 3.5 3.5z"/></svg>
-                <span>Download for Linux</span>
-              </a>
-            </div>
-
-            <!-- CURL -->
-            <p class="install__method-label" id="install-macos">Shell (Linux/macOS)</p>
-            <div class="install__terminal" style="margin-bottom: 1.5rem;">
-              <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
-              <pre class="install__terminal-body"><code>$ curl -fsSL https://lumina-lang.web.app/install.sh | sh</code></pre>
-              <button class="install__copy" data-copy="curl -fsSL https://lumina-lang.web.app/install.sh | sh" aria-label="Copy">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                </svg>
+            <!-- OS Tabs Nav -->
+            <div class="install__tabs-nav">
+              <button class="install__tab-btn active" data-tab="windows">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1L9.75 11.25L0 11.25L0 3.449ZM0 12.75L9.75 12.75L9.75 21.9L0 20.55L0 12.75ZM11.25 1.901L24 0L24 11.25L11.25 11.25L11.25 1.901ZM11.25 12.75L24 12.75L24 24L11.25 22.099L11.25 12.75Z"/></svg>
+                Windows
+              </button>
+              <button class="install__tab-btn" data-tab="macos">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.004-2.117 3.669-.54 9.103 1.519 12.087 1.007 1.456 2.196 3.085 3.773 3.03 1.526-.067 2.09-.988 3.935-.988 1.83 0 2.356.988 3.939.954 1.625-.027 2.641-1.477 3.645-2.93 1.153-1.688 1.636-3.325 1.663-3.415-.026-.027-3.182-1.217-3.217-4.826-.026-3.011 2.447-4.454 2.56-4.521-1.407-2.05-3.565-2.279-4.321-2.327-1.835-.152-3.111.967-3.977.967zm.32-4.723C12.472 1.391 11.758.332 10.744.1c-.08-.013-.159-.022-.24-.03-.024-.002-.047-.008-.073-.01-.018-.002-.036-.008-.053-.01-1.042 0-2.197.643-2.88 1.442-.693.816-1.22 1.956-1.025 3.031.022.122.059.24.113.351.008.017.02.03.028.046.012.023.016.05.031.071.868.046 2.056-.566 2.748-1.393.684-.817 1.258-2.046 1.014-3.04z"/></svg>
+                macOS
+              </button>
+              <button class="install__tab-btn" data-tab="linux">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-4.418 0-8 3.582-8 8 0 1.246.286 2.424.796 3.476L2 19l2.707-.902C5.9 19.349 7.828 20 10 20c4.418 0 8-3.582 8-8s-3.582-8-8-8zm0 14.5c-3.59 0-6.5-2.91-6.5-6.5s2.91-6.5 6.5-6.5 6.5 2.91 6.5 6.5-2.91 6.5-6.5 6.5zm3.5-6.5c0 1.933-1.567 3.5-3.5 3.5S8.5 9.933 8.5 8 10.067 4.5 12 4.5s3.5 1.567 3.5 3.5z"/></svg>
+                Linux
               </button>
             </div>
 
-            <!-- Homebrew -->
-            <p class="install__method-label">Homebrew (macOS)</p>
-            <div class="install__terminal" style="margin-bottom: 1.5rem;">
-              <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
-              <pre class="install__terminal-body"><code>$ brew install luminalang/core/lumina</code></pre>
-              <button class="install__copy" data-copy="brew install luminalang/core/lumina" aria-label="Copy">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                </svg>
-              </button>
+            <!-- WINDOWS CONTENT -->
+            <div class="install__tab-content active" id="tab-windows">
+              <div class="install__method-card">
+                <div class="install__method-header">
+                  <div class="install__method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                  <h5 class="install__method-title">PowerShell (Windows)</h5>
+                </div>
+                <div class="install__terminal">
+                  <div class="install__terminal-header"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                  <pre class="install__terminal-body"><code>> irm https://lumina-lang.web.app/install.ps1 | iex</code></pre>
+                </div>
+              </div>
             </div>
 
-            <!-- NPM -->
-            <p class="install__method-label">NPM (Cross-platform)</p>
-            <div class="install__terminal">
-              <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
-              <pre class="install__terminal-body"><code>$ npm install -g @lumina-lang/core</code></pre>
-              <button class="install__copy" data-copy="npm install -g @lumina-lang/core" aria-label="Copy">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                </svg>
-              </button>
+            <!-- MACOS CONTENT -->
+            <div class="install__tab-content" id="tab-macos">
+              <div class="install__method-card">
+                <div class="install__method-header">
+                  <div class="install__method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                  <h5 class="install__method-title">Shell (macOS)</h5>
+                </div>
+                <div class="install__terminal">
+                  <div class="install__terminal-header"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                  <pre class="install__terminal-body"><code>$ curl -fsSL https://lumina-lang.web.app/install.sh | sh</code></pre>
+                </div>
+              </div>
+            </div>
+
+            <!-- LINUX CONTENT -->
+            <div class="install__tab-content" id="tab-linux">
+              <div class="install__method-card">
+                <div class="install__method-header">
+                  <div class="install__method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                  <h5 class="install__method-title">Shell (Linux)</h5>
+                </div>
+                <div class="install__terminal">
+                  <div class="install__terminal-header"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
+                  <pre class="install__terminal-body"><code>$ curl -fsSL https://lumina-lang.web.app/install.sh | sh</code></pre>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="install__card">
-          <div class="install__step">2</div>
-          <h4 class="install__title">Write Your First Program</h4>
-          <p class="install__desc">Create a <code>.lum</code> file</p>
-          <div class="install__terminal">
-            <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
+             <div class="install__card">
+          <h4 class="install__title">Quick Start</h4>
+          <p class="install__desc">Create a <code>hello.lum</code> file and execute it instantly.</p>
+          <div class="install__terminal" style="margin-bottom: 1.5rem;">
+            <div class="install__terminal-header"><img src="/logo.svg" alt="Lumina" width="14" height="14" /> <span style="font-size: 0.7rem; opacity: 0.5; margin-left: 0.5rem;">hello.lum</span></div>
             <pre class="install__terminal-body"><code class="language-lumina">entity App { name: Text }
 let app = App { name: "Lumina" }
 show "Hello, {app.name}!"</code></pre>
           </div>
-        </div>
-        <div class="install__card">
-          <div class="install__step">3</div>
-          <h4 class="install__title">Run It</h4>
-          <p class="install__desc">Execute with the Lumina CLI</p>
           <div class="install__terminal">
-            <div class="install__terminal-header"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
+            <div class="install__terminal-header"><img src="/logo.svg" alt="Lumina" width="14" height="14" /> <span style="font-size: 0.7rem; opacity: 0.5; margin-left: 0.5rem;">Terminal</span></div>
             <pre class="install__terminal-body"><code>$ lumina run hello.lum
-Hello, Lumina!
-
-$ lumina check hello.lum
-✓ No errors found.
-
-$ lumina repl
->>> interactive session</code></pre>
+Hello, Lumina!</code></pre>
           </div>
-        </div>
+        </div>      </div>
       </div>
     </div>
   </section>
@@ -464,7 +460,7 @@ $ lumina repl
   <footer class="footer">
     <div class="container">
       <div class="footer__top">
-        <div class="footer__brand"><img src="/logo.png" alt="Lumina" class="footer__logo" /><span
+        <div class="footer__brand"><img src="/logo.svg" alt="Lumina" class="footer__logo" /><span
             class="footer__name">Lumina</span>
           <p class="footer__tagline">Describe what is true. Lumina figures out what to do.</p>
         </div>
@@ -497,25 +493,49 @@ $ lumina repl
 
   <script type="module" src="/main.js"></script>
   <script>
-    // Local installers hosted on Firebase
-    const windowsExe = '/Lumina-v2.0.0-x64-Setup.exe';
-    const macPkg = '/lumina-setup-macos.pkg';
-    const linuxDeb = '/lumina-setup-linux-amd64.deb';
+    // Installers hosted on Supabase (bypasses Firebase Spark plan restrictions)
+    const windowsExe = 'https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina/Lumina-v2.0.0-x64-Setup.exe';
     
-    // OS Detection for the main Hero button
-    const platform = navigator.userAgent.toLowerCase();
-    const heroBtn = document.getElementById('hero-download-btn');
-    if (heroBtn) {
-      if (platform.includes('win')) {
-        heroBtn.href = windowsExe;
-        heroBtn.innerHTML = heroBtn.innerHTML.replace('Install Lumina', 'Download for Windows');
-      } else if (platform.includes('mac')) {
-        heroBtn.href = macPkg;
-        heroBtn.innerHTML = heroBtn.innerHTML.replace('Install Lumina', 'Download for macOS');
-      } else if (platform.includes('linux')) {
-        heroBtn.href = linuxDeb;
-        heroBtn.innerHTML = heroBtn.innerHTML.replace('Install Lumina', 'Download for Linux');
-      }
+    // Firebase Storage fallbacks for other OSs
+    const storageBucket = 'lumina-lang.firebasestorage.app';
+    const macPkg = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/lumina-setup-macos.pkg?alt=media`;
+    const linuxDeb = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/lumina-setup-linux-amd64.deb?alt=media`;
+    
+    // OS Detection removed to allow manual selection in the Install section
+
+    // Update the static links in the tabs
+    const winLink = document.getElementById('download-windows-tab');
+    const macLink = document.getElementById('download-macos-tab');
+    const linLink = document.getElementById('download-linux-tab');
+    
+    if (winLink) winLink.href = windowsExe;
+    if (macLink) macLink.href = macPkg;
+    if (linLink) linLink.href = linuxDeb;
+
+    // Tab Switching Logic
+    const tabBtns = document.querySelectorAll('.install__tab-btn');
+    const tabContents = document.querySelectorAll('.install__tab-content');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabId = btn.getAttribute('data-tab');
+        
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        
+        btn.classList.add('active');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+      });
+    });
+
+    // Auto-select tab based on platform
+    const platform = navigator.platform.toLowerCase();
+    if (platform.includes('win')) {
+      document.querySelector('[data-tab="windows"]')?.click();
+    } else if (platform.includes('mac')) {
+      document.querySelector('[data-tab="macos"]')?.click();
+    } else if (platform.includes('linux')) {
+      document.querySelector('[data-tab="linux"]')?.click();
     }
   </script>
 </body>

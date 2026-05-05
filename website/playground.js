@@ -67,7 +67,7 @@ export async function runLuminaScript(sourceText) {
     runtime.free();
 
   } catch (e) {
-      // constructor failed - check if it's a JSON diagnostic list
+      // constructor failed check if it's a JSON diagnostic list
       try {
           const diags = JSON.parse(e.toString());
           result.error = diags;

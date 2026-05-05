@@ -204,7 +204,7 @@ function __wbg_get_imports() {
 
 const LuminaRuntimeFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_luminaruntime_free(ptr >>> 0, 1));
+    new FinalizationRegistry(ptr => wasm.__wbg_luminaruntime_free(ptr >>> 0, 1));
 
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);

@@ -4,11 +4,18 @@ Lumina v1.8 "Experience Release" offers multiple ways to get started on your mac
 
 ## 1. Automated Installer (Recommended)
 
-The easiest way to install Lumina on Linux and macOS is via the one-line installer script. It automatically detects your platform and verifies the download.
+The easiest way to install Lumina is via the one-line installer script. It automatically detects your platform and downloads the correct binaries.
 
+**Linux / macOS:**
 ```bash
-curl -fsSL https://lumina-lang.dev/install.sh | sh
+curl -fsSL https://lumina-lang.web.app/install.sh | sh
 ```
+
+**Windows (PowerShell):**
+```powershell
+irm https://lumina-lang.web.app/install.ps1 | iex
+```
+*(Or using curl: `curl.exe -fsSL https://lumina-lang.web.app/install.ps1 | powershell -noprofile -c -`)*
 
 ## 2. Homebrew (macOS)
 

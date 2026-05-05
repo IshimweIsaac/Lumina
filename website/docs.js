@@ -45,7 +45,7 @@ The system reacts automatically when those facts change.`,
       },
       {
         heading: "Build Something in 5 Minutes",
-        text: "Let's build a temperature monitor — from zero to reactive — in three steps.",
+        text: "Let's build a temperature monitor from zero to reactive in three steps.",
         guidedSteps: [
           {
             step: 1,
@@ -59,7 +59,7 @@ The system reacts automatically when those facts change.`,
           {
             step: 2,
             title: "Add a rule",
-            desc: "Rules watch for moments of transition — this fires the instant isHot becomes true.",
+            desc: "Rules watch for moments of transition this fires the instant isHot becomes true.",
             code: `rule "Overheat"
 when Sensor.isHot becomes true {
   show "Warning: temperature is high!"
@@ -67,7 +67,7 @@ when Sensor.isHot becomes true {
           },
           {
             step: 3,
-            title: "Run it — watch it react",
+            title: "Run it watch it react",
             desc: "Create a sensor, change the temperature, and the rule fires automatically.",
             code: `entity Sensor {
   temperature: Number
@@ -133,7 +133,7 @@ setInterval(check, 5000)`
         heading: "The Absolute Basic: Entities",
         text: `In Lumina, everything starts with an **entity**.
 
-An entity is a blueprint for something in your system — like a sensor, a light, or a user. You saw this in "Getting Started" when we wrote \`entity Sensor { ... }\`.
+An entity is a blueprint for something in your system like a sensor, a light, or a user. You saw this in "Getting Started" when we wrote \`entity Sensor { ... }\`.
 
 Let's break it down with the simplest possible example:`,
         code: `entity Thermometer {\n  current_temp: Number\n}\n\n-- This is a blueprint. Nothing exists yet.`,
@@ -141,7 +141,7 @@ Let's break it down with the simplest possible example:`,
       },
       {
         heading: "Instances: Bringing the World to Life",
-        text: `A blueprint alone does nothing. You need to create a real **instance** — an actual thing in your system.
+        text: `A blueprint alone does nothing. You need to create a real **instance** an actual thing in your system.
 
 The \`let\` keyword gives a name to an instance:`,
         code: `entity Thermometer {\n  current_temp: Number\n}\n\n-- NOW something exists\nlet t1 = Thermometer { current_temp: 22 }\n\nshow t1.current_temp`,
@@ -149,11 +149,11 @@ The \`let\` keyword gives a name to an instance:`,
       },
       {
         heading: "Stored Fields",
-        text: `\`current_temp: Number\` is a **stored field** — data you control directly.
+        text: `\`current_temp: Number\` is a **stored field** data you control directly.
 
 You set it when you create an instance. It stays exactly as you set it until you explicitly change it.
 
-In Lumina's earliest version (v1.3), this was all there was — entities that hold data. No reactions yet. Just the foundation.`
+In Lumina's earliest version (v1.3), this was all there was entities that hold data. No reactions yet. Just the foundation.`
       },
       {
         heading: "Changing State: The 'update' Command",
@@ -168,11 +168,11 @@ Instead, you **update the world**. The \`update\` keyword changes a field on a s
         text: `Lumina separates two things:
 
 - **State** → what exists (\`count\`, \`temperature\`, \`isHot\`)
-- **Logic** → what should happen (rules, derived fields — coming next)
+- **Logic** → what should happen (rules, derived fields coming next)
 
 This separation is what makes Lumina powerful. You describe the world first, and then you describe the truth about that world. The engine handles the rest.
 
-Remember the \`:=\` from Getting Started? That's where logic begins. Next, we'll learn how fields can **live** — updating themselves automatically.`
+Remember the \`:=\` from Getting Started? That's where logic begins. Next, we'll learn how fields can **live** updating themselves automatically.`
       }
     ]
   },
@@ -188,7 +188,7 @@ Remember the \`:=\` from Getting Started? That's where logic begins. Next, we'll
       },
       {
         heading: "What Just Happened?",
-        text: `The \`:=\` operator created a **derived field**. Unlike a stored field, you never set it manually — it calculates itself from other fields.
+        text: `The \`:=\` operator created a **derived field**. Unlike a stored field, you never set it manually it calculates itself from other fields.
 
 When \`level\` was 50, \`is_full\` was automatically \`false\`.
 When you updated \`level\` to 95, \`is_full\` instantly became \`true\`.
@@ -212,7 +212,7 @@ No if-statements. No recalculation code. The truth stays true, automatically.`
     sections: [
       {
         heading: "See It First",
-        text: `Run this. Notice that the rule fires exactly once — at the moment of change:`,
+        text: `Run this. Notice that the rule fires exactly once at the moment of change:`,
         code: `entity Light {\n  isOn: Boolean\n}\n\nlet lamp = Light { isOn: false }\n\nrule "Welcome Home"\nwhen lamp.isOn becomes true {\n  show "The light was turned on!"\n}\n\n-- This triggers the rule\nupdate lamp.isOn to true\n\n-- This does NOT trigger (already true)\nupdate lamp.isOn to true`,
         file: "rules.lum"
       },
@@ -220,7 +220,7 @@ No if-statements. No recalculation code. The truth stays true, automatically.`
         heading: "What Just Happened?",
         text: `The keyword \`becomes true\` is an **edge trigger**. It only fires at the exact moment a value transitions from \`false\` to \`true\`.
 
-Setting \`isOn\` to \`true\` again does nothing — there's no transition. This is how Lumina prevents alert storms and duplicate reactions.
+Setting \`isOn\` to \`true\` again does nothing there's no transition. This is how Lumina prevents alert storms and duplicate reactions.
 
 In traditional code, you'd need a flag variable to track "has this already fired?" Lumina handles that automatically.`
       },
@@ -230,7 +230,7 @@ In traditional code, you'd need a flag variable to track "has this already fired
 - Add a second rule for \`becomes false\` that shows "Light turned off!"
 - Update \`lamp.isOn\` to \`false\` after turning it on
 
-**Key Takeaway:** Rules react to transitions, not states. \`becomes\` is your edge detector — it sees the moment of change.`
+**Key Takeaway:** Rules react to transitions, not states. \`becomes\` is your edge detector it sees the moment of change.`
       }
     ]
   },
@@ -248,7 +248,7 @@ In traditional code, you'd need a flag variable to track "has this already fired
         heading: "What Just Happened?",
         text: `\`let\` binds a name to an instance. Once bound, the name always refers to that specific instance.
 
-You can have multiple instances of the same entity — each with its own data. This is how you model real systems: many sensors, many users, many devices.`
+You can have multiple instances of the same entity each with its own data. This is how you model real systems: many sensors, many users, many devices.`
       },
       {
         heading: "Try It Yourself",
@@ -264,7 +264,7 @@ You can have multiple instances of the same entity — each with its own data. T
     sections: [
       {
         heading: "See It First",
-        text: `Run this. The second update is physically impossible — watch what Lumina does:`,
+        text: `Run this. The second update is physically impossible watch what Lumina does:`,
         code: `entity Battery {\n  @range 0 to 100\n  charge: Number\n}\n\nlet b = Battery { charge: 50 }\n\nupdate b.charge to 80\nshow b.charge\n\n-- This is impossible. Lumina rolls back.\nupdate b.charge to 150`,
         file: "safety.lum"
       },
@@ -272,7 +272,7 @@ You can have multiple instances of the same entity — each with its own data. T
         heading: "What Just Happened?",
         text: `\`@range 0 to 100\` tells Lumina the physical limits of this field. When you tried to set charge to 150, the engine **rolled back the entire update** as if it never happened.
 
-This isn't just validation — it's a safety guarantee. Your system state is never corrupt, never "half-updated." The engine either commits everything or nothing.`
+This isn't just validation it's a safety guarantee. Your system state is never corrupt, never "half-updated." The engine either commits everything or nothing.`
       },
       {
         heading: "Try It Yourself",
@@ -290,13 +290,13 @@ Then add a derived field: \`is_critical := charge < 15\`. Now your battery has b
     sections: [
       {
         heading: "See It First",
-        text: `Run this. Watch what happens when the problem appears — and when it goes away:`,
+        text: `Run this. Watch what happens when the problem appears and when it goes away:`,
         code: `entity Machine {\n  is_overheating: Boolean\n}\n\nlet m1 = Machine { is_overheating: false }\n\nrule "Heat Guard"\nwhen Machine.is_overheating becomes true {\n  alert severity: "critical", message: "Engine temp critical!"\n  \n  on clear {\n    show "Engine has cooled down. Resuming."\n  }\n}\n\nupdate m1.is_overheating to true\nupdate m1.is_overheating to false`,
         file: "alerts.lum"
       },
       {
         heading: "What Just Happened?",
-        text: `An \`alert\` in Lumina isn't a one-time message — it's a **living state**. It persists as long as the condition is true.
+        text: `An \`alert\` in Lumina isn't a one-time message it's a **living state**. It persists as long as the condition is true.
 
 The \`on clear\` block runs automatically the moment the condition resolves. No timers, no polling, no "check if problem is gone" loops.
 
@@ -306,7 +306,7 @@ In traditional code, you'd need: a flag to track alert state, a background job t
         heading: "Try It Yourself",
         text: `Change the severity to \`"warning"\`. Add a second machine and trigger both alerts.
 
-**Key Takeaway:** Alerts are managed lifecycle objects. They fire, persist, and auto-resolve — no manual cleanup required.`
+**Key Takeaway:** Alerts are managed lifecycle objects. They fire, persist, and auto-resolve no manual cleanup required.`
       }
     ]
   },
@@ -342,13 +342,13 @@ In traditional code, you'd iterate over collections, manage subscriptions, and r
     sections: [
       {
         heading: "See It First",
-        text: `Run this. The function converts Fahrenheit to Celsius — and it's used in a derived field:`,
+        text: `Run this. The function converts Fahrenheit to Celsius and it's used in a derived field:`,
         code: `fn to_celsius(f: Number) -> Number {\n  (f - 32) * 5 / 9\n}\n\nentity WeatherStation {\n  temp_f: Number\n  temp_c := to_celsius(temp_f)\n}\n\nlet ws = WeatherStation { temp_f: 68 }\nshow ws.temp_c`,
         file: "functions.lum"
       },
       {
         heading: "What Just Happened?",
-        text: `\`fn\` defines a **pure function**. It calculates a value but cannot change any state. This is intentional — pure functions are predictable, testable, and safe to use inside derived fields.
+        text: `\`fn\` defines a **pure function**. It calculates a value but cannot change any state. This is intentional pure functions are predictable, testable, and safe to use inside derived fields.
 
 Because \`temp_c\` uses \`to_celsius\` in a derived field, it automatically updates whenever \`temp_f\` changes. The function is part of the reactive graph.`
       },
@@ -374,13 +374,13 @@ Because \`temp_c\` uses \`to_celsius\` in a derived field, it automatically upda
         heading: "What Just Happened?",
         text: `Lists are strongly typed collections. You can access elements by index and use built-in functions like \`count\`, \`sum\`, \`min\`, \`max\` on them.
 
-Lists work seamlessly with the rest of Lumina — you can store them in entity fields and use them in derived calculations.`
+Lists work seamlessly with the rest of Lumina you can store them in entity fields and use them in derived calculations.`
       },
       {
         heading: "Try It Yourself",
         text: `Try adding more scores to the list. Use \`sum(scores)\` and \`max(scores)\` to explore the built-in functions.
 
-**Key Takeaway:** Lists give you collections with built-in aggregate functions — no loops needed.`
+**Key Takeaway:** Lists give you collections with built-in aggregate functions no loops needed.`
       }
     ]
   },
@@ -390,7 +390,7 @@ Lists work seamlessly with the rest of Lumina — you can store them in entity f
     sections: [
       {
         heading: "See It First",
-        text: `Run this. One entity references another — creating a relationship:`,
+        text: `Run this. One entity references another creating a relationship:`,
         code: `entity Room {\n  name: Text\n}\n\nentity Sensor {\n  ref location: Room\n  value: Number\n}\n\nlet r1 = Room { name: "Lab A" }\nlet s1 = Sensor { location: r1, value: 25 }\n\nshow s1.location.name`,
         file: "refs.lum"
       },
@@ -398,13 +398,13 @@ Lists work seamlessly with the rest of Lumina — you can store them in entity f
         heading: "What Just Happened?",
         text: `\`ref location: Room\` creates a **relationship** between Sensor and Room. You can traverse it with dot notation: \`s1.location.name\`.
 
-This builds a living data graph. When the Room's name changes, any Sensor referencing it sees the update instantly — no JOIN queries, no manual lookups.`
+This builds a living data graph. When the Room's name changes, any Sensor referencing it sees the update instantly no JOIN queries, no manual lookups.`
       },
       {
         heading: "Try It Yourself",
         text: `Create a second room and a second sensor. Add a derived field to Sensor: \`room_name := location.name\` and check it.
 
-**Key Takeaway:** \`ref\` connects entities into a graph. Traverse relationships with dot notation — everything stays reactive.`
+**Key Takeaway:** \`ref\` connects entities into a graph. Traverse relationships with dot notation everything stays reactive.`
       }
     ]
   },
@@ -414,7 +414,7 @@ This builds a living data graph. When the Room's name changes, any Sensor refere
     sections: [
       {
         heading: "See It First",
-        text: `Run this. The rule waits 5 seconds before firing — filtering out brief spikes:`,
+        text: `Run this. The rule waits 5 seconds before firing filtering out brief spikes:`,
         code: `entity Link {\n  is_down: Boolean\n}\n\nlet l = Link { is_down: false }\n\nrule "Stable Outage"\nwhen Link.is_down becomes true for 5s {\n  alert severity: "high", message: "Link is officially DOWN"\n}\n\nupdate l.is_down to true\n-- The rule waits 5 seconds before firing.`,
         file: "temporal.lum"
       },
@@ -422,21 +422,21 @@ This builds a living data graph. When the Room's name changes, any Sensor refere
         heading: "What Just Happened?",
         text: `\`for 5s\` is a **duration qualifier**. The condition must remain true for the entire duration before the rule fires.
 
-If \`is_down\` flips back to \`false\` within 5 seconds, the rule cancels — no alert. This filters transient noise automatically.
+If \`is_down\` flips back to \`false\` within 5 seconds, the rule cancels no alert. This filters transient noise automatically.
 
 In traditional code, you'd need timers, cancellation tokens, and careful state management. Lumina does it with two words.`
       },
       {
         heading: "Try It Yourself",
-        text: `Change the duration to \`10s\`. Then try adding \`update l.is_down to false\` right after setting it to true — the rule should cancel.
+        text: `Change the duration to \`10s\`. Then try adding \`update l.is_down to false\` right after setting it to true the rule should cancel.
 
-**Key Takeaway:** \`for\` filters noise. Only sustained conditions trigger reactions — brief spikes are ignored.`
+**Key Takeaway:** \`for\` filters noise. Only sustained conditions trigger reactions brief spikes are ignored.`
       }
     ]
   },
   chapter11: {
     title: "Frequency & Flapping",
-    intro: "Sometimes the problem isn't one failure — it's a pattern of failures.",
+    intro: "Sometimes the problem isn't one failure it's a pattern of failures.",
     sections: [
       {
         heading: "See It First",
@@ -448,7 +448,7 @@ In traditional code, you'd need timers, cancellation tokens, and careful state m
         heading: "What Just Happened?",
         text: `\`3 times within 60s\` is a **frequency trigger**. It counts how many times a transition happens within a time window.
 
-Three false-transitions in 60 seconds means the power source is unstable — not just failing once, but oscillating. Lumina tracks this pattern internally without any counters or timers in your code.`
+Three false-transitions in 60 seconds means the power source is unstable not just failing once, but oscillating. Lumina tracks this pattern internally without any counters or timers in your code.`
       },
       {
         heading: "Try It Yourself",
@@ -472,13 +472,13 @@ Three false-transitions in 60 seconds means the power source is unstable — not
         heading: "What Just Happened?",
         text: `\`Timestamp\` is a built-in type. \`now()\` captures the current time, and \`.age\` tells you how long ago it was.
 
-\`is_stale := last_seen.age > 10s\` is a derived field that becomes \`true\` automatically when 10 seconds pass without an update. Time is a first-class citizen in Lumina — no cron jobs, no polling intervals.`
+\`is_stale := last_seen.age > 10s\` is a derived field that becomes \`true\` automatically when 10 seconds pass without an update. Time is a first-class citizen in Lumina no cron jobs, no polling intervals.`
       },
       {
         heading: "Try It Yourself",
         text: `Add a rule that fires when a heartbeat becomes stale. Then update \`last_seen\` to \`now()\` to reset the timer.
 
-**Key Takeaway:** \`Timestamp\` and \`.age\` let you build time-aware logic declaratively. Staleness detection, timeouts, and SLA monitoring — all without loops.`
+**Key Takeaway:** \`Timestamp\` and \`.age\` let you build time-aware logic declaratively. Staleness detection, timeouts, and SLA monitoring all without loops.`
       }
     ]
   },
@@ -488,7 +488,7 @@ Three false-transitions in 60 seconds means the power source is unstable — not
     sections: [
       {
         heading: "See It First",
-        text: `This declares a connection to a weather API — data flows in automatically:`,
+        text: `This declares a connection to a weather API data flows in automatically:`,
         code: `external WeatherAPI sync on "https://api.weather.com/v1" {\n  temperature: Number\n  humidity: Number\n}\n\nrule "Rain Check"\nwhen WeatherAPI.humidity becomes > 90 {\n  show "Humidity spike in external data!"\n}`,
         file: "external.lum"
       },
@@ -496,7 +496,7 @@ Three false-transitions in 60 seconds means the power source is unstable — not
         heading: "What Just Happened?",
         text: `\`external\` declares an entity whose data comes from outside Lumina. The \`sync on\` clause tells the engine where to pull data from.
 
-Once declared, external entities work exactly like regular entities — you can write derived fields, rules, and aggregates against them. The engine handles polling, parsing, and synchronization.`
+Once declared, external entities work exactly like regular entities you can write derived fields, rules, and aggregates against them. The engine handles polling, parsing, and synchronization.`
       },
       {
         heading: "Real-World Connection",
@@ -517,7 +517,7 @@ The reactive graph extends beyond your code into the real world.
     sections: [
       {
         heading: "See It First",
-        text: `This rule locks an airlock when any node goes critical — writing back to an external device:`,
+        text: `This rule locks an airlock when any node goes critical writing back to an external device:`,
         code: `external AirLock {\n  is_locked: Boolean\n}\n\nentity Node {\n  temp: Number\n  is_critical := temp > 100\n}\n\nrule "Emergency Lockdown"\nwhen any Node.is_critical becomes true {\n  write AirLock.is_locked to true\n}`,
         file: "writeback.lum"
       },
@@ -525,7 +525,7 @@ The reactive graph extends beyond your code into the real world.
         heading: "What Just Happened?",
         text: `\`write\` sends a command to an external system. When any Node's temperature exceeds 100, Lumina automatically locks the AirLock.
 
-This closes the loop: data comes **in** via \`external\`, reactions go **out** via \`write\`. Your monitoring system doesn't just watch — it acts.`
+This closes the loop: data comes **in** via \`external\`, reactions go **out** via \`write\`. Your monitoring system doesn't just watch it acts.`
       },
       {
         heading: "The Full Picture",
@@ -539,15 +539,15 @@ This closes the loop: data comes **in** via \`external\`, reactions go **out** v
 - **External** connects to the real world
 - **Write** sends actions back
 
-All of this — with no loops, no event listeners, no state management. Just truth.
+All of this with no loops, no event listeners, no state management. Just truth.
 
-**Key Takeaway:** \`write\` completes the reactive loop. Lumina observes, decides, and acts — declaratively.`
+**Key Takeaway:** \`write\` completes the reactive loop. Lumina observes, decides, and acts declaratively.`
       }
     ]
   },
   error_reference: {
     title: "Error Reference",
-    intro: "When something goes wrong, Lumina doesn't just crash — it teaches you what happened and how to fix it.",
+    intro: "When something goes wrong, Lumina doesn't just crash it teaches you what happened and how to fix it.",
     sections: [
       {
         heading: "L-Series (Compile Time)",
@@ -561,7 +561,7 @@ All of this — with no loops, no event listeners, no state management. Just tru
       },
       {
         heading: "R-Series (Runtime)",
-        text: `These errors occur during execution — the data was valid at compile time, but something went wrong with the actual values.`,
+        text: `These errors occur during execution the data was valid at compile time, but something went wrong with the actual values.`,
         table: [
           ["R002", "Div by Zero", "Logic error in expression."],
           ["R006", "Range Violation", "@range check failed."],

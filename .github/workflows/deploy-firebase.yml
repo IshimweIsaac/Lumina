@@ -118,7 +118,9 @@ jobs:
           cp *.vsix ../../website/dist/ || true
 
       - name: Copy install script
-        run: cp install.sh website/dist/
+        run: |
+          cp install.sh website/dist/
+          cp install.ps1 website/dist/
         
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0

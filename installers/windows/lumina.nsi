@@ -63,6 +63,15 @@ Section "Lumina Runtime" SecRuntime
   ; Add to PATH (System wide)
   ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR"
 
+  ; --- File Associations (.lum) ---
+  WriteRegStr HKCR ".lum" "" "LuminaSourceFile"
+  WriteRegStr HKCR "LuminaSourceFile" "" "Lumina Source File"
+  WriteRegStr HKCR "LuminaSourceFile\DefaultIcon" "" "$INSTDIR\lumina.exe,0"
+  WriteRegStr HKCR "LuminaSourceFile\shell\open\command" "" '"$INSTDIR\lumina.exe" run "%1"'
+  
+  ; Notify Shell of changes
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)'
+
   ; Uninstaller
   WriteUninstaller "$INSTDIR\uninstall.exe"
   
@@ -94,4 +103,11 @@ Section "Uninstall"
   ; Clean registry
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
   DeleteRegKey HKLM "Software\${COMPANYNAME}\${APPNAME}"
+  
+  ; Remove File Associations
+  DeleteRegKey HKCR ".lum"
+  DeleteRegKey HKCR "LuminaSourceFile"
+  
+  ; Notify Shell of changes
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)'
 SectionEnd

@@ -9,7 +9,7 @@ set -e
 # --- Configuration ---
 LUMINA_HOME="${LUMINA_HOME:-$HOME/.lumina}"
 BIN_DIR="$LUMINA_HOME/bin"
-BASE_URL="https://lumina-lang.web.app"
+BASE_URL="https://github.com/IshimweIsaac/Lumina/releases/download/v2.0.0"
 SKIP_CHECKSUM="${LUMINA_SKIP_CHECKSUM:-0}"
 
 # --- Output Formatting ---

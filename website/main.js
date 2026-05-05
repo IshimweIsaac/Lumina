@@ -1,5 +1,5 @@
 /* ────────────────────────────────────────────────────
-   Lumina Website — Interactions & Animations
+   Lumina Website Interactions & Animations
    ──────────────────────────────────────────────────── */
 
 import './style.css';
@@ -37,7 +37,7 @@ window.addEventListener('scroll', () => {
   }
 });
 
-// Toggle Mobile Menu — uses .active class (matches CSS)
+// Toggle Mobile Menu uses .active class (matches CSS)
 navBurger?.addEventListener('click', () => {
   navLinks?.classList.toggle('active');
   navBurger?.classList.toggle('active');
@@ -142,7 +142,7 @@ function highlightDetectedOS() {
   }
 }
 
-// (Removed direct download link logic — buttons now point to #install)
+// (Removed direct download link logic buttons now point to #install)
 
 window.addEventListener('DOMContentLoaded', () => {
   highlightDetectedOS();
@@ -462,7 +462,7 @@ function renderDocTab(tabKey) {
         html += `
           <div class="code-window code-window--doc interactive-cell">
             <div class="code-window__header">
-              <div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div>
+              <div class="code-window__dots"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div>
               <span class="code-window__filename">${sec.file}</span>
               <button class="btn-run-cell">▶ Run Live</button>
             </div>
@@ -476,7 +476,7 @@ function renderDocTab(tabKey) {
       } else {
         html += `
           <div class="code-window code-window--doc">
-            ${sec.file ? `<div class="code-window__header"><div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div><span class="code-window__filename">${sec.file}</span></div>` : ''}
+            ${sec.file ? `<div class="code-window__header"><div class="code-window__dots"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div><span class="code-window__filename">${sec.file}</span></div>` : ''}
             <pre class="code-window__body"><code>${highlightLumina(sec.code)}</code></pre>
           </div>
         `;
@@ -489,12 +489,10 @@ function renderDocTab(tabKey) {
         <div class="gs-install__cmd-wrap">
           <div class="gs-install__label">Terminal</div>
           <div class="gs-install__cmd">
-            <code>curl -fsSL https://lumina-lang.dev/install.sh | sh</code>
-            <button class="gs-install__copy" onclick="navigator.clipboard.writeText('curl -fsSL https://lumina-lang.dev/install.sh | sh').then(()=>{this.textContent='✓ Copied';setTimeout(()=>this.textContent='📋',2000)})">📋</button>
+            <code>curl -fsSL https://lumina-lang.web.app/install.sh | sh</code>
+            <button class="gs-install__copy" onclick="navigator.clipboard.writeText('curl -fsSL https://lumina-lang.web.app/install.sh | sh').then(()=>{this.textContent='✓ Copied';setTimeout(()=>this.textContent='📋',2000)})">📋</button>
           </div>
         </div>
-        <div class="gs-install__divider"><span>or</span></div>
-        <a href="/" class="btn btn--primary btn--lg gs-install__playground">🎮 Try it instantly in the Playground</a>
       </div>`;
     }
 
@@ -514,7 +512,7 @@ function renderDocTab(tabKey) {
         const isStepInteractive = s.file && s.file.endsWith('.lum');
         html += `<div class="gs-step"><div class="gs-step__header"><span class="gs-step__number">0${s.step}</span><div><h5 class="gs-step__title">${s.title}</h5><p class="gs-step__desc">${s.desc}</p></div></div>`;
         if (isStepInteractive) {
-          html += `<div class="code-window code-window--doc interactive-cell"><div class="code-window__header"><div class="code-window__dots"><img src="/logo.png" alt="Lumina" width="14" height="14" /></div><span class="code-window__filename">${s.file}</span><button class="btn-run-cell">▶ Run Live</button></div><div class="interactive-editor-wrap"><textarea class="interactive-textarea" spellcheck="false">${s.code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea><pre class="interactive-highlight"><code>${highlightLumina(s.code)}</code></pre></div><div class="interactive-output" style="display:none;"></div></div>`;
+          html += `<div class="code-window code-window--doc interactive-cell"><div class="code-window__header"><div class="code-window__dots"><img src="/logo.svg" alt="Lumina" width="14" height="14" /></div><span class="code-window__filename">${s.file}</span><button class="btn-run-cell">▶ Run Live</button></div><div class="interactive-editor-wrap"><textarea class="interactive-textarea" spellcheck="false">${s.code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea><pre class="interactive-highlight"><code>${highlightLumina(s.code)}</code></pre></div><div class="interactive-output" style="display:none;"></div></div>`;
         } else {
           html += `<div class="code-window code-window--doc"><pre class="code-window__body"><code>${highlightLumina(s.code)}</code></pre></div>`;
         }

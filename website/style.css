@@ -1,5 +1,5 @@
 /* ────────────────────────────────────────────────────
-   Lumina — Design System & Landing Page Styles
+   Lumina Design System & Landing Page Styles
    ──────────────────────────────────────────────────── */
 
 /* ─── CSS VARIABLES ─── */
@@ -1081,7 +1081,7 @@ code { font-family: var(--ff-mono); font-size: 0.88em; }
 }
 
 /* ═══════════════════════════════════════════════════
-   RESPONSIVE — LANDING PAGE
+   RESPONSIVE LANDING PAGE
    ═══════════════════════════════════════════════════ */
 
 /* ── Hamburger Menu Animation ── */
@@ -2065,7 +2065,7 @@ code { font-family: var(--ff-mono); font-size: 0.88em; }
 }
 
 /* ═══════════════════════════════════════════════════
-   GETTING STARTED — CONVERSION FUNNEL
+   GETTING STARTED CONVERSION FUNNEL
    ═══════════════════════════════════════════════════ */
 
 /* ── Hook Section ── */
@@ -2454,4 +2454,139 @@ code { font-family: var(--ff-mono); font-size: 0.88em; }
   .gs-nextsteps { grid-template-columns: 1fr; }
   .gs-install__cmd { flex-wrap: wrap; }
   .gs-install__cmd code { font-size: var(--fs-xs); word-break: break-all; }
+}
+
+/* INSTALL TABS */
+.install__tabs-nav {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.4rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 2rem;
+}
+
+.install__tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.install__tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-light);
+}
+
+.install__tab-btn.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 4px 12px rgba(124, 131, 255, 0.3);
+}
+
+.install__tab-content {
+  display: none;
+  animation: fadeInStep 0.3s ease;
+}
+
+.install__tab-content.active {
+  display: block;
+}
+
+.install__method-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.install__method-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.install__method-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(124, 131, 255, 0.1);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-light);
+}
+
+.install__method-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+@keyframes fadeInStep {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* TERMINAL POLISH */
+.install__terminal {
+  background: #0d1117 !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+/* INSTALL SCALING */
+.install__grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.install__card {
+  padding: 2.5rem !important;
+}
+
+.install__title {
+  font-size: 1.8rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.install__desc {
+  font-size: 1.1rem !important;
+  margin-bottom: 2rem !important;
+}
+
+.install__method-title {
+  font-size: 1.2rem !important;
+}
+
+.install__tab-btn {
+  padding: 1rem !important;
+  font-size: 1rem !important;
+}
+
+.install__method-card {
+  padding: 2rem !important;
+}
+
+@media (max-width: 1024px) {
+  .install__grid {
+    grid-template-columns: 1fr;
+  }
 }
