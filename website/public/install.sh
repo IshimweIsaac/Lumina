@@ -9,7 +9,7 @@ set -e
 # --- Configuration ---
 LUMINA_HOME="${LUMINA_HOME:-$HOME/.lumina}"
 BIN_DIR="$LUMINA_HOME/bin"
-BASE_URL="https://lumina-lang.web.app"
+BASE_URL="https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina"
 SKIP_CHECKSUM="${LUMINA_SKIP_CHECKSUM:-0}"
 
 # --- Output Formatting ---
@@ -47,7 +47,7 @@ detect_platform() {
 
 PLATFORM=$(detect_platform)
 if [ -z "$PLATFORM" ]; then
-    log_error "Unsupported platform ($OS $ARCH). Please download manually from: https://lumina-lang.web.app/docs"
+    log_error "Unsupported platform ($OS $ARCH). Please download manually from: https://lumina-lang.dev/docs/install"
 fi
 
 # --- Download & Verify ──────────────────────────────────
@@ -64,6 +64,7 @@ download_binary() {
         URL_SUFFIX="$PLATFORM-lsp"
     fi
     
+    # Notice the hosted URL structure based on the online script
     URL="$BASE_URL/lumina-$URL_SUFFIX"
     DEST="$BIN_DIR/$BIN_NAME"
     
@@ -169,3 +170,4 @@ if [ -x "$BIN_DIR/lumina" ]; then
     echo "    curl -fsSL https://lumina-lang.web.app/install.sh | sh ${GREEN}&& . ~/.lumina/env${RESET}"
     echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 fi
+

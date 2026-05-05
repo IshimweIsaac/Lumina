@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $LUMINA_HOME = if ($env:LUMINA_HOME) { $env:LUMINA_HOME } else { Join-Path $HOME ".lumina" }
 $BIN_DIR = Join-Path $LUMINA_HOME "bin"
-$BASE_URL = "https://lumina-lang.web.app"
+$BASE_URL = "https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina"
 
 # --- Output Formatting ---
 function Write-Info { param([string]$msg) Write-Host "[INFO] $msg" -ForegroundColor Cyan }
@@ -40,11 +40,11 @@ function Download-Binary {
     }
 }
 
-# The filenames uploaded by CI to Firebase Hosting:
-# lumina-windows-x64
-# lumina-windows-x64-lsp
-Download-Binary -Name "core" -UrlSuffix "windows-x64" -BinName "lumina.exe"
-Download-Binary -Name "lsp" -UrlSuffix "windows-x64-lsp" -BinName "lumina-lsp.exe"
+# The filenames uploaded to Supabase Storage:
+# lumina-windows-x64.exe
+# lumina-windows-x64-lsp.exe
+Download-Binary -Name "core" -UrlSuffix "windows-x64.exe" -BinName "lumina.exe"
+Download-Binary -Name "lsp" -UrlSuffix "windows-x64-lsp.exe" -BinName "lumina-lsp.exe"
 
 # --- Path Injection ---
 $UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")

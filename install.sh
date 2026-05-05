@@ -9,7 +9,7 @@ set -e
 # --- Configuration ---
 LUMINA_HOME="${LUMINA_HOME:-$HOME/.lumina}"
 BIN_DIR="$LUMINA_HOME/bin"
-BASE_URL="https://lumina-lang.web.app"
+BASE_URL="https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina"
 SKIP_CHECKSUM="${LUMINA_SKIP_CHECKSUM:-0}"
 
 # --- Output Formatting ---

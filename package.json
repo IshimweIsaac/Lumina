@@ -12,10 +12,16 @@
     "type": "git",
     "url": "https://github.com/IshimweIsaac/Lumina"
   },
-  "keywords": ["lumina", "programming", "language", "iot"],
+  "keywords": [
+    "lumina",
+    "programming",
+    "language",
+    "iot"
+  ],
   "author": "Isaac Ishimwe",
   "license": "MIT",
   "dependencies": {
+    "@ziglang/cli": "^0.0.14",
     "follow-redirects": "^1.15.5"
   }
 }
