@@ -196,7 +196,7 @@ fn cmd_setup() {
         // Try to download the .vsix from the website for offline install
         println!("→ No local extension found. Downloading from server...");
         let download_dest = exe_dir.join(vsix_name);
-        let url = format!("https://lumina-lang.web.app/{}", vsix_name);
+        let url = format!("https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina/{}", vsix_name);
         match download_vsix(&url, &download_dest) {
             Ok(_) => {
                 println!("  ✓ Downloaded {}", vsix_name);
