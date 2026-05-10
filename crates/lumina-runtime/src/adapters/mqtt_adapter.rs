@@ -7,7 +7,7 @@ use paho_mqtt as mqtt;
 pub struct MqttAdapter {
     entity: String,
     cli: mqtt::Client,
-    parsed_rx: std::sync::Mutex<Receiver<(String, Value)>>,
+    parsed_rx: std::sync::Mutex<Receiver<(String, String, Value)>>,
     pub_topic: String,
 }
 
@@ -44,7 +44,13 @@ impl MqttAdapter {
                 if let Some(msg) = msg_opt {
                     if let Ok(json) = serde_json::from_slice::<serde_json::Value>(msg.payload()) {
                         if let serde_json::Value::Object(map) = json {
+                            let instance = map.get("id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| "default".to_string());
+
                             for (key, val) in map {
+                                if key == "id" { continue; }
                                 let typed_val = match val {
                                     serde_json::Value::Number(n) => n.as_f64().map(Value::Number),
                                     serde_json::Value::String(s) => Some(Value::Text(s)),
@@ -52,7 +58,7 @@ impl MqttAdapter {
                                     _ => None,
                                 };
                                 if let Some(v) = typed_val {
-                                    if tx.send((key, v)).is_err() {
+                                    if tx.send((instance.clone(), key, v)).is_err() {
                                         return;
                                     }
                                 }
@@ -74,7 +80,7 @@ impl MqttAdapter {
 
 impl LuminaAdapter for MqttAdapter {
     fn entity_name(&self) -> &str { &self.entity }
-    fn poll(&mut self) -> Option<(String, Value)> {
+    fn poll(&mut self) -> Option<(String, String, Value)> {
         self.parsed_rx.lock().ok()?.try_recv().ok()
     }
     

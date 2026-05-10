@@ -75,9 +75,7 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
             _ => {}
         }
     }
-    // Now that aggregates are registered, compute their initial values.
-    ev.agg_store.recompute(&ev.store, Some(&ev.cluster_state));
-    
+    // Initialization will be completed via recalculate_all_rules by the caller.
     ev
 }
 
@@ -126,6 +124,7 @@ pub extern "C" fn lumina_create(source: *const c_char) -> *mut LuminaRuntime {
     };
 
     let mut evaluator = build_evaluator(&analyzed);
+    evaluator.is_initializing = true;
     for stmt in &analyzed.program.statements {
         if let Err(e) = evaluator.exec_statement(stmt) {
             LAST_CREATE_ERROR.with(|cell| {
@@ -133,6 +132,14 @@ pub extern "C" fn lumina_create(source: *const c_char) -> *mut LuminaRuntime {
             });
             return std::ptr::null_mut();
         }
+    }
+    evaluator.is_initializing = false;
+
+    if let Err(e) = evaluator.recalculate_all_rules() {
+        LAST_CREATE_ERROR.with(|cell| {
+            *cell.borrow_mut() = Some(format!("[{}] {}", e.code(), e.message()));
+        });
+        return std::ptr::null_mut();
     }
 
     Box::into_raw(Box::new(LuminaRuntime { evaluator, last_error: None }))

@@ -14,7 +14,7 @@ _2026 | Chapters 49-54 | Builds on v1.8 | Designed and authored by Isaac Ishimwe
 
 **The Deep Memory Release**
 
-_What v1.8 could not yet remember — and why v1.8 builds its memory natively_
+_What v1.8 could not yet remember and why v1.8 builds its memory natively_
 
 By the end of v1.8, Lumina's reactive engine was perfect at evaluating the current tick. It could see the previous tick with `prev()`, and it had a world-class distribution system. But to truly rule the data center, Lumina needs to be able to look back an hour, a day, or a week, without relying on an external time-series database.
 
@@ -26,9 +26,9 @@ v1.8 closes this gap by giving Lumina native memory, an audit trail, and a provi
 
 | **Gap in v1.8** | **v1.8 solution** |
 | --- | --- |
-| Relies on external DBs for long-term trends | `lumina-store` — Embedded time-series ring-buffers |
-| No cryptographic proof of rule evaluations | Truth Log — Immutable audit trail of state transitions |
-| Adapters are hardcoded in Rust source | Lumina Provider Model — A stable external WASM plugin API |
+| Relies on external DBs for long-term trends | `lumina-store` Embedded time-series ring-buffers |
+| No cryptographic proof of rule evaluations | Truth Log Immutable audit trail of state transitions |
+| Adapters are hardcoded in Rust source | Lumina Provider Model A stable external WASM plugin API |
 
 ---
 
@@ -163,7 +163,7 @@ rule thermal_trend_critical {
     and avgOver(server.cpu_percent, 2h) > 75.0
     and p95(server.latency_ms, 1h) > 200.0
   cooldown 20m
-  alert "Converging pressure on {server.id} — thermal, CPU, and latency trending badly."
+  alert "Converging pressure on {server.id} thermal, CPU, and latency trending badly."
 }
 ```
 
@@ -227,7 +227,7 @@ Because `discover()` returns a strict schema, if a provider offers `cpu_percent`
 |---|---|
 | L035 | Invalid time window (zero or negative). Minimum is 1s. |
 | L036 | Time window exceeds maximum retention limit set by the system. |
-| L037 | Historical operator used on derived field — only stored fields supported. |
+| L037 | Historical operator used on derived field only stored fields supported. |
 | L038 | Provider field not found in `discover()` schema. |
 | L040 | WAL corruption detected. |
 | L041 | Provider WASM interface version mismatch. |

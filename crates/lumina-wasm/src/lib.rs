@@ -81,8 +81,7 @@ impl LuminaRuntime {
                 _ => {}
             }
         }
-        evaluator.agg_store.recompute(&evaluator.store, Some(&evaluator.cluster_state));
-
+        evaluator.is_initializing = true;
         let mut pending_alerts = Vec::new();
 
         for stmt in &analyzed.program.statements {
@@ -92,6 +91,7 @@ impl LuminaRuntime {
                 )))?;
             pending_alerts.extend(evts);
         }
+        evaluator.is_initializing = false;
 
         // Final recalculation to pick up initial steady-state alerts
         let initial_evts = evaluator.recalculate_all_rules()

@@ -15,12 +15,12 @@ Modern software architecture frequently struggles with the synchronization of di
 Lumina has evolved from a simple reactive engine into a **Sovereign Infrastructure Language**.
 
 #### **v2.0: The Cluster Release (Latest Stable)**
-*   **Distributed Mesh Clustering**: Native support for `cluster` commands to manage decentralized nodes.
-*   **Sovereign Node Discovery**: Automated gossip-layer discovery for high-availability infrastructure.
+*   **Distributed Mesh Clustering**: Native support for `cluster` commands to manage decentralized nodes via actual UDP socket transport.
+*   **Sovereign Node Discovery**: Automated UDP-based gossip-layer discovery for high-availability infrastructure.
 *   **Enhanced CLI Interface**: Streamlined commands and refined versioning.
 
 #### **v1.9: The Metal Release**
-*   **Lumina Standard Library (LSL)**: Pre-defined entity schemas for datacenter, network, Kubernetes, and power infrastructure — composed, not inherited.
+*   **Lumina Standard Library (LSL)**: Pre-defined entity schemas for datacenter, network, Kubernetes, and power infrastructure composed, not inherited.
 *   **Native Southbound Protocols**: Agentless hardware polling via `provider` blocks (Redfish, SNMP v3, Modbus TCP).
 *   **Declarative Security**: Security as a structural truth in the DAG. Write operations are blocked when auth context evaluates false (`L039`).
 *   **`env()` Built-in**: Secure environment variable access, returning `Secret` values.
@@ -40,7 +40,7 @@ Lumina has evolved from a simple reactive engine into a **Sovereign Infrastructu
 *   **Performance Optimization**: WASM runtime and CLI binaries optimized for scale and speed.
 
 #### **v1.6: The Infrastructure Release**
-*   **Entity Relationships (`ref`)**: Structural truth declaration—one entity can reference another.
+*   **Entity Relationships (`ref`)**: Structural truth declaration one entity can reference another.
 *   **Structural Traversal**: Traverse relationships in rules and derived fields.
 *   **Multi-Condition Triggers (`and`)**: Fire rules only when compound truths are met.
 *   **Write Capabilities (`write`)**: Send commands back to the physical world.

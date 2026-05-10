@@ -14,7 +14,7 @@ _2027 | Chapters 55-60 | Builds on v1.8 | Designed and authored by Isaac Ishimwe
 
 **The Metal Release**
 
-_What v1.8 could not yet speak natively — and why v1.9 standardizes the Data Center_
+_What v1.8 could not yet speak natively and why v1.9 standardizes the Data Center_
 
 In v1.8, Lumina gained deep memory and an immutable Truth Log. It became a platform capable of handling complex temporal rules and isolated WASM providers. Yet, engineers still had to manually declare what a "Server" looked like, and they still relied on intermediate agents (like node_exporter) to talk to hardware.
 

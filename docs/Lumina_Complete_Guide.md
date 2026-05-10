@@ -1,8 +1,8 @@
-# Lumina: The Definitive Guide (v1.8) 🛰️
+# Lumina: The Definitive Guide (v2.0) 🛰️
 
 _"Describe what is true. Lumina figures out what to do."_
 
-Welcome to the official documentation for Lumina v1.8. This guide serves as your entry point into the Lumina ecosystem, providing everything from a beginner's introduction to deep technical internals.
+Welcome to the official documentation for Lumina v2.0. This guide serves as your entry point into the Lumina ecosystem, providing everything from a beginner's introduction to deep technical internals.
 
 > [!TIP]
 > **New to Lumina?** Start with our **[Conceptual Getting Started](docs/GET_STARTED.md)** to understand the purpose, use cases, and problems Lumina solves.
@@ -38,11 +38,12 @@ The `lumina` binary is your main entry point.
 
 ---
 
-## 🚀 Key Features of v1.8
+## 🚀 Key Features of v2.0
 
+*   **Distributed Mesh Clustering**: Native UDP-based Gossip layer for sovereign node discovery and state synchronization.
+*   **Cluster Orchestration**: Built-in support for `migrate` and `deploy` actions, allowing rules to dynamically shuffle workloads across nodes.
 *   **Teaching Diagnostics**: Beautiful, Rust-style error reports with actionable help messages.
-*   **Stabilized WASM Engine**: Sub-millisecond reactive propagation in the browser.
-*   **Fleet Aggregates**: Incremental, O(1) performance for summarizing large populations of entities.
+*   **Memory Scaling**: Rebuilt runtime indexers using `FxHashMap` to gracefully handle 100k+ entities.
 *   **Deterministic Snapshots**: Guaranteed safety with zero-cost rollbacks on failure.
 
 ---
@@ -52,4 +53,4 @@ The `lumina` binary is your main entry point.
 *   **[GitHub Repository](https://github.com/lumina-lang/lumina)**: Report bugs, request features, or contribute.
 *   **[Official Website](https://lumina-lang.web.app)**: News, downloads, and the interactive Playground.
 
-_Lumina v1.8 Experience Release | 2026 | Isaac Ishimwe_
+_Lumina v2.0 Cluster Release | 2026 | Isaac Ishimwe_

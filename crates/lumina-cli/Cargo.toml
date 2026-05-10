@@ -15,3 +15,4 @@ lumina-runtime = { path = "../lumina-runtime" }
 lumina-cluster = { path = "../lumina-cluster" }
 lumina-diagnostics = { path = "../lumina-diagnostics" }
 serde_json = "1"
+tokio = { version = "1", features = ["full"] }

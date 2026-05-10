@@ -74,6 +74,7 @@ pub enum Token {
     #[token("migrate")]          KwMigrate,
     #[token("evacuate")]         KwEvacuate,
     #[token("deploy")]           KwDeploy,
+    #[token("bind_addr")]        KwBindAddr,
     #[token("region")]           KwRegion,
 
     // ── Operators & punctuation ────────────────────────────
@@ -198,6 +199,7 @@ impl Token {
             Token::KwMigrate => "keyword 'migrate'".to_string(),
             Token::KwEvacuate => "keyword 'evacuate'".to_string(),
             Token::KwDeploy => "keyword 'deploy'".to_string(),
+            Token::KwBindAddr => "keyword 'bind_addr'".to_string(),
             Token::KwRegion => "keyword 'region'".to_string(),
             Token::ColonColon => "'::'".to_string(),
             

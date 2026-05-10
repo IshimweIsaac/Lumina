@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::time::Instant;
 use parking_lot::RwLock;
 use serde::{Serialize, Deserialize};
@@ -9,13 +9,19 @@ pub enum GossipMessageKind {
     /// Leader heartbeat with current term
     Heartbeat { term: u64, leader_id: String },
     /// State synchronization payload (node_id → field → value bytes)
-    StateSync { node_id: String, state: HashMap<String, Vec<u8>> },
+    StateSync { node_id: String, state: FxHashMap<String, Vec<u8>> },
     /// Election vote request
     VoteRequest { candidate_id: String, term: u64 },
     /// Election vote response
     VoteResponse { voter_id: String, term: u64, granted: bool },
     /// Node announcing itself to the cluster
     Join { node_id: String },
+    /// Orchestration: Request that a workload moves to another node
+    WorkloadMove { target_node: String, workload: Vec<String> },
+    /// Orchestration: Actual transfer of instance data
+    WorkloadHandoff { target_node: String, instances: Vec<(String, String, Vec<u8>)> }, // (name, entity, data)
+    /// Orchestration: Deploy a new workload
+    WorkloadDeploy { target_node: String, spec_id: String, instances: Vec<(String, String, Vec<u8>)> },
 }
 
 /// A gossip message with sender metadata
@@ -44,7 +50,7 @@ pub struct PeerInfo {
 
 /// Gossip layer for distributing events and tracking peer health
 pub struct GossipLayer {
-    peers: RwLock<HashMap<String, PeerInfo>>,
+    peers: RwLock<FxHashMap<String, PeerInfo>>,
     inbox: RwLock<Vec<GossipMessage>>,
     outbox: RwLock<Vec<GossipMessage>>,
     suspect_timeout_ms: u64,
@@ -54,7 +60,7 @@ pub struct GossipLayer {
 impl Default for GossipLayer {
     fn default() -> Self {
         Self {
-            peers: RwLock::new(HashMap::new()),
+            peers: RwLock::new(FxHashMap::default()),
             inbox: RwLock::new(Vec::new()),
             outbox: RwLock::new(Vec::new()),
             suspect_timeout_ms: 5000,

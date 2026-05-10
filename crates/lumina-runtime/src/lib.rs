@@ -14,6 +14,7 @@ pub use value::Value;
 pub use store::{Instance, EntityStore};
 pub use snapshot::{Snapshot, SnapshotStack, PropResult, FiredEvent, RollbackResult, Diagnostic};
 pub use adapter::LuminaAdapter;
+pub use engine::Evaluator;
 pub use lsl::LslRegistry;
 
 #[derive(Debug)]
@@ -43,6 +44,8 @@ pub enum RuntimeError {
     R016 { reason: String },
     /// v2.0: Migration target has insufficient capacity
     R017 { target: String, reason: String },
+    /// v2.0: Type mismatch during operation
+    R018 { expected: String, found: String },
 }
 
 impl RuntimeError {
@@ -65,6 +68,7 @@ impl RuntimeError {
             RuntimeError::R015 { .. } => "L064",
             RuntimeError::R016 { .. } => "L065",
             RuntimeError::R017 { .. } => "L066",
+            RuntimeError::R018 { .. } => "L067",
         }
     }
 
@@ -72,7 +76,7 @@ impl RuntimeError {
         match self {
             RuntimeError::R001 { instance }   => format!("Access to deleted instance: '{instance}'"),
             RuntimeError::R002                => "Division by zero".to_string(),
-            RuntimeError::R003 { depth }      => format!("Rule re-entrancy limit exceeded ({depth})"),
+            RuntimeError::R003 { depth }      => format!("Circular Dependency Detected: Rule re-entrancy limit exceeded ({depth})"),
             RuntimeError::R004 { index, len } => format!("List index out of bounds: {index} of {len}"),
             RuntimeError::R005 { instance, field } => format!("Null field access: '{instance}.{field}'"),
             RuntimeError::R006 { field, value, min, max } => format!("@range violation: {field} = {value}, expected {min}–{max}"),
@@ -87,6 +91,7 @@ impl RuntimeError {
             RuntimeError::R015 { target }          => format!("Orchestration write target unreachable: {target}"),
             RuntimeError::R016 { reason }          => format!("Cluster aggregate computation timeout: {reason}"),
             RuntimeError::R017 { target, reason }  => format!("Migration target '{target}' has insufficient capacity: {reason}"),
+            RuntimeError::R018 { expected, found } => format!("Type mismatch: expected {expected}, found {found}"),
         }
     }
 }

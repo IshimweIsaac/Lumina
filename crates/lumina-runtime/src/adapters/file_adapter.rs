@@ -7,7 +7,7 @@ use std::fs;
 
 pub struct FileWatchAdapter {
     entity: String,
-    rx: std::sync::Mutex<Receiver<(String, Value)>>,
+    rx: std::sync::Mutex<Receiver<(String, String, Value)>>,
     // Keep watcher alive as long as adapter is alive
     _watcher: notify::RecommendedWatcher,
 }
@@ -26,7 +26,13 @@ impl FileWatchAdapter {
                     if let Ok(content) = fs::read_to_string(&watch_path) {
                         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
                             if let serde_json::Value::Object(map) = json {
+                                let instance = map.get("id")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_else(|| "default".to_string());
+
                                 for (key, val) in map {
+                                    if key == "id" { continue; }
                                     let typed_val = match val {
                                         serde_json::Value::Number(n) => n.as_f64().map(Value::Number),
                                         serde_json::Value::String(s) => Some(Value::Text(s)),
@@ -34,7 +40,7 @@ impl FileWatchAdapter {
                                         _ => None,
                                     };
                                     if let Some(v) = typed_val {
-                                        let _ = tx.send((key, v)); // Ignore drop errors here
+                                        let _ = tx.send((instance.clone(), key, v)); // Ignore drop errors here
                                     }
                                 }
                             }
@@ -56,7 +62,7 @@ impl FileWatchAdapter {
 
 impl LuminaAdapter for FileWatchAdapter {
     fn entity_name(&self) -> &str { &self.entity }
-    fn poll(&mut self) -> Option<(String, Value)> {
+    fn poll(&mut self) -> Option<(String, String, Value)> {
         self.rx.lock().ok()?.try_recv().ok()
     }
     fn on_write(&mut self, _field: &str, _value: &Value) {

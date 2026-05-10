@@ -259,9 +259,15 @@ impl Analyzer {
             }
         }
 
+        let mut field_names: Vec<String> = fields.keys().cloned().collect();
+        field_names.sort();
+        let field_indices: HashMap<String, usize> = field_names.iter().enumerate().map(|(i, n)| (n.clone(), i)).collect();
+
         self.schema.entities.insert(decl.name.clone(), EntitySchema {
             name: decl.name.clone(),
             fields,
+            field_indices,
+            field_names,
             is_external,
             sync_path: String::new(),
             sync_strategy: SyncStrategy::Realtime,
@@ -312,9 +318,15 @@ impl Analyzer {
             fields.insert(name, schema_field);
         }
 
+        let mut field_names: Vec<String> = fields.keys().cloned().collect();
+        field_names.sort();
+        let field_indices: HashMap<String, usize> = field_names.iter().enumerate().map(|(i, n)| (n.clone(), i)).collect();
+
         self.schema.entities.insert(decl.name.clone(), EntitySchema {
             name: decl.name.clone(),
             fields,
+            field_indices,
+            field_names,
             is_external: true,
             sync_path: decl.sync_path.clone(),
             sync_strategy: decl.sync_strategy.clone(),
@@ -674,6 +686,16 @@ impl Analyzer {
                 }
                 // Then check if it's an entity name
                 if self.schema.entities.contains_key(name) {
+                    if self.in_derived_context {
+                        return Err(AnalyzerError {
+                            code: "L001",
+                            message: format!(
+                                "Cannot use entity type '{}' as a variable in a derived field. Did you mean to reference a specific instance via a reference field?",
+                                name
+                            ),
+                            span: Span::default(), // Will be bubbled up with correct span later if needed
+                        });
+                    }
                     Ok(LuminaType::Entity(name.clone()))
                 } else {
                     Err(AnalyzerError {

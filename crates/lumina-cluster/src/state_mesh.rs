@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use parking_lot::RwLock;
 use serde::{Serialize, Deserialize};
 
@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VersionVector {
     /// node_id → monotonic version counter
-    pub versions: HashMap<String, u64>,
+    pub versions: FxHashMap<String, u64>,
 }
 
 impl VersionVector {
@@ -65,13 +65,13 @@ pub struct MeshEntry {
 /// The distributed DAG state mesh — tracks entity state across cluster nodes
 pub struct ClusterStateMesh {
     /// node_id → field_name → versioned entry
-    pub mesh: RwLock<HashMap<String, HashMap<String, MeshEntry>>>,
+    pub mesh: RwLock<FxHashMap<String, FxHashMap<String, MeshEntry>>>,
 }
 
 impl Default for ClusterStateMesh {
     fn default() -> Self {
         Self {
-            mesh: RwLock::new(HashMap::new()),
+            mesh: RwLock::new(FxHashMap::default()),
         }
     }
 }
@@ -84,7 +84,7 @@ impl ClusterStateMesh {
     /// Update state for a local node, incrementing its version vector
     pub fn update_local(&self, node_id: &str, field: &str, value: Vec<u8>) {
         let mut mesh = self.mesh.write();
-        let node_state = mesh.entry(node_id.to_string()).or_insert_with(HashMap::new);
+        let node_state = mesh.entry(node_id.to_string()).or_insert_with(FxHashMap::default);
 
         let entry = node_state.entry(field.to_string()).or_insert_with(|| MeshEntry {
             value: Vec::new(),
@@ -98,9 +98,9 @@ impl ClusterStateMesh {
     }
 
     /// Update state for a node with a full state map (bulk set)
-    pub fn update_node_state(&self, node_id: &str, state: HashMap<String, Vec<u8>>) {
+    pub fn update_node_state(&self, node_id: &str, state: FxHashMap<String, Vec<u8>>) {
         let mut mesh = self.mesh.write();
-        let node_state = mesh.entry(node_id.to_string()).or_insert_with(HashMap::new);
+        let node_state = mesh.entry(node_id.to_string()).or_insert_with(FxHashMap::default);
 
         for (field, value) in state {
             let entry = node_state.entry(field).or_insert_with(|| MeshEntry {
@@ -115,9 +115,9 @@ impl ClusterStateMesh {
     }
 
     /// Merge remote state using last-writer-wins conflict resolution
-    pub fn merge_remote_state(&self, remote_node: &str, remote_state: HashMap<String, MeshEntry>) {
+    pub fn merge_remote_state(&self, remote_node: &str, remote_state: FxHashMap<String, MeshEntry>) {
         let mut mesh = self.mesh.write();
-        let node_state = mesh.entry(remote_node.to_string()).or_insert_with(HashMap::new);
+        let node_state = mesh.entry(remote_node.to_string()).or_insert_with(FxHashMap::default);
 
         for (field, remote_entry) in remote_state {
             match node_state.get(&field) {
@@ -160,16 +160,16 @@ impl ClusterStateMesh {
     }
 
     /// Export a snapshot of the mesh state for a given node (for gossip sync)
-    pub fn snapshot_node(&self, node_id: &str) -> Option<HashMap<String, MeshEntry>> {
+    pub fn snapshot_node(&self, node_id: &str) -> Option<FxHashMap<String, MeshEntry>> {
         self.mesh.read().get(node_id).cloned()
     }
 
     /// Export the full mesh as a serializable map (node → field → raw bytes)
-    pub fn snapshot_raw(&self) -> HashMap<String, HashMap<String, Vec<u8>>> {
+    pub fn snapshot_raw(&self) -> FxHashMap<String, FxHashMap<String, Vec<u8>>> {
         let mesh = self.mesh.read();
         mesh.iter()
             .map(|(node_id, fields)| {
-                let raw_fields: HashMap<String, Vec<u8>> = fields.iter()
+                let raw_fields: FxHashMap<String, Vec<u8>> = fields.iter()
                     .map(|(field, entry)| (field.clone(), entry.value.clone()))
                     .collect();
                 (node_id.clone(), raw_fields)

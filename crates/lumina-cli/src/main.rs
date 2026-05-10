@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Write;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 mod repl;
 mod commands;
 mod formatter;
@@ -20,7 +21,8 @@ mod loader;
 use crate::loader::ModuleLoader;
 use std::path::Path;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     match args.get(1).map(|s| s.as_str()) {
@@ -110,22 +112,11 @@ fn cmd_cluster(args: &[String]) {
             }
             println!("  Mesh Nodes:  {}", status.mesh_nodes);
             println!("──────────────────────────────────────────────────");
-            println!("✓ Node '{}' is running.", status.node_id);
-
-            // Run a few ticks to demonstrate the event loop
-            let start = std::time::Instant::now();
-            for _ in 0..5 {
+            println!("✓ Node '{}' is running. [Ctrl+C to stop]", status.node_id);
+            loop {
                 node.tick(std::time::Instant::now());
-                std::thread::sleep(std::time::Duration::from_millis(50));
+                std::thread::sleep(std::time::Duration::from_millis(100));
             }
-
-            let final_status = node.status();
-            println!("\n  Final Status:");
-            println!("    Role:      {}", final_status.role);
-            println!("    Term:      {}", final_status.term);
-            println!("    Uptime:    {}ms", start.elapsed().as_millis());
-            println!("\n✓ Cluster node shut down cleanly.");
-            std::process::exit(0);
         }
         Some("status") => {
             println!("Lumina Sovereign Cluster Status (v2.0.0)");
@@ -430,13 +421,23 @@ fn read_file(args: &[String]) -> (String, String) {
     (path.clone(), source)
 }
 
-fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
+fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram, target_node_id: Option<&str>) -> Evaluator {
     let mut rules = Vec::new();
     let mut derived = HashMap::new();
     let mut adapters: Vec<Box<dyn lumina_runtime::adapter::LuminaAdapter>> = Vec::new();
+    let mut cluster_decl = None;
 
     for stmt in &analyzed.program.statements {
         match stmt {
+            Statement::Cluster(c) => {
+                if let Some(tid) = target_node_id {
+                    if c.node_id == tid {
+                        cluster_decl = Some(c.clone());
+                    }
+                } else if cluster_decl.is_none() {
+                    cluster_decl = Some(c.clone());
+                }
+            }
             Statement::Rule(r) => rules.push(r.clone()),
             Statement::Entity(e) => {
                 for f in &e.fields {
@@ -446,6 +447,7 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
                 }
             }
             Statement::ExternalEntity(e) => {
+                // ... (existing adapter code)
                 // Initialize adapters based on sync_path
                 if e.sync_path.starts_with("static://") {
                     adapters.push(Box::new(StaticAdapter::new(&e.name)));
@@ -488,6 +490,14 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
     let mut ev = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), rules);
     ev.derived_exprs = derived;
     ev.adapters = adapters;
+
+    if let Some(decl) = cluster_decl {
+        let config = lumina_cluster::ClusterConfig::from_decl(&decl);
+        let mut node = lumina_cluster::ClusterNode::new(config);
+        node.initialize();
+        ev.cluster_node = Some(Arc::new(Mutex::new(node)));
+    }
+    
     ev
 }
 
@@ -507,14 +517,30 @@ fn cmd_run(args: &[String]) {
         std::process::exit(1);
     });
 
-    let mut evaluator = build_evaluator(&analyzed);
+    // Parse flags: --node-id <id>
+    let mut node_id = None;
+    for i in 0..args.len() {
+        if args[i] == "--node-id" && i + 1 < args.len() {
+            node_id = Some(args[i+1].as_str());
+        }
+    }
 
+    let mut evaluator = build_evaluator(&analyzed, node_id);
+    
+    // Validate that all external entities have adapters
+    let warnings = evaluator.validate_adapters();
+    for warning in warnings {
+        eprintln!("\x1b[33mWarning: {}\x1b[0m", warning);
+    }
+
+    evaluator.is_initializing = true;
     for stmt in &analyzed.program.statements {
         if let Err(e) = evaluator.exec_statement(stmt) {
             eprintln!("Runtime error [{}]: {}", e.code(), e.message());
             std::process::exit(1);
         }
     }
+    evaluator.is_initializing = false;
 
     // Initial state calculation
     if let Err(e) = evaluator.recalculate_all_rules() {

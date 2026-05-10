@@ -1,6 +1,6 @@
-# Extended Backus-Naur Form (EBNF) Specification (v1.8.0)
+# Extended Backus-Naur Form (EBNF) Specification (v2.0.0)
 
-This document contains the formal grammar and error registry for Lumina v1.8.0.
+This document contains the formal grammar and error registry for Lumina v2.0.0.
 
 ## 1. Global Program Structure
 ```ebnf
@@ -9,6 +9,7 @@ program ::= statement* EOF
 statement ::= import_stmt
             | fn_decl
             | entity_decl
+            | cluster_decl
             | let_stmt
             | rule_decl
             | action_stmt
@@ -18,6 +19,8 @@ statement ::= import_stmt
 
 aggregate_decl ::= 'aggregate' IDENT 'over' IDENT '{' NEWLINE (IDENT ':=' aggregate_func NEWLINE)* '}'
 aggregate_func ::= ('avg' | 'min' | 'max' | 'sum' | 'count' | 'any' | 'all') '(' IDENT? ')'
+
+cluster_decl ::= 'cluster' '{' NEWLINE 'node_id:' STRING NEWLINE 'bind_addr:' STRING NEWLINE 'peers:' list_literal NEWLINE 'quorum:' NUMBER NEWLINE '}'
 ```
 
 ## 2. Modules and Functions
@@ -90,6 +93,8 @@ action ::= show_action
          | create_action
          | delete_action
          | alert_action
+         | migrate_action
+         | deploy_action
 
 show_action ::= 'show' expr
 update_action ::= 'update' path 'to' expr
@@ -97,6 +102,8 @@ write_action ::= 'write' path '=' expr
 create_action ::= 'create' IDENT '{' NEWLINE (IDENT ':' expr NEWLINE)* '}'
 delete_action ::= 'delete' IDENT
 alert_action ::= 'alert' 'severity' ':' STRING (',' 'message' ':' STRING)? (',' 'source' ':' expr)? (',' 'code' ':' STRING)? (',' 'payload' ':' '{' ... '}')?
+migrate_action ::= 'migrate' '{' 'workloads:' expr ',' 'target:' expr '}'
+deploy_action ::= 'deploy' '{' 'workloads:' expr ',' 'target:' expr '}'
 
 path ::= IDENT ('.' IDENT)*
 ```
@@ -160,6 +167,7 @@ cmp_op ::= '==' | '!=' | '>' | '<' | '>=' | '<='
 ---
 
 ## 10. Version History
+*   **v2.0.0**: The Cluster Release. Added `cluster_decl`, `migrate` and `deploy` actions, native UDP Gossip networking, StateMesh for conflict-free replication, and FxHashMap performance upgrades.
 *   **v1.8.0**: Professional Distribution (Homebrew, DEB, NSIS), "Teaching" diagnostics with mentoring hints, Zero-Config `lumina setup` CLI, High-fidelity website and VS Code extension.
 *   **v1.6**: Multi-condition triggers (`and`), Entity Relationships (`ref`), Frequency triggers (`N times within`), `write` actions, `Timestamp` type and `.age`.
 *   **v1.5**: LSP, External Entities, `prev()`, Aggregates, `on clear`, Cooldowns, Playground v2.

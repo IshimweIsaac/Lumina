@@ -1,13 +1,17 @@
-use std::collections::HashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use crate::value::Value;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateSlot {
+    pub current:  Value,
+    pub previous: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instance {
     pub entity_name:  String,
-    pub fields:       HashMap<String, Value>,
-    /// Previous field values — used by the rule engine for `becomes` detection
-    pub prev_fields:  HashMap<String, Value>,
+    pub slots:        Vec<StateSlot>,
     /// v2.0: Monotonically increasing version for state mesh conflict resolution
     pub version:      u64,
     /// v2.0: The peer ID that last mutated this instance (None if local)
@@ -15,43 +19,49 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn new(entity_name: impl Into<String>, fields: HashMap<String, Value>) -> Self {
+    pub fn new(entity_name: impl Into<String>, field_count: usize) -> Self {
         Self {
             entity_name: entity_name.into(),
-            prev_fields: fields.clone(),
-            fields,
+            slots: vec![StateSlot { current: Value::Unknown, previous: Value::Unknown }; field_count],
             version: 1,
             source_node: None,
         }
     }
 
-    pub fn get(&self, field: &str) -> Option<&Value> {
-        self.fields.get(field)
+    pub fn get(&self, idx: usize) -> Option<&Value> {
+        self.slots.get(idx).map(|s| &s.current)
     }
 
-    pub fn set(&mut self, field: &str, value: Value) {
-        if let Some(old) = self.fields.get(field) {
-            self.prev_fields.insert(field.to_string(), old.clone());
+    pub fn set(&mut self, idx: usize, value: Value) {
+        if let Some(slot) = self.slots.get_mut(idx) {
+            slot.previous = std::mem::replace(&mut slot.current, value);
+            self.version += 1;
+            self.source_node = None;
         }
-        self.fields.insert(field.to_string(), value);
-        self.version += 1;
-        self.source_node = None; // A local mutation resets the source to local
     }
 
-    pub fn prev(&self, field: &str) -> Option<&Value> {
-        self.prev_fields.get(field)
+    pub fn prev(&self, idx: usize) -> Option<&Value> {
+        self.slots.get(idx).map(|s| &s.previous)
     }
 
-    /// Commit current state — copies fields into prev_fields
-    /// Called after a full propagation cycle completes stably
+    pub fn iter_fields<'a>(&'a self, names: &'a [String]) -> impl Iterator<Item = (&'a String, &'a Value)> {
+        names.iter().zip(self.slots.iter()).map(|(name, slot)| (name, &slot.current))
+    }
+
+    pub fn iter_prev_fields<'a>(&'a self, names: &'a [String]) -> impl Iterator<Item = (&'a String, &'a Value)> {
+        names.iter().zip(self.slots.iter()).map(|(name, slot)| (name, &slot.previous))
+    }
+
     pub fn commit(&mut self) {
-        self.prev_fields = self.fields.clone();
+        for slot in self.slots.iter_mut() {
+            slot.previous = slot.current.clone();
+        }
     }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EntityStore {
-    instances: HashMap<String, Instance>,
+    instances: FxHashMap<String, Instance>,
 }
 
 impl EntityStore {
@@ -96,10 +106,27 @@ impl EntityStore {
             .map(|(n, _)| n.clone())
     }
 
+    /// Find all instances of a given entity type.
+    pub fn all_instances_of(&self, entity_name: &str) -> Vec<String> {
+        self.instances.iter()
+            .filter(|(_, i)| i.entity_name == entity_name)
+            .map(|(n, _)| n.clone())
+            .collect()
+    }
+
     /// Commit all instances — called after stable propagation
     pub fn commit_all(&mut self) {
         for instance in self.instances.values_mut() {
             instance.commit();
+        }
+    }
+
+    /// Commit only specific instances — O(dirty) optimization
+    pub fn commit_dirty(&mut self, dirty: &FxHashSet<String>) {
+        for name in dirty {
+            if let Some(instance) = self.instances.get_mut(name) {
+                instance.commit();
+            }
         }
     }
 }
@@ -110,10 +137,10 @@ mod tests {
     use crate::snapshot::SnapshotStack;
 
     fn make_person(name: &str, age: f64) -> Instance {
-        let mut fields = HashMap::new();
-        fields.insert("name".to_string(), Value::Text(name.to_string()));
-        fields.insert("age".to_string(), Value::Number(age));
-        Instance::new("Person", fields)
+        let mut inst = Instance::new("Person", 2);
+        inst.set(0, Value::Text(name.to_string()));
+        inst.set(1, Value::Number(age));
+        inst
     }
 
     #[test]
@@ -122,8 +149,8 @@ mod tests {
         store.insert("isaac", make_person("Isaac", 26.0));
         let inst = store.get("isaac").unwrap();
         assert_eq!(inst.entity_name, "Person");
-        assert_eq!(inst.get("name"), Some(&Value::Text("Isaac".to_string())));
-        assert_eq!(inst.get("age"), Some(&Value::Number(26.0)));
+        assert_eq!(inst.get(0), Some(&Value::Text("Isaac".to_string())));
+        assert_eq!(inst.get(1), Some(&Value::Number(26.0)));
     }
 
     #[test]
@@ -132,10 +159,10 @@ mod tests {
         store.insert("isaac", make_person("Isaac", 26.0));
         let inst = store.get_mut("isaac").unwrap();
 
-        inst.set("age", Value::Number(27.0));
+        inst.set(1, Value::Number(27.0));
 
-        assert_eq!(inst.get("age"), Some(&Value::Number(27.0)));
-        assert_eq!(inst.prev("age"), Some(&Value::Number(26.0)));
+        assert_eq!(inst.get(1), Some(&Value::Number(27.0)));
+        assert_eq!(inst.prev(1), Some(&Value::Number(26.0)));
     }
 
     #[test]
@@ -144,11 +171,11 @@ mod tests {
         store.insert("isaac", make_person("Isaac", 26.0));
         let inst = store.get_mut("isaac").unwrap();
 
-        inst.set("age", Value::Number(27.0));
+        inst.set(1, Value::Number(27.0));
         inst.commit();
 
-        assert_eq!(inst.get("age"), Some(&Value::Number(27.0)));
-        assert_eq!(inst.prev("age"), Some(&Value::Number(27.0)));
+        assert_eq!(inst.get(1), Some(&Value::Number(27.0)));
+        assert_eq!(inst.prev(1), Some(&Value::Number(27.0)));
     }
 
     #[test]
@@ -157,9 +184,9 @@ mod tests {
         store.insert("isaac", make_person("Isaac", 26.0));
         store.insert("alice", make_person("Alice", 30.0));
 
-        let mut bike_fields = HashMap::new();
-        bike_fields.insert("model".to_string(), Value::Text("Trek".to_string()));
-        store.insert("bike1", Instance::new("Bike", bike_fields));
+        let mut bike = Instance::new("Bike", 1);
+        bike.set(0, Value::Text("Trek".to_string()));
+        store.insert("bike1", bike);
 
         let people: Vec<_> = store.all_of_entity("Person").collect();
         assert_eq!(people.len(), 2);
@@ -178,9 +205,9 @@ mod tests {
         stack.push(snap);
 
         // Modify the store
-        store.get_mut("isaac").unwrap().set("age", Value::Number(99.0));
+        store.get_mut("isaac").unwrap().set(1, Value::Number(99.0));
         assert_eq!(
-            store.get("isaac").unwrap().get("age"),
+            store.get("isaac").unwrap().get(1),
             Some(&Value::Number(99.0))
         );
 
@@ -188,7 +215,7 @@ mod tests {
         let restored = stack.pop().unwrap();
         store = restored.store;
         assert_eq!(
-            store.get("isaac").unwrap().get("age"),
+            store.get("isaac").unwrap().get(1),
             Some(&Value::Number(26.0))
         );
     }

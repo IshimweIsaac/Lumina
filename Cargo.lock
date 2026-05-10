@@ -765,6 +765,7 @@ dependencies = [
  "lumina-parser",
  "lumina-runtime",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -775,6 +776,7 @@ dependencies = [
  "lumina-analyzer",
  "lumina-parser",
  "parking_lot",
+ "rustc-hash 1.1.0",
  "serde",
  "serde_json",
  "tokio",
@@ -828,6 +830,7 @@ dependencies = [
  "notify",
  "paho-mqtt",
  "reqwest",
+ "rustc-hash 1.1.0",
  "serde",
  "serde_json",
  "tokio",
@@ -1077,7 +1080,7 @@ dependencies = [
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "rustls",
  "socket2",
  "thiserror",
@@ -1097,7 +1100,7 @@ dependencies = [
  "lru-slab",
  "rand",
  "ring",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "rustls",
  "rustls-pki-types",
  "slab",
@@ -1242,6 +1245,12 @@ dependencies = [
  "untrusted",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "rustc-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"

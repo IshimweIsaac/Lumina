@@ -9,8 +9,8 @@ pub trait LuminaAdapter: Send + Sync {
     /// Must match: `external entity <Name> { ... }`
     fn entity_name(&self) -> &str;
 
-    /// Called on every tick(). Return `Some((field, value))` if a new value is ready.
-    fn poll(&mut self) -> Option<(String, Value)>;
+    /// Called on every tick(). Return `Some((instance, field, value))` if a new value is ready.
+    fn poll(&mut self) -> Option<(String, String, Value)>;
 
     /// Called when a rule action writes to an external entity field.
     fn on_write(&mut self, field: &str, value: &Value);

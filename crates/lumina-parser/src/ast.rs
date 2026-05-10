@@ -89,6 +89,7 @@ pub struct ProviderConfigEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterDecl {
     pub node_id: String,
+    pub bind_addr: String,
     pub peers: Vec<String>,
     pub quorum: u32,
     pub election_timeout: Duration,
@@ -307,9 +308,10 @@ pub struct AlertAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldPath {
-    pub instance: String,
-    pub field:    String,
-    pub span:     Span,
+    pub instance:  String,
+    pub field:     String,
+    pub sub_field: Option<String>,
+    pub span:      Span,
 }
 
 // ── Expressions ────────────────────────────────────────────────────────────

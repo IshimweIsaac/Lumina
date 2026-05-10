@@ -4,19 +4,19 @@
 //! and infrastructure components. These are composed (not inherited)
 //! into user-defined entities via `import LSL::namespace::Entity`.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use lumina_parser::ast::{EntityDecl, Field, StoredField, LuminaType, FieldMetadata};
 use lumina_lexer::token::Span;
 
 /// The LSL registry: a virtual filesystem of pre-defined entity schemas.
 pub struct LslRegistry {
-    schemas: HashMap<String, EntityDecl>,
+    schemas: FxHashMap<String, EntityDecl>,
 }
 
 impl LslRegistry {
     pub fn new() -> Self {
         let mut registry = Self {
-            schemas: HashMap::new(),
+            schemas: FxHashMap::default(),
         };
         registry.register_datacenter();
         registry.register_network();

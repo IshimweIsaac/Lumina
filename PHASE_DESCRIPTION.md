@@ -5,7 +5,7 @@ This document tracks the completion of the final stages of Lumina, transforming 
 
 ## Phase 10: v2.0 "The Cluster Release" [COMPLETED]
 - **Clustering Engine**: Implementation of `lumina cluster` for distributed node management.
-- **Gossip Protocol**: Decentralized node discovery, peer health monitoring, and message routing.
+- **Gossip Protocol**: Real-world UDP socket transport (`UdpTransport`) for decentralized node discovery, peer health monitoring, and message routing.
 - **Election System**: Raft-inspired leader election with quorum-based promotion.
 - **State Mesh**: Distributed state resolution with version vectors and LWW conflict resolution.
 - **Write-Ahead Log**: File-backed persistence with replay and log compaction.

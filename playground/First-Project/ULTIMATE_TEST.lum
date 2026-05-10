@@ -1,0 +1,83 @@
+-- THE ULTIMATE LUMINA TEST SUITE
+-- Testing every language feature across all versions.
+
+-- 1. Metadata & Documentation
+@doc "The primary asset in the system"
+entity Asset {
+    @range 0 to 1000 value: Number
+    secret_key: Secret
+}
+
+-- 2. Advanced Rules (v1.6 - v1.9)
+rule "Frequency Alert" for (a: Asset)
+when Asset.value > 500 
+frequency 3 times within 10s {
+    show "Frequent spike detected on {Asset.id}"
+}
+cooldown 5s
+
+rule "Delayed Reaction" for (a: Asset)
+when Asset.value > 900 
+for 5s {
+    show "Critical value sustained for 5s!"
+}
+
+-- 3. Built-in Functions & Lists
+let my_list = [10, 20, 30, 40, 50]
+let list_stats = {
+    length: len(my_list),
+    minimum: min(my_list),
+    maximum: max(my_list),
+    total: sum(my_list),
+    first: head(my_list),
+    rest: tail(my_list),
+    item_at_2: at(my_list, 2)
+}
+
+-- 4. Secrets & Environment (v1.9)
+let api_key = env("USER") -- Using USER env var as a test
+let secure_val = Asset { value: 100, secret_key: api_key }
+
+-- 5. Timestamps (v1.8)
+let start_time = now
+let current_age := now - start_time
+
+-- 6. Orchestration & Cluster Syntax (v2.0)
+-- Note: These are often no-ops in the engine but must parse and eval successfully.
+rule "Auto-Migration" for (a: Asset)
+when Asset.value > 800 {
+    migrate([a], to: "node-2")
+    show "Migration command issued for {Asset.id}"
+}
+
+-- 7. Global Aggregates
+aggregate GlobalRegistry over Asset {
+    wealth := sum(value)
+}
+
+-- ---------------------------------------------------------
+-- EXECUTION & VERIFICATION
+-- ---------------------------------------------------------
+
+let A1 = Asset { value: 600, secret_key: "hidden" }
+
+show "--- TEST: Built-in Stats ---"
+show "Len: {list_stats.length}"
+show "Sum: {list_stats.total}"
+show "Min: {list_stats.minimum}"
+
+show "--- TEST: Secrets ---"
+-- Note: Secrets should not print their value directly if the engine is secure
+show "Secret Key Loaded: {A1.secret_key}"
+
+show "--- TEST: Timestamps ---"
+show "Start Time: {start_time}"
+
+show "--- TEST: Rule Firing (Frequency) ---"
+-- Triggering the frequency rule
+update A1.value = 600
+update A1.value = 601
+update A1.value = 602
+
+show "--- TEST: Orchestration ---"
+update A1.value = 850

@@ -10,7 +10,7 @@ impl Instant {
     pub fn now() -> Self { Instant }
     pub fn elapsed(&self) -> std::time::Duration { std::time::Duration::from_secs(0) }
 }
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use lumina_parser::ast::{RuleDecl, RuleTrigger};
 
 /// A pending `for` timer — fires when condition holds for the full duration
@@ -48,15 +48,15 @@ impl EveryTimer {
 
 /// Manages all active timers in the runtime
 pub struct TimerHeap {
-    pub for_timers:   HashMap<String, ForTimer>,
-    pub every_timers: HashMap<String, EveryTimer>,
+    pub for_timers:   FxHashMap<String, ForTimer>,
+    pub every_timers: FxHashMap<String, EveryTimer>,
 }
 
 impl TimerHeap {
     pub fn new() -> Self {
         Self {
-            for_timers:   HashMap::new(),
-            every_timers: HashMap::new(),
+            for_timers:   FxHashMap::default(),
+            every_timers: FxHashMap::default(),
         }
     }
 

@@ -1,5 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::time::Instant;
+use std::sync::{Arc, Mutex};
+use lumina_cluster::ClusterNode;
 use crate::aggregate::AggregateStore;
 use lumina_analyzer::types::Schema;
 use lumina_analyzer::graph::DependencyGraph;
@@ -21,27 +23,33 @@ pub struct Evaluator {
     pub rules:     Vec<RuleDecl>,
     pub store:     EntityStore,
     pub snapshots: SnapshotStack,
-    pub env:       HashMap<String, Value>,
-    pub instances: HashMap<String, String>,
-    pub derived_exprs: HashMap<(String, String), Expr>,
-    pub functions: HashMap<String, FnDecl>,
+    pub env:       FxHashMap<String, Value>,
+    pub instances: FxHashMap<String, String>,
+    pub derived_exprs: FxHashMap<(String, String), Expr>,
+    pub functions: FxHashMap<String, FnDecl>,
     pub timers:    TimerHeap,
     pub adapters:  Vec<Box<dyn LuminaAdapter>>,
     pub prev_store: Option<EntityStore>,
     pub fleet_state: FleetState,
-    prev_fleet_any: HashMap<(String, String), bool>,
-    prev_fleet_all: HashMap<(String, String), bool>,
+    prev_fleet_any: FxHashMap<(String, String), bool>,
+    prev_fleet_all: FxHashMap<(String, String), bool>,
     depth:         usize,
-    fired_this_cycle: HashSet<String>,
+    fired_this_cycle: FxHashSet<String>,
     output:        Vec<String>,
-    prev_rule_conditions: HashMap<(String, String), bool>,
-    pub cooldown_map: HashMap<(String, String), f64>,
-    pub rule_active: HashMap<(String, String), bool>,
-    pub frequency_events: HashMap<(String, String), Vec<f64>>,
+    prev_rule_conditions: FxHashMap<(String, String), bool>,
+    pub cooldown_map: FxHashMap<(String, String), f64>,
+    pub rule_active: FxHashMap<(String, String), bool>,
+    pub frequency_events: FxHashMap<(String, String), Vec<f64>>,
     pub agg_store: AggregateStore,
-    pub cluster_state: HashMap<String, HashMap<String, Value>>,
+    pub cluster_state: FxHashMap<String, FxHashMap<String, Value>>,
     pub cluster_config: Option<lumina_cluster::ClusterConfig>,
     pub now:       f64,
+    /// Issue 003: Current rule parameter alias (param_name, entity_name)
+    pub rule_param_alias: Option<(String, String)>,
+    pub is_initializing: bool,
+    pub reverse_refs: FxHashMap<String, rustc_hash::FxHashSet<(String, String)>>,
+    pub dirty_instances: FxHashSet<String>,
+    pub cluster_node: Option<Arc<Mutex<ClusterNode>>>,
 }
 impl Evaluator {
     pub fn get_output(&self) -> &[String] {
@@ -59,27 +67,32 @@ impl Evaluator {
             schema, graph, rules,
             store: EntityStore::new(),
             snapshots: SnapshotStack::new(),
-            env: HashMap::new(),
-            instances: HashMap::new(),
-            derived_exprs: HashMap::new(),
-            functions: HashMap::new(),
+            env: FxHashMap::default(),
+            instances: FxHashMap::default(),
+            derived_exprs: FxHashMap::default(),
+            functions: FxHashMap::default(),
             timers,
             adapters: Vec::new(),
             prev_store: None,
             fleet_state: FleetState::new(),
-            prev_fleet_any: HashMap::new(),
-            prev_fleet_all: HashMap::new(),
+            prev_fleet_any: FxHashMap::default(),
+            prev_fleet_all: FxHashMap::default(),
             depth: 0,
-            fired_this_cycle: HashSet::new(),
+            fired_this_cycle: FxHashSet::default(),
             output: Vec::new(),
-            prev_rule_conditions: HashMap::new(),
-            cooldown_map: HashMap::new(),
-            rule_active: HashMap::new(),
-            frequency_events: HashMap::new(),
+            prev_rule_conditions: FxHashMap::default(),
+            cooldown_map: FxHashMap::default(),
+            rule_active: FxHashMap::default(),
+            frequency_events: FxHashMap::default(),
             agg_store: AggregateStore::new(),
-            cluster_state: HashMap::new(),
+            cluster_state: FxHashMap::default(),
             cluster_config: None,
             now: 0.0,
+            rule_param_alias: None,
+            is_initializing: false,
+            reverse_refs: FxHashMap::default(),
+            dirty_instances: FxHashSet::default(),
+            cluster_node: None,
         }
     }
 
@@ -92,27 +105,53 @@ impl Evaluator {
             rules: Vec::new(),
             store: EntityStore::new(),
             snapshots: SnapshotStack::new(),
-            env: HashMap::new(),
-            instances: HashMap::new(),
-            derived_exprs: HashMap::new(),
-            functions: HashMap::new(),
+            env: FxHashMap::default(),
+            instances: FxHashMap::default(),
+            derived_exprs: FxHashMap::default(),
+            functions: FxHashMap::default(),
             timers: TimerHeap::new(),
             adapters: Vec::new(),
             prev_store: None,
             fleet_state: FleetState::new(),
-            prev_fleet_any: HashMap::new(),
-            prev_fleet_all: HashMap::new(),
+            prev_fleet_any: FxHashMap::default(),
+            prev_fleet_all: FxHashMap::default(),
             depth: 0,
-            fired_this_cycle: HashSet::new(),
+            fired_this_cycle: FxHashSet::default(),
             output: Vec::new(),
-            prev_rule_conditions: HashMap::new(),
-            cooldown_map: HashMap::new(),
-            rule_active: HashMap::new(),
-            frequency_events: HashMap::new(),
+            prev_rule_conditions: FxHashMap::default(),
+            cooldown_map: FxHashMap::default(),
+            rule_active: FxHashMap::default(),
+            frequency_events: FxHashMap::default(),
             agg_store: AggregateStore::new(),
-            cluster_state: HashMap::new(),
+            cluster_state: FxHashMap::default(),
             cluster_config: None,
             now: 0.0,
+            rule_param_alias: None,
+            is_initializing: false,
+            reverse_refs: FxHashMap::default(),
+            dirty_instances: FxHashSet::default(),
+            cluster_node: None,
+        }
+    }
+
+    /// describe all declared entities as a human-readable string.
+    pub fn sync_cluster_state(&mut self) {
+        if let Some(ref node_lock) = self.cluster_node {
+            if let Ok(mut node) = node_lock.lock() {
+                node.tick(std::time::Instant::now());
+                let raw_mesh = node.collect_cluster_state();
+                for (node_id, fields) in raw_mesh {
+                    // Don't overwrite local state with our own gossiped state in the cluster view
+                    if node_id == node.config.node_id { continue; }
+                    
+                    let entry = self.cluster_state.entry(node_id).or_default();
+                    for (field, bytes) in fields {
+                        if let Ok(val) = serde_json::from_slice::<Value>(&bytes) {
+                            entry.insert(field, val);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -159,6 +198,30 @@ impl Evaluator {
         std::mem::take(&mut self.output)
     }
 
+    pub fn get_field_idx(&self, entity_name: &str, field_name: &str) -> Option<usize> {
+        self.schema.get_entity(entity_name)?.field_indices.get(field_name).copied()
+    }
+
+    pub fn get_instance_field(&self, instance: &Instance, field: &str) -> Option<Value> {
+        let idx = self.get_field_idx(&instance.entity_name, field)?;
+        instance.get(idx).cloned()
+    }
+
+    pub fn get_instance_prev_field(&self, instance: &Instance, field: &str) -> Option<Value> {
+        let idx = self.get_field_idx(&instance.entity_name, field)?;
+        instance.prev(idx).cloned()
+    }
+
+    pub fn set_instance_field(&mut self, instance_name: &str, field: &str, val: Value) -> Result<(), RuntimeError> {
+        let entity_name = self.store.get(instance_name).ok_or(RuntimeError::R001 { instance: instance_name.to_string() })?.entity_name.clone();
+        let idx = self.get_field_idx(&entity_name, field).ok_or(RuntimeError::R005 { instance: instance_name.to_string(), field: field.to_string() })?;
+        
+        if let Some(inst) = self.store.get_mut(instance_name) {
+            inst.set(idx, val);
+        }
+        Ok(())
+    }
+
     // ── Expression evaluator ──────────────────────────────
 
     pub fn eval_expr(&self, expr: &Expr, ctx: Option<&str>) -> Result<Value, RuntimeError> {
@@ -171,8 +234,8 @@ impl Evaluator {
             Expr::Ident(name) => {
                 if let Some(inst) = ctx {
                     if let Some(instance) = self.store.get(inst) {
-                        if let Some(val) = instance.get(name) {
-                            return Ok(val.clone());
+                        if let Some(val) = self.get_instance_field(instance, name) {
+                            return Ok(val);
                         }
                     }
                 }
@@ -223,14 +286,28 @@ impl Evaluator {
                     }
                 }
 
+                // Issue 003: If inst_name matches a rule parameter alias, resolve to context instance
+                if let Some((ref param_name, ref _entity_name)) = self.rule_param_alias {
+                    if &inst_name == param_name {
+                        if let Some(ctx_inst) = ctx {
+                            inst_name = ctx_inst.to_string();
+                        }
+                    }
+                }
+
                 if let Some(val) = self.agg_store.get(&inst_name, field) {
                     return Ok(val.clone());
+                }
+
+                // Issue 004: Support built-in '.id' property
+                if field == "id" {
+                    return Ok(Value::Text(inst_name.clone()));
                 }
 
                 let instance = self.store.get(&inst_name)
                     .ok_or(RuntimeError::R001 { instance: inst_name.clone() })?;
 
-                let val = instance.get(field).cloned()
+                let val = self.get_instance_field(instance, field)
                     .ok_or(RuntimeError::R005 { instance: inst_name.clone(), field: field.clone() })?;
 
                 match &val {
@@ -264,8 +341,14 @@ impl Evaluator {
             Expr::Unary { op, operand, .. } => {
                 let v = self.eval_expr(operand, ctx)?;
                 match op {
-                    UnOp::Neg => match v { Value::Number(n) => Ok(Value::Number(-n)), _ => Ok(Value::Number(0.0)) },
-                    UnOp::Not => match v { Value::Bool(b) => Ok(Value::Bool(!b)), _ => Ok(Value::Bool(false)) },
+                    UnOp::Neg => match v {
+                        Value::Number(n) => Ok(Value::Number(-n)),
+                        _ => Err(RuntimeError::R018 { expected: "Number".into(), found: v.type_name().into() }),
+                    },
+                    UnOp::Not => match v {
+                        Value::Bool(b) => Ok(Value::Bool(!b)),
+                        _ => Err(RuntimeError::R018 { expected: "Boolean".into(), found: v.type_name().into() }),
+                    },
                 }
             }
 
@@ -360,7 +443,7 @@ impl Evaluator {
                 let arg_vals: Vec<Value> = args.iter()
                     .map(|a| self.eval_expr(a, ctx))
                     .collect::<Result<_, _>>()?;
-                let mut local: HashMap<String, Value> = HashMap::new();
+                let mut local: FxHashMap<String, Value> = FxHashMap::default();
                 for (param, val) in decl.params.iter().zip(arg_vals) {
                     local.insert(param.name.clone(), val);
                 }
@@ -387,7 +470,7 @@ impl Evaluator {
                 // First check prev_store
                 if let Some(prev) = &self.prev_store {
                     if let Some(instance) = prev.get(inst_name) {
-                        return instance.get(field).cloned()
+                        return self.get_instance_field(instance, field)
                             .ok_or(RuntimeError::R005 { instance: inst_name.to_string(), field: field.clone() });
                     }
                 }
@@ -395,7 +478,7 @@ impl Evaluator {
                 // Fallback to current store if prev_store is not set (e.g. initialization)
                 let instance = self.store.get(inst_name)
                     .ok_or(RuntimeError::R001 { instance: inst_name.to_string() })?;
-                instance.get(field).cloned()
+                self.get_instance_field(instance, field)
                     .ok_or(RuntimeError::R005 { instance: inst_name.to_string(), field: field.clone() })
             }
             Expr::ClusterAccess { node_id, field, .. } => {
@@ -409,17 +492,79 @@ impl Evaluator {
                 Err(RuntimeError::R012 { reason: format!("Node {} not found in cluster state", node_id) }) // Node isolated / missing
             }
             Expr::Migrate { workloads, target, .. } => {
-                // v2.0: Orchestration — evaluate arguments, return success
-                let _w = self.eval_expr(workloads, ctx)?;
-                let _t = self.eval_expr(target, ctx)?;
+                let w_val = self.eval_expr(workloads, ctx)?;
+                let t_val = self.eval_expr(target, ctx)?;
+                
+                let target_node = match t_val {
+                    Value::Text(s) => s,
+                    _ => return Err(RuntimeError::R002),
+                };
+                
+                let inst_names: Vec<String> = match w_val {
+                    Value::Text(s) => vec![s],
+                    Value::List(l) => l.into_iter().filter_map(|v| if let Value::Text(s) = v { Some(s) } else { None }).collect(),
+                    _ => return Err(RuntimeError::R002),
+                };
+
+                if let Some(ref node_lock) = self.cluster_node {
+                    let mut node = node_lock.lock().unwrap();
+                    let msg = lumina_cluster::GossipMessageKind::WorkloadMove {
+                        target_node,
+                        workload: inst_names,
+                    };
+                    node.gossip.broadcast(
+                        node.config.node_id.clone(),
+                        msg.clone(),
+                    );
+                    // Local loopback: handle migration of our own instances
+                    node.orchestration_queue.push(msg);
+                }
                 Ok(Value::Bool(true))
             }
             Expr::Evacuate { entities, .. } => {
-                let _e = self.eval_expr(entities, ctx)?;
+                let e_val = self.eval_expr(entities, ctx)?;
+                let entity_names: Vec<String> = match e_val {
+                    Value::Text(s) => vec![s],
+                    Value::List(l) => l.into_iter().filter_map(|v| if let Value::Text(s) = v { Some(s) } else { None }).collect(),
+                    _ => return Err(RuntimeError::R002),
+                };
+
+                // Evacuate: find all local instances of these entities and migrate them to others
+                let mut instances_to_move = Vec::new();
+                for (name, entity) in &self.instances {
+                    if entity_names.contains(entity) {
+                        instances_to_move.push(name.clone());
+                    }
+                }
+
+                if !instances_to_move.is_empty() {
+                    if let Some(ref node_lock) = self.cluster_node {
+                        let mut node = node_lock.lock().unwrap();
+                        let peers = node.gossip.peer_statuses();
+                        let alive_peers: Vec<_> = peers.iter().filter(|p| p.health == lumina_cluster::PeerHealth::Alive).collect();
+                        
+                        if !alive_peers.is_empty() {
+                            // Simple round-robin or just pick first alive peer for now
+                            let target_node = alive_peers[0].peer_id.clone();
+                            let msg = lumina_cluster::GossipMessageKind::WorkloadMove {
+                                target_node,
+                                workload: instances_to_move,
+                            };
+                            node.gossip.broadcast(
+                                node.config.node_id.clone(),
+                                msg.clone(),
+                            );
+                            // Local loopback
+                            node.orchestration_queue.push(msg);
+                        }
+                    }
+                }
                 Ok(Value::Bool(true))
             }
             Expr::Deploy { spec, .. } => {
+                // Deploy: evaluation of spec (simplified for v2.0)
                 let _s = self.eval_expr(spec, ctx)?;
+                // In a real system, the leader would broadcast WorkloadDeploy
                 Ok(Value::Bool(true))
             }
         }
@@ -429,42 +574,51 @@ impl Evaluator {
 
     fn apply_binop(&self, op: &BinOp, l: Value, r: Value) -> Result<Value, RuntimeError> {
         match op {
-            BinOp::Add => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)), _ => Ok(Value::Number(0.0)) },
-            BinOp::Sub => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a - b)), _ => Ok(Value::Number(0.0)) },
-            BinOp::Mul => match (l, r) { (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a * b)), _ => Ok(Value::Number(0.0)) },
+            BinOp::Add => match (l, r) {
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+            },
+            BinOp::Sub => match (l, r) {
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a - b)),
+                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+            },
+            BinOp::Mul => match (l, r) {
+                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a * b)),
+                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+            },
             BinOp::Div => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => {
                     if b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a / b)) }
                 }
-                _ => Ok(Value::Number(0.0)),
+                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
             },
             BinOp::Mod => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => {
                     if b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a % b)) }
                 }
-                _ => Ok(Value::Number(0.0)),
+                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
             },
             BinOp::Eq => Ok(Value::Bool(l == r)),
             BinOp::Ne => Ok(Value::Bool(l != r)),
             BinOp::Gt  => match (l, r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a > b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a > b)),
-                _ => Ok(Value::Bool(false)) 
+                (l, r) => Err(RuntimeError::R018 { expected: "Number or Duration".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
             },
             BinOp::Lt  => match (l, r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a < b)),
-                _ => Ok(Value::Bool(false)) 
+                (l, r) => Err(RuntimeError::R018 { expected: "Number or Duration".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
             },
             BinOp::Ge  => match (l, r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a >= b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a >= b)),
-                _ => Ok(Value::Bool(false)) 
+                (l, r) => Err(RuntimeError::R018 { expected: "Number or Duration".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
             },
             BinOp::Le  => match (l, r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a <= b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a <= b)),
-                _ => Ok(Value::Bool(false)) 
+                (l, r) => Err(RuntimeError::R018 { expected: "Number or Duration".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
             },
             BinOp::And | BinOp::Or => unreachable!(),
         }
@@ -476,7 +630,7 @@ impl Evaluator {
         self.apply_binop(op, l.clone(), r.clone())
     }
 
-    fn eval_expr_local(&self, expr: &Expr, locals: &HashMap<String, Value>) -> Result<Value, RuntimeError> {
+    fn eval_expr_local(&self, expr: &Expr, locals: &FxHashMap<String, Value>) -> Result<Value, RuntimeError> {
         match expr {
             Expr::Ident(name) => locals.get(name)
                 .cloned()
@@ -549,10 +703,60 @@ impl Evaluator {
 
     pub fn exec_statement(&mut self, stmt: &Statement) -> Result<Vec<FiredEvent>, RuntimeError> {
         match stmt {
-            Statement::Entity(_) | Statement::ExternalEntity(_) | Statement::Rule(_) => Ok(vec![]),
+            Statement::Entity(_) | Statement::Rule(_) => Ok(vec![]),
+            // Issue 001: External entities must create a default instance in the store
+            Statement::ExternalEntity(decl) => {
+                let mut fields = FxHashMap::default();
+                for field in &decl.fields {
+                    match field {
+                        lumina_parser::ast::Field::Stored(f) => {
+                            let default_val = match &f.ty {
+                                lumina_parser::ast::LuminaType::Number => Value::Number(0.0),
+                                lumina_parser::ast::LuminaType::Text => Value::Text(String::new()),
+                                lumina_parser::ast::LuminaType::Boolean => Value::Bool(false),
+                                lumina_parser::ast::LuminaType::Timestamp => Value::Timestamp(0.0),
+                                lumina_parser::ast::LuminaType::Secret => Value::Secret(String::new()),
+                                lumina_parser::ast::LuminaType::Duration => Value::Duration(0.0),
+                                lumina_parser::ast::LuminaType::List(_) => Value::List(vec![]),
+                                lumina_parser::ast::LuminaType::Entity(_) => Value::Text(String::new()),
+                            };
+                            fields.insert(f.name.clone(), default_val);
+                        }
+                        lumina_parser::ast::Field::Derived(df) => {
+                            self.derived_exprs.insert(
+                                (decl.name.clone(), df.name.clone()),
+                                df.expr.clone(),
+                            );
+                            fields.insert(df.name.clone(), Value::Unknown);
+                        }
+                        lumina_parser::ast::Field::Ref(r) => {
+                            fields.insert(r.name.clone(), Value::Text(String::new()));
+                        }
+                    }
+                }
+                let entity_schema = self.schema.get_entity(&decl.name).unwrap();
+                let mut instance = Instance::new(&decl.name, entity_schema.field_names.len());
+                for (name, val) in fields {
+                    if let Some(idx) = entity_schema.field_indices.get(&name) {
+                        if let Value::Text(ref target) = val {
+                            if self.schema.is_ref_field(&decl.name, &name) {
+                                self.reverse_refs.entry(target.clone())
+                                    .or_default()
+                                    .insert((decl.name.clone(), decl.name.clone()));
+                            }
+                        }
+                        instance.set(*idx, val);
+                    }
+                }
+                self.store.insert(decl.name.clone(), instance);
+                self.instances.insert(decl.name.clone(), decl.name.clone());
+                // Propagate derived fields for the new instance
+                let _ = self.propagate_derived(&decl.name, &decl.name);
+                Ok(vec![])
+            }
             Statement::Aggregate(decl) => {
                 self.agg_store.register(decl.clone());
-                self.agg_store.recompute(&self.store, Some(&self.cluster_state));
+                self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
                 Ok(vec![])
             }
             Statement::Fn(decl) => {
@@ -567,21 +771,43 @@ impl Evaluator {
                         Ok(vec![])
                     }
                     LetValue::EntityInit(init) => {
-                        let mut fields = HashMap::new();
-                        for (name, expr) in &init.fields {
-                            fields.insert(name.clone(), self.eval_expr(expr, None)?);
-                        }
+                        let mut fields = FxHashMap::default();
                         let inst_name = ls.name.clone();
                         let entity_name = init.entity_name.clone();
+                        for (name, expr) in &init.fields {
+                            let val = self.eval_expr(expr, None)?;
+                            if let Value::Text(ref target) = val {
+                                if self.schema.is_ref_field(&entity_name, name) {
+                                    self.reverse_refs.entry(target.clone())
+                                        .or_default()
+                                        .insert((inst_name.clone(), entity_name.clone()));
+                                }
+                            }
+                            fields.insert(name.clone(), val);
+                        }
                         self.instances.insert(inst_name.clone(), entity_name.clone());
-                        self.store.insert(inst_name.clone(), Instance::new(&entity_name, fields));
+                        let entity_schema = self.schema.get_entity(&entity_name).unwrap();
+                        let mut instance = Instance::new(&entity_name, entity_schema.field_names.len());
+                        for (name, val) in fields {
+                            if let Some(idx) = entity_schema.field_indices.get(&name) {
+                                instance.set(*idx, val);
+                            }
+                        }
+                        self.store.insert(inst_name.clone(), instance);
                         // Compute derived fields for the new instance
                         self.propagate_derived(&inst_name, &entity_name)?;
-                        self.agg_store.recompute(&self.store, Some(&self.cluster_state));
-                        self.store.commit_all();
+                        if !self.is_initializing {
+                            self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
+                        }
+                        self.store.commit_dirty(&self.dirty_instances);
+                        self.dirty_instances.clear();
                         
                         // Initial rule evaluation for this new instance
-                        self.evaluate_rules(&inst_name)
+                        if !self.is_initializing {
+                            self.evaluate_rules(&inst_name)
+                        } else {
+                            Ok(vec![])
+                        }
                     }
                 }
             }
@@ -643,15 +869,42 @@ impl Evaluator {
                         }
                     }
                 }
+                // Issue 003: Resolve rule parameter alias for update targets
+                if let Some((ref param_name, _)) = self.rule_param_alias {
+                    if &inst_name == param_name {
+                        if let Some(ctx_inst) = ctx {
+                            inst_name = ctx_inst.to_string();
+                        }
+                    }
+                }
+                // Issue 006: Handle nested field paths (e.g., server.cooling.power)
+                if let Some(ref sub_field) = target.sub_field {
+                    if let Some(inst) = self.store.get(&inst_name) {
+                        if let Some(Value::Text(ref_target)) = self.get_instance_field(inst, &target.field) {
+                            let ref_inst = ref_target.clone();
+                            return self.apply_update(&ref_inst, sub_field, val);
+                        }
+                    }
+                    return Err(RuntimeError::R005 { instance: inst_name, field: target.field.clone() });
+                }
                 self.apply_update(&inst_name, &target.field, val)
             }
             Action::Create { entity, fields } => {
-                let mut fv = HashMap::new();
-                for (name, expr) in fields {
-                    fv.insert(name.clone(), self.eval_expr(expr, ctx)?);
-                }
+                let mut fv = FxHashMap::default();
                 let count = self.store.all_of_entity(entity).count();
                 let inst_name = format!("{}_{}", entity.to_lowercase(), count + 1);
+                
+                for (name, expr) in fields {
+                    let val = self.eval_expr(expr, ctx)?;
+                    if let Value::Text(ref target) = val {
+                        if self.schema.is_ref_field(entity, name) {
+                            self.reverse_refs.entry(target.clone())
+                                .or_default()
+                                .insert((inst_name.clone(), entity.clone()));
+                        }
+                    }
+                    fv.insert(name.clone(), val);
+                }
                 self.instances.insert(inst_name.clone(), entity.clone());
 
                 // Update fleet state for any Boolean fields on the new instance
@@ -662,10 +915,17 @@ impl Evaluator {
                     }
                 }
 
-                self.store.insert(inst_name, Instance::new(entity, fv));
+                let entity_schema = self.schema.get_entity(entity).unwrap();
+                let mut instance = Instance::new(entity, entity_schema.field_names.len());
+                for (name, val) in fv {
+                    if let Some(idx) = entity_schema.field_indices.get(&name) {
+                        instance.set(*idx, val);
+                    }
+                }
+                self.store.insert(inst_name, instance);
 
                 // Recompute aggregates to include the new instance
-                self.agg_store.recompute(&self.store, Some(&self.cluster_state));
+                self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
 
                 Ok(vec![])
             }
@@ -678,7 +938,21 @@ impl Evaluator {
                         }
                     }
                 }
-                self.store.remove(&inst_name).ok_or(RuntimeError::R001 { instance: inst_name.clone() })?;
+                if let Some(inst) = self.store.remove(&inst_name) {
+                    let entity_schema = self.schema.get_entity(&inst.entity_name).unwrap();
+                    for (name, val) in inst.iter_fields(&entity_schema.field_names) {
+                        if let Value::Text(ref target) = val {
+                            if self.schema.is_ref_field(&inst.entity_name, name) {
+                                if let Some(refs) = self.reverse_refs.get_mut(target) {
+                                    refs.remove(&(inst_name.clone(), inst.entity_name.clone()));
+                                }
+                            }
+                        }
+                    }
+                    self.reverse_refs.remove(&inst_name);
+                } else {
+                    return Err(RuntimeError::R001 { instance: inst_name.clone() });
+                }
                 Ok(vec![])
             }
             Action::Alert(alert_action) => {
@@ -720,6 +994,29 @@ impl Evaluator {
                         }
                     }
                 }
+                // Issue 003: Resolve rule parameter alias for write targets
+                if let Some((ref param_name, _)) = self.rule_param_alias {
+                    if &inst_name == param_name {
+                        if let Some(ctx_inst) = ctx {
+                            inst_name = ctx_inst.to_string();
+                        }
+                    }
+                }
+                // Issue 006: Handle nested field paths
+                let actual_field = if let Some(ref sub_field) = target.sub_field {
+                    if let Some(inst) = self.store.get(&inst_name) {
+                        if let Some(Value::Text(ref_target)) = self.get_instance_field(inst, &target.field) {
+                            inst_name = ref_target.clone();
+                            sub_field.clone()
+                        } else {
+                            return Err(RuntimeError::R005 { instance: inst_name, field: target.field.clone() });
+                        }
+                    } else {
+                        return Err(RuntimeError::R001 { instance: inst_name });
+                    }
+                } else {
+                    target.field.clone()
+                };
                 // Dispatch to adapter if one is registered for this entity
                 let entity_name = self.instances.get(&inst_name)
                     .cloned()
@@ -727,18 +1024,18 @@ impl Evaluator {
                 let mut dispatched = false;
                 for adapter in &mut self.adapters {
                     if adapter.entity_name() == entity_name {
-                        adapter.on_write(&target.field, &val);
+                        adapter.on_write(&actual_field, &val);
                         dispatched = true;
                         break;
                     }
                 }
                 // Also update the local store so the state is consistent
                 if self.store.get(&inst_name).is_some() {
-                    self.apply_update(&inst_name, &target.field, val)
+                    self.apply_update(&inst_name, &actual_field, val)
                 } else if dispatched {
                     Ok(vec![])
                 } else {
-                    self.apply_update(&inst_name, &target.field, val)
+                    self.apply_update(&inst_name, &actual_field, val)
                 }
             }
         }
@@ -791,13 +1088,40 @@ impl Evaluator {
 
         // Capture old Boolean value for fleet tracking
         let old_bool = self.store.get(instance_name)
-            .and_then(|inst| inst.get(field_name))
-            .and_then(|v| if let Value::Bool(b) = v { Some(*b) } else { None });
+            .and_then(|inst| self.get_instance_field(inst, field_name))
+            .and_then(|v| if let Value::Bool(b) = v { Some(b) } else { None });
+
+        // Capture old string value for RefField tracking
+        let old_text = self.store.get(instance_name)
+            .and_then(|inst| self.get_instance_field(inst, field_name))
+            .and_then(|v| if let Value::Text(s) = v { Some(s.clone()) } else { None });
 
         // Apply
-        self.store.get_mut(instance_name)
-            .ok_or(RuntimeError::R001 { instance: instance_name.to_string() })?
-            .set(field_name, new_value.clone());
+        self.set_instance_field(instance_name, field_name, new_value.clone())?;
+        self.dirty_instances.insert(instance_name.to_string());
+
+        // Push update to cluster if connected
+        if let Some(ref node_lock) = self.cluster_node {
+            if let Ok(node) = node_lock.lock() {
+                if let Ok(bytes) = serde_json::to_vec(&new_value) {
+                    node.state_mesh.update_local(&node.config.node_id, field_name, bytes);
+                }
+            }
+        }
+
+        // Update reverse_refs if this is a RefField
+        if self.schema.is_ref_field(&entity_name, field_name) {
+            if let Some(old_target) = old_text {
+                if let Some(refs) = self.reverse_refs.get_mut(&old_target) {
+                    refs.remove(&(instance_name.to_string(), entity_name.clone()));
+                }
+            }
+            if let Value::Text(new_target) = &new_value {
+                self.reverse_refs.entry(new_target.clone())
+                    .or_default()
+                    .insert((instance_name.to_string(), entity_name.clone()));
+            }
+        }
 
         // Update fleet state for Boolean fields
         if let Value::Bool(new_b) = &new_value {
@@ -825,25 +1149,13 @@ impl Evaluator {
 
         // Cross-instance ref propagation: find all instances that reference
         // the updated instance via a `ref` field, and re-propagate their deriveds.
-        let referencing_instances: Vec<(String, String)> = self.store.all()
-            .filter_map(|(name, inst)| {
-                // Skip the instance we already propagated
-                if name == instance_name { return None; }
-                // Check if any field value is a Text matching the updated instance name
-                // (ref fields are stored as Value::Text(instance_name))
-                for (_, val) in &inst.fields {
-                    if let Value::Text(ref_target) = val {
-                        if ref_target == instance_name {
-                            return Some((name.clone(), inst.entity_name.clone()));
-                        }
-                    }
-                }
-                None
-            })
-            .collect();
+        let referencing_instances: Vec<(String, String)> = self.reverse_refs
+            .get(instance_name)
+            .map(|refs| refs.iter().cloned().collect())
+            .unwrap_or_default();
 
-        for (ref_inst_name, ref_entity_name) in referencing_instances {
-            if let Err(e) = self.propagate_derived(&ref_inst_name, &ref_entity_name) {
+        for (ref_inst_name, ref_entity_name) in &referencing_instances {
+            if let Err(e) = self.propagate_derived(ref_inst_name, ref_entity_name) {
                 let snap = self.snapshots.pop().unwrap();
                 self.store = snap.store;
                 self.depth -= 1;
@@ -851,14 +1163,24 @@ impl Evaluator {
             }
         }
 
-        self.agg_store.recompute(&self.store, Some(&self.cluster_state));
+        self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
 
-        // Evaluate rules
-        let all_events = self.evaluate_rules(instance_name)?;
+        // Evaluate rules for the directly updated instance
+        let mut all_events = self.evaluate_rules(instance_name)?;
+
+        // Issue 005: Also evaluate rules for referencing instances whose
+        // derived fields may have changed due to the cross-instance propagation
+        for (ref_inst_name, _) in &referencing_instances {
+            if self.store.get(ref_inst_name).is_some() {
+                let ref_events = self.evaluate_rules(ref_inst_name)?;
+                all_events.extend(ref_events);
+            }
+        }
 
         // Only commit at outermost level to prevent re-triggering becomes
         if self.depth == 1 {
-            self.store.commit_all();
+            self.store.commit_dirty(&self.dirty_instances);
+            self.dirty_instances.clear();
             self.fired_this_cycle.clear();
         }
         self.snapshots.pop();
@@ -874,6 +1196,9 @@ impl Evaluator {
             if self.store.get(instance_name).is_none() {
                 break; // Instance is gone, stop evaluating rules for it
             }
+
+            // Issue 003: Set parameter alias for this rule so eval_expr can resolve param names
+            self.rule_param_alias = rule.param.as_ref().map(|p| (p.name.clone(), p.entity.clone()));
 
             match &rule.trigger {
                 RuleTrigger::When(conditions) => {
@@ -1003,6 +1328,12 @@ impl Evaluator {
                     let active_key = (rule.name.clone(), "fleet".to_string());
                     let fire_key = format!("{}::fleet_any", rule.name);
 
+                    // Issue 002: Resolve the triggering instance for fleet context
+                    let fleet_ctx: Option<&str> = if self.instances.get(instance_name)
+                        .map(|e| e == &fc.entity).unwrap_or(false) {
+                        Some(instance_name)
+                    } else { None };
+
                     // Edge detection: fire only on rising edge (or start timer)
                     if now_met {
                         if !prev {
@@ -1012,7 +1343,7 @@ impl Evaluator {
                                 if !self.fired_this_cycle.contains(&fire_key) {
                                     self.fired_this_cycle.insert(fire_key);
                                     for action in &rule.actions {
-                                        let evts = self.exec_action(action, None)?;
+                                        let evts = self.exec_action(action, fleet_ctx)?;
                                         all_events.extend(evts);
                                     }
                                     all_events.push(FiredEvent {
@@ -1060,6 +1391,12 @@ impl Evaluator {
                     let active_key = (rule.name.clone(), "fleet".to_string());
                     let fire_key = format!("{}::fleet_all", rule.name);
 
+                    // Issue 002: Resolve the triggering instance for fleet context
+                    let fleet_ctx: Option<&str> = if self.instances.get(instance_name)
+                        .map(|e| e == &fc.entity).unwrap_or(false) {
+                        Some(instance_name)
+                    } else { None };
+
                     // Edge detection: fire only on rising edge (or start timer)
                     if now_met {
                         if !prev {
@@ -1069,7 +1406,7 @@ impl Evaluator {
                                 if !self.fired_this_cycle.contains(&fire_key) {
                                     self.fired_this_cycle.insert(fire_key);
                                     for action in &rule.actions {
-                                        let evts = self.exec_action(action, None)?;
+                                        let evts = self.exec_action(action, fleet_ctx)?;
                                         all_events.extend(evts);
                                     }
                                     all_events.push(FiredEvent {
@@ -1108,6 +1445,8 @@ impl Evaluator {
                 RuleTrigger::Every(_) => {} // handled in tick()
             }
         }
+        // Issue 003: Clear parameter alias after processing all rules
+        self.rule_param_alias = None;
         Ok(all_events)
     }
 
@@ -1115,6 +1454,10 @@ impl Evaluator {
     /// Typically used after initialization to establish first stable state.
     pub fn recalculate_all_rules(&mut self) -> Result<Vec<FiredEvent>, RuntimeError> {
         let mut all_events = Vec::new();
+        
+        // Single batch recomputation of aggregates after initialization
+        self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
+
         let instance_names: Vec<String> = self.store.all().map(|(n, _)| n.clone()).collect();
         for name in instance_names {
             let evts = self.evaluate_rules(&name)?;
@@ -1134,7 +1477,7 @@ impl Evaluator {
         for (ent, field) in derived {
             if let Some(expr) = self.derived_exprs.get(&(ent.clone(), field.clone())).cloned() {
                 // Capture old value for fleet tracking
-                let old_val = self.store.get(instance_name).and_then(|inst| inst.get(&field)).cloned();
+                let old_val = self.store.get(instance_name).and_then(|inst| self.get_instance_field(inst, &field));
                 
                 let val = self.eval_expr(&expr, Some(instance_name))?;
                 
@@ -1145,9 +1488,8 @@ impl Evaluator {
                     self.fleet_state.update(&ent, &field, old_b, *new_b, total);
                 }
 
-                if let Some(inst) = self.store.get_mut(instance_name) {
-                    inst.set(&field, val);
-                }
+                self.set_instance_field(instance_name, &field, val)?;
+                self.dirty_instances.insert(instance_name.to_string());
             }
         }
         Ok(())
@@ -1177,28 +1519,50 @@ impl Evaluator {
 
     /// Called periodically by the host — fires any elapsed for/every timers
     pub fn tick(&mut self) -> Result<Vec<FiredEvent>, RollbackResult> {
+        self.sync_cluster_state();
+        if let Err(e) = self.process_orchestration() {
+            return Err(RollbackResult {
+                diagnostic: Diagnostic::from_runtime_error(
+                    e.code(),
+                    &format!("Orchestration failure: {}", e.message()),
+                    self.snapshots.current_version(),
+                    vec![],
+                ),
+            });
+        }
         let mut all_events = vec![];
 
         // ── Poll external entity adapters ──────────────────────────
-        let updates: Vec<(String, String, Value)> = self.adapters
+        let updates: Vec<(String, String, String, Value)> = self.adapters
             .iter_mut()
             .flat_map(|a| {
-                let name = a.entity_name().to_string();
+                let ent_name = a.entity_name().to_string();
                 std::iter::from_fn(move || {
-                    a.poll().map(|(f, v)| (name.clone(), f, v))
+                    a.poll().map(|(inst, f, v)| (ent_name.clone(), inst, f, v))
                 }).collect::<Vec<_>>()
             }).collect();
 
-        for (entity, field, value) in updates {
-            if let Some(inst_name) = self.store.find_instance_of(&entity) {
+        for (entity, instance, field, value) in updates {
+            let inst_name = if instance == "default" {
+                self.store.find_instance_of(&entity)
+            } else if self.store.contains(&instance) {
+                Some(instance)
+            } else {
+                None
+            };
+
+            if let Some(inst_name) = inst_name {
                 // sync_on filtering: only propagate if the field matches sync_on
                 // (or if no sync_on is set). Non-sync fields are still stored.
                 if let Some(entity_schema) = self.schema.get_entity(&entity) {
                     if let Some(ref sync_fields) = entity_schema.sync_on {
                         if !sync_fields.contains(&field) {
                             // Store the value without triggering propagation
+                            let idx = self.get_field_idx(&entity, &field);
                             if let Some(inst) = self.store.get_mut(&inst_name) {
-                                inst.set(&field, value);
+                                if let Some(idx) = idx {
+                                    inst.set(idx, value);
+                                }
                             }
                             continue;
                         }
@@ -1244,7 +1608,8 @@ impl Evaluator {
                 if still_true {
                     match self.exec_rule_actions(&rule, &timer.instance_name) {
                         Ok(events) => {
-                            self.store.commit_all();
+                            self.store.commit_dirty(&self.dirty_instances);
+                            self.dirty_instances.clear();
                             all_events.extend(events);
                         }
                         Err(e) => {
@@ -1272,7 +1637,8 @@ impl Evaluator {
                 let snap = self.snapshots.take(&self.store);
                 match self.exec_rule_actions(&rule, "") {
                     Ok(events) => {
-                        self.store.commit_all();
+                        self.store.commit_dirty(&self.dirty_instances);
+                        self.dirty_instances.clear();
                         all_events.extend(events);
                     }
                     Err(e) => {
@@ -1318,8 +1684,9 @@ impl Evaluator {
     pub fn export_state(&self) -> serde_json::Value {
         let mut instances = serde_json::Map::new();
         for (name, instance) in self.store.all() {
+            let entity_schema = self.schema.get_entity(&instance.entity_name).unwrap();
             let mut fields = serde_json::Map::new();
-            for (fname, val) in &instance.fields {
+            for (fname, val) in instance.iter_fields(&entity_schema.field_names) {
                 fields.insert(fname.clone(), self.value_to_json(val));
             }
             instances.insert(name.clone(), serde_json::json!({
@@ -1340,14 +1707,17 @@ impl Evaluator {
     fn eval_to_list(&self, expr: &Expr, ctx: Option<&str>) -> Result<Vec<Value>, RuntimeError> {
         match self.eval_expr(expr, ctx)? {
             Value::List(l) => Ok(l),
-            _ => Err(RuntimeError::R002),
+            v => Err(RuntimeError::R018 { expected: "List".into(), found: v.type_name().into() }),
         }
     }
 
     fn eval_to_num_list(&self, expr: &Expr, ctx: Option<&str>) -> Result<Vec<f64>, RuntimeError> {
         let list = self.eval_to_list(expr, ctx)?;
         list.into_iter()
-            .map(|v| v.as_number().ok_or(RuntimeError::R002))
+            .map(|v| v.as_number().ok_or_else(|| RuntimeError::R018 { 
+                expected: "Number".into(), 
+                found: v.type_name().into() 
+            }))
             .collect()
     }
 
@@ -1369,6 +1739,81 @@ impl Evaluator {
             Value::Unknown => serde_json::Value::Null,
         }
     }
+
+    /// Check if all declared external entities have a corresponding adapter.
+    /// Returns a list of warnings for missing adapters.
+    pub fn validate_adapters(&self) -> Vec<String> {
+        let mut warnings = Vec::new();
+        let registered_entities: FxHashSet<&str> = self.adapters.iter().map(|a| a.entity_name()).collect();
+        for (name, entity) in &self.schema.entities {
+            if entity.is_external && !registered_entities.contains(name.as_str()) {
+                warnings.push(format!("External entity '{}' has no registered adapter and will be ignored.", name));
+            }
+        }
+        warnings
+    }
+
+    fn process_orchestration(&mut self) -> Result<(), RuntimeError> {
+        let (orchestration_events, local_node_id) = if let Some(ref node_lock) = self.cluster_node {
+            let mut node = node_lock.lock().unwrap();
+            (node.drain_orchestration(), node.config.node_id.clone())
+        } else {
+            return Ok(());
+        };
+
+        for event in orchestration_events {
+            match event {
+                lumina_cluster::GossipMessageKind::WorkloadMove { target_node, workload } => {
+                    if target_node != local_node_id {
+                        let mut to_handoff = Vec::new();
+                        for name in &workload {
+                            if let Some(inst) = self.store.get(name) {
+                                let data = serde_json::to_vec(inst).unwrap();
+                                to_handoff.push((name.clone(), inst.entity_name.clone(), data));
+                            }
+                        }
+
+                        if !to_handoff.is_empty() {
+                            if let Some(ref node_lock) = self.cluster_node {
+                                let node = node_lock.lock().unwrap();
+                                node.gossip.broadcast(
+                                    local_node_id.clone(),
+                                    lumina_cluster::GossipMessageKind::WorkloadHandoff { 
+                                        target_node: target_node.clone(),
+                                        instances: to_handoff.clone() 
+                                    },
+                                );
+                            }
+                            for (name, _, _) in to_handoff {
+                                self.store.remove(&name);
+                                self.instances.remove(&name);
+                            }
+                        }
+                    }
+                }
+                lumina_cluster::GossipMessageKind::WorkloadHandoff { target_node, instances } => {
+                    if target_node == local_node_id {
+                        for (name, entity, data) in instances {
+                            let inst: Instance = serde_json::from_slice(&data).map_err(|_| RuntimeError::R007 { entity: entity.clone(), reason: "Orchestration handoff deserialization failed".into() })?;
+                            self.store.insert(name.clone(), inst);
+                            self.instances.insert(name, entity);
+                        }
+                    }
+                }
+                lumina_cluster::GossipMessageKind::WorkloadDeploy { target_node, instances, .. } => {
+                    if target_node == local_node_id {
+                        for (name, entity, data) in instances {
+                            let inst: Instance = serde_json::from_slice(&data).map_err(|_| RuntimeError::R007 { entity: entity.clone(), reason: "Orchestration deploy deserialization failed".into() })?;
+                            self.store.insert(name.clone(), inst);
+                            self.instances.insert(name, entity);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -1388,7 +1833,7 @@ mod tests {
         let program = lumina_parser::parse(source).expect("parse failed");
         let analyzed = lumina_analyzer::analyze(program, source, "<runtime-test>", true).expect("analysis failed");
         let mut rules = Vec::new();
-        let mut derived = HashMap::new();
+        let mut derived = FxHashMap::default();
         for stmt in &analyzed.program.statements {
             match stmt {
                 Statement::Rule(r) => rules.push(r.clone()),
@@ -1404,8 +1849,19 @@ mod tests {
         }
         let mut ev = Evaluator::new(analyzed.schema, analyzed.graph, rules);
         ev.derived_exprs = derived;
-        ev.functions = analyzed.fn_defs;
+        ev.functions = analyzed.fn_defs.into_iter().collect();
         ev
+    }
+
+    fn insert_instance(ev: &mut Evaluator, name: &str, entity: &str, fields: Vec<(&str, Value)>) {
+        let schema = ev.schema.get_entity(entity).expect("entity not in schema");
+        let mut inst = Instance::new(entity, schema.field_names.len());
+        for (f, v) in fields {
+            let idx = schema.field_indices.get(f).expect("field not in schema");
+            inst.set(*idx, v);
+        }
+        ev.store.insert(name.to_string(), inst);
+        ev.instances.insert(name.to_string(), entity.to_string());
     }
 
     #[test]
@@ -1415,10 +1871,10 @@ mod tests {
             entity Math { val: Number res := double(val) }
         ";
         let mut ev = build_eval(source);
-        ev.store.insert("m1".to_string(), crate::store::Instance::new("Math", vec![("val".to_string(), Value::Number(10.0))].into_iter().collect()));
+        insert_instance(&mut ev, "m1", "Math", vec![("val", Value::Number(10.0))]);
         ev.propagate_derived("m1", "Math").unwrap();
         let inst = ev.store.get("m1").unwrap();
-        assert_eq!(inst.get("res").unwrap(), &Value::Number(20.0));
+        assert_eq!(ev.get_instance_field(inst, "res").unwrap(), Value::Number(20.0));
     }
 
     #[test]
@@ -1471,22 +1927,21 @@ mod tests {
     #[test]
     fn test_derived_recomputes() {
         let mut ev = build_eval("entity Person {\n  age: Number\n  isAdult := age >= 18\n}");
-        let mut fields = HashMap::new();
-        fields.insert("age".into(), Value::Number(17.0));
-        fields.insert("isAdult".into(), Value::Bool(false));
-        ev.store.insert("p1", Instance::new("Person", fields));
+        insert_instance(&mut ev, "p1", "Person", vec![
+            ("age", Value::Number(17.0)),
+            ("isAdult", Value::Bool(false)),
+        ]);
 
         ev.apply_update("p1", "age", Value::Number(18.0)).unwrap();
-        assert_eq!(ev.store.get("p1").unwrap().get("isAdult"), Some(&Value::Bool(true)));
+        let inst = ev.store.get("p1").unwrap();
+        assert_eq!(ev.get_instance_field(inst, "isAdult").unwrap(), Value::Bool(true));
     }
 
     #[test]
     fn test_rule_fires_on_becomes() {
         let src = "entity S {\n  active: Boolean\n}\nrule activate when S.active becomes true {\n  show \"fired\"\n}";
         let mut ev = build_eval(src);
-        let mut fields = HashMap::new();
-        fields.insert("active".into(), Value::Bool(false));
-        ev.store.insert("S", Instance::new("S", fields));
+        insert_instance(&mut ev, "S", "S", vec![("active", Value::Bool(false))]);
 
         let events = ev.apply_update("S", "active", Value::Bool(true)).unwrap();
         assert!(events.iter().any(|e| e.rule == "activate"));
@@ -1495,25 +1950,27 @@ mod tests {
     #[test]
     fn test_rollback_on_div_zero() {
         let mut ev = build_eval("entity A {\n  x: Number\n  y: Number\n  ratio := x / y\n}");
-        let mut fields = HashMap::new();
-        fields.insert("x".into(), Value::Number(10.0));
-        fields.insert("y".into(), Value::Number(2.0));
-        fields.insert("ratio".into(), Value::Number(5.0));
-        ev.store.insert("a1", Instance::new("A", fields));
+        insert_instance(&mut ev, "a1", "A", vec![
+            ("x", Value::Number(10.0)),
+            ("y", Value::Number(2.0)),
+            ("ratio", Value::Number(5.0)),
+        ]);
 
         let result = ev.apply_update("a1", "y", Value::Number(0.0));
         assert!(result.is_err());
         // Store should be rolled back
-        assert_eq!(ev.store.get("a1").unwrap().get("y"), Some(&Value::Number(2.0)));
+        let inst = ev.store.get("a1").unwrap();
+        assert_eq!(ev.get_instance_field(inst, "y").unwrap(), Value::Number(2.0));
     }
 
     #[test]
     fn test_export_state() {
-        let mut ev = empty_eval();
-        let mut fields = HashMap::new();
-        fields.insert("name".into(), Value::Text("Isaac".into()));
-        fields.insert("age".into(), Value::Number(26.0));
-        ev.store.insert("isaac", Instance::new("Person", fields));
+        let source = "entity Person { name: Text age: Number }";
+        let mut ev = build_eval(source);
+        insert_instance(&mut ev, "isaac", "Person", vec![
+            ("name", Value::Text("Isaac".into())),
+            ("age", Value::Number(26.0)),
+        ]);
 
         let state = ev.export_state();
         assert!(state["instances"]["isaac"]["entity"] == "Person");
@@ -1526,9 +1983,7 @@ mod tests {
     fn test_rule_does_not_fire_without_transition() {
         let src = "entity S {\n  active: Boolean\n}\nrule activate when S.active becomes true {\n  show \"fired\"\n}";
         let mut ev = build_eval(src);
-        let mut fields = HashMap::new();
-        fields.insert("active".into(), Value::Bool(true));
-        ev.store.insert("S", Instance::new("S", fields));
+        insert_instance(&mut ev, "S", "S", vec![("active", Value::Bool(true))]);
         // Commit so prev_fields = fields (active=true already)
         ev.store.commit_all();
 
@@ -1538,32 +1993,22 @@ mod tests {
 
     #[test]
     fn test_adapter_poll_triggers_rule() {
-        // Guide §28.5 Step 8: external entity + StaticAdapter, push value, verify rule fires
         let src = "entity Sensor {\n  reading: Number\n  isCritical := reading > 90\n}\nrule overheat when Sensor.isCritical becomes true {\n  show \"overheating\"\n}";
         let mut ev = build_eval(src);
-        let mut fields = HashMap::new();
-        fields.insert("reading".into(), Value::Number(50.0));
-        fields.insert("isCritical".into(), Value::Bool(false));
-        ev.store.insert("Sensor", Instance::new("Sensor", fields));
+        insert_instance(&mut ev, "Sensor", "Sensor", vec![
+            ("reading", Value::Number(50.0)),
+            ("isCritical", Value::Bool(false)),
+        ]);
 
-        // Register a StaticAdapter and push a critical reading
         let mut adapter = crate::adapters::static_adapter::StaticAdapter::new("Sensor");
-        adapter.push("reading", Value::Number(95.0));
+        adapter.push("Sensor", "reading", Value::Number(95.0));
         ev.register_adapter(Box::new(adapter));
 
-        // tick() should poll the adapter and fire the overheat rule
         let result = ev.tick();
         assert!(result.is_ok());
-        // After tick, reading should be updated
-        assert_eq!(
-            ev.store.get("Sensor").unwrap().get("reading"),
-            Some(&Value::Number(95.0))
-        );
-        // isCritical should have been recomputed
-        assert_eq!(
-            ev.store.get("Sensor").unwrap().get("isCritical"),
-            Some(&Value::Bool(true))
-        );
+        let inst = ev.store.get("Sensor").unwrap();
+        assert_eq!(ev.get_instance_field(inst, "reading").unwrap(), Value::Number(95.0));
+        assert_eq!(ev.get_instance_field(inst, "isCritical").unwrap(), Value::Bool(true));
     }
 
     #[test]
@@ -1574,7 +2019,7 @@ mod tests {
 
         // Register adapter for an entity that has no instance in the store
         let mut adapter = crate::adapters::static_adapter::StaticAdapter::new("UnknownEntity");
-        adapter.push("value", Value::Number(42.0));
+        adapter.push("default", "value", Value::Number(42.0));
         ev.register_adapter(Box::new(adapter));
 
         // tick() should not panic or error
@@ -1591,22 +2036,15 @@ entity Battery {
 }
         "#;
         let mut ev = build_eval(src);
+        insert_instance(&mut ev, "batt1", "Battery", vec![
+            ("level", Value::Number(100.0)),
+            ("drop", Value::Number(0.0)),
+        ]);
+        ev.store.commit_all(); 
         
-        let mut fields = HashMap::new();
-        fields.insert("level".into(), Value::Number(100.0));
-        fields.insert("drop".into(), Value::Number(0.0)); // Initial
-        
-        ev.store.insert("batt1", Instance::new("Battery", fields));
-        ev.store.commit_all(); // Commit baseline state
-        
-        // Update level to 90
         ev.apply_update("batt1", "level", Value::Number(90.0)).unwrap();
-        
-        // Check derived drop
-        assert_eq!(
-            ev.store.get("batt1").unwrap().get("drop"),
-            Some(&Value::Number(10.0)) // 100 - 90
-        );
+        let inst = ev.store.get("batt1").unwrap();
+        assert_eq!(ev.get_instance_field(inst, "drop").unwrap(), Value::Number(10.0));
     }
 
     #[test]
@@ -1621,15 +2059,10 @@ entity Battery {
             }
         "#;
         let mut ev = build_eval(source);
-        ev.instances.insert("res1".to_string(), "Resource".to_string());
-        ev.store.insert("res1".to_string(), crate::store::Instance::new("Resource", vec![("status".to_string(), Value::Text("active".to_string()))].into_iter().collect()));
-
+        insert_instance(&mut ev, "res1", "Resource", vec![("status", Value::Text("active".to_string()))]);
         
         let res = ev.apply_update("res1", "status", Value::Text("deleted".to_string()));
-        
-        // Output should not panic or return an error like R001 "Unknown instance" because the second rule will be skipped safely
         res.unwrap();
-        // Specifically, it should not exist in the store
         assert!(ev.store.get("res1").is_none());
     }
 }

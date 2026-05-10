@@ -14,9 +14,9 @@ _2027 | Chapters 61-68 | Builds on v1.9 | Designed and authored by Isaac Ishimwe
 
 By the end of v1.9, a single Lumina node is extraordinarily powerful. It has native memory, an immutable audit trail, a plugin ecosystem, standard entity definitions, and direct hardware access through native protocols.
 
-But a data center is not a single node. It is hundreds of racks, thousands of servers, millions of sensors — all distributed across physical space.
+But a data center is not a single node. It is hundreds of racks, thousands of servers, millions of sensors all distributed across physical space.
 
-v2.0.0 is when Lumina stops being a powerful single-node engine and becomes a sovereign distributed cluster. Every rack thinks. Every node shares truth. The reactive graph never stops — even when hardware fails.
+v2.0.0 is when Lumina stops being a powerful single-node engine and becomes a sovereign distributed cluster. Every rack thinks. Every node shares truth. The reactive graph never stops even when hardware fails.
 
 This is the version where Terraform and Kubernetes become optional.
 
@@ -24,10 +24,10 @@ This is the version where Terraform and Kubernetes become optional.
 
 | **Gap in v1.9** | **v2.0.0 Solution** |
 | --- | --- |
-| Single node — no distribution | Distributed DAG Engine |
+| Single node no distribution | Distributed DAG Engine |
 | Single point of failure | High Availability with automatic leader election |
 | Nodes can't see each other's truth | Cluster State Sharing |
-| Rules only react — can't orchestrate | Write actions deploy workloads and migrate VMs |
+| Rules only react can't orchestrate | Write actions deploy workloads and migrate VMs |
 | No cluster-wide aggregation | Global aggregates across all nodes |
 | No cluster management interface | Lumina Control Plane CLI |
 
@@ -43,7 +43,7 @@ The core insight of v2.0.0 is that Lumina nodes don't need a central coordinator
 **How it works:**
 *   Each Lumina node runs on a Top-of-Rack switch or dedicated compute.
 *   Nodes discover each other automatically via mDNS or static peer config.
-*   State changes propagate through a gossip protocol — O(log n) hops.
+*   State changes propagate through a gossip protocol O(log n) hops.
 *   A rule on Rack A can reference the truth of an entity on Rack B.
 
 ```lumina
@@ -58,13 +58,13 @@ external entity Server from "redfish" {
 rule cross_rack_thermal {
   when avgOver(server.temperature_c, 2h) > 42.0
     and cluster.rack_a.avg_temperature > 40.0
-  alert "Thermal cascade risk — Rack A and local rack both heating"
+  alert "Thermal cascade risk Rack A and local rack both heating"
 }
 ```
 
 **New syntax introduced:**
-*   `cluster.{node_id}.{field}` — reference another node's aggregated state
-*   `cluster.all.{field}` — reference truth across the entire cluster
+*   `cluster.{node_id}.{field}` reference another node's aggregated state
+*   `cluster.all.{field}` reference truth across the entire cluster
 
 ---
 
@@ -73,7 +73,7 @@ rule cross_rack_thermal {
 
 _The reactive graph never stops._
 
-A data center cannot have a monitoring and control system that goes dark when a node fails. v2.0.0 introduces the HA Engine — automatic leader election, state replication, and seamless failover.
+A data center cannot have a monitoring and control system that goes dark when a node fails. v2.0.0 introduces the HA Engine automatic leader election, state replication, and seamless failover.
 
 **Architecture:**
 *   Cluster of N Lumina nodes
@@ -120,7 +120,7 @@ Changes propagate via peer broadcast on every tick.
 
 _Lumina stops watching. Lumina starts deciding._
 
-In v2.0.0, the `write` command gains orchestration capabilities — it can deploy workloads, migrate virtual machines, drain racks, and trigger recovery sequences.
+In v2.0.0, the `write` command gains orchestration capabilities it can deploy workloads, migrate virtual machines, drain racks, and trigger recovery sequences.
 
 ```lumina
 -- Evacuate a degraded host before it fails
@@ -128,7 +128,7 @@ rule evacuate_degraded_host {
   when server.disk_error_rate > 0.05
     and server.predicted_failure_hours < 48.0
   write server.workloads = migrate(server.workloads, to: "healthy")
-  alert "Evacuating {server.id} — predicted failure in {server.predicted_failure_hours}h"
+  alert "Evacuating {server.id} predicted failure in {server.predicted_failure_hours}h"
 }
 
 -- Drain a rack for maintenance
@@ -136,7 +136,7 @@ rule thermal_emergency_drain {
   when rack.temperature_c > 45.0
   write rack.state = "draining"
   write rack.servers = evacuate(rack.servers)
-  alert "Emergency drain initiated on {rack.id} — temperature {rack.temperature_c}C"
+  alert "Emergency drain initiated on {rack.id} temperature {rack.temperature_c}C"
 }
 ```
 
@@ -196,7 +196,7 @@ _The tools become optional._
 
 With the orchestration capabilities of Chapter 64 and the provider model of v1.8, Kubernetes and Terraform become mere Lumina **providers**.
 
-Engineers who want to keep Kubernetes keep it — now with Lumina acting as the supreme intelligence layer observing cluster states and triggering native Kubernetes deployments. Engineers who want native orchestration bypass them entirely.
+Engineers who want to keep Kubernetes keep it now with Lumina acting as the supreme intelligence layer observing cluster states and triggering native Kubernetes deployments. Engineers who want native orchestration bypass them entirely.
 
 ---
 
@@ -218,8 +218,8 @@ _What it means when Lumina runs everything._
 
 | Code | Meaning |
 |---|---|
-| L042 | Quorum lost — cluster cannot commit writes |
-| L043 | Node isolated — operating in read-only mode |
+| L042 | Quorum lost cluster cannot commit writes |
+| L043 | Node isolated operating in read-only mode |
 | L044 | WAL replication lag exceeds threshold |
 | L045 | Cross-node entity reference unresolvable |
 | L046 | Orchestration write target unreachable |

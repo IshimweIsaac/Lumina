@@ -7,14 +7,14 @@ use std::sync::{mpsc::{Receiver, Sender}, Mutex};
 /// through a `Sender`.
 pub struct ChannelAdapter {
     entity: String,
-    rx: Mutex<Receiver<(String, Value)>>,
+    rx: Mutex<Receiver<(String, String, Value)>>,
     tx: Option<Sender<(String, Value)>>,
 }
 
 impl ChannelAdapter {
     pub fn new(
         entity: impl Into<String>,
-        rx: Receiver<(String, Value)>,
+        rx: Receiver<(String, String, Value)>,
         tx: Option<Sender<(String, Value)>>,
     ) -> Self {
         Self { entity: entity.into(), rx: Mutex::new(rx), tx }
@@ -24,7 +24,7 @@ impl ChannelAdapter {
 impl LuminaAdapter for ChannelAdapter {
     fn entity_name(&self) -> &str { &self.entity }
 
-    fn poll(&mut self) -> Option<(String, Value)> {
+    fn poll(&mut self) -> Option<(String, String, Value)> {
         self.rx.lock().ok()?.try_recv().ok()
     }
 

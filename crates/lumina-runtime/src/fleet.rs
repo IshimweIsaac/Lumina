@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 /// Tracks Boolean field true-counts per (entity, field) for fleet-level triggers.
 ///
@@ -8,13 +8,13 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct FleetState {
     /// (entity_name, field_name) -> (true_count, total_count)
-    counts: HashMap<(String, String), (usize, usize)>,
+    counts: FxHashMap<(String, String), (usize, usize)>,
 }
 
 impl FleetState {
     pub fn new() -> Self {
         Self {
-            counts: HashMap::new(),
+            counts: FxHashMap::default(),
         }
     }
 

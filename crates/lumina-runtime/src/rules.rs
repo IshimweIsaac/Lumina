@@ -69,12 +69,12 @@ fn eval_expr_with_store(
                 _ => instance_name.to_string(),
             };
             if let Some(inst) = prev_store.get(&inst_name) {
-                if let Some(val) = inst.get(field) {
-                    return Ok(val.clone());
+                if let Some(val) = evaluator.get_instance_field(inst, field) {
+                    return Ok(val);
                 }
                 // Check prev_fields for the previous-previous value
-                if let Some(val) = inst.prev(field) {
-                    return Ok(val.clone());
+                if let Some(val) = evaluator.get_instance_prev_field(inst, field) {
+                    return Ok(val);
                 }
             }
             // Fallback: use the current evaluator

@@ -3,8 +3,11 @@ use crate::gossip::{GossipLayer, GossipMessageKind};
 use crate::election::{ElectionState, NodeRole};
 use crate::wal::WriteAheadLog;
 use crate::state_mesh::ClusterStateMesh;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::time::Instant;
+use std::sync::Arc;
+use std::net::SocketAddr;
+use crate::transport::UdpTransport;
 use serde::{Serialize, Deserialize};
 
 /// Node lifecycle state
@@ -33,10 +36,11 @@ pub struct ClusterStatus {
 pub struct ClusterNode {
     pub config: ClusterConfig,
     pub state: NodeState,
-    pub gossip: GossipLayer,
+    pub gossip: Arc<GossipLayer>,
     pub election: ElectionState,
     pub state_mesh: ClusterStateMesh,
     pub wal: Option<WriteAheadLog>,
+    pub orchestration_queue: Vec<GossipMessageKind>,
     tick_count: u64,
 }
 
@@ -46,10 +50,11 @@ impl ClusterNode {
         Self {
             config,
             state: NodeState::Starting,
-            gossip: GossipLayer::new(),
+            gossip: Arc::new(GossipLayer::new()),
             election,
             state_mesh: ClusterStateMesh::new(),
             wal: None,
+            orchestration_queue: Vec::new(),
             tick_count: 0,
         }
     }
@@ -58,13 +63,38 @@ impl ClusterNode {
     pub fn initialize(&mut self) {
         let total_nodes = (self.config.peers.len() + 1) as u32; // peers + self
 
+        let mut peer_map = FxHashMap::default();
         // Register all peers in the gossip layer
-        for peer in &self.config.peers {
-            self.gossip.add_peer(peer.clone());
+        for peer_str in &self.config.peers {
+            // Parse "node_id@addr" or just "addr" (in which case node_id is addr)
+            let (id, addr_str) = if let Some((id, addr)) = peer_str.split_once('@') {
+                (id.to_string(), addr)
+            } else {
+                (peer_str.clone(), peer_str.as_str())
+            };
+
+            if let Ok(addr) = addr_str.parse::<SocketAddr>() {
+                peer_map.insert(id.clone(), addr);
+                self.gossip.add_peer(id);
+            }
         }
 
         // Initialize election with our identity and cluster size
         self.election.init(&self.config.node_id, total_nodes);
+
+        // Initialize networking transport
+        if let Ok(bind_addr) = self.config.bind_addr.parse::<SocketAddr>() {
+            let transport = UdpTransport::new(
+                Arc::clone(&self.gossip),
+                bind_addr,
+                peer_map,
+            );
+            tokio::spawn(async move {
+                if let Err(e) = transport.start().await {
+                    eprintln!("Failed to start cluster transport: {}", e);
+                }
+            });
+        }
 
         // Initialize WAL (best-effort; ignore errors in simulation)
         let wal_path = format!("/tmp/lumina-wal-{}.log", self.config.node_id);
@@ -77,7 +107,7 @@ impl ClusterNode {
         );
 
         // Register ourselves in the state mesh
-        self.state_mesh.update_node_state(&self.config.node_id, HashMap::new());
+        self.state_mesh.update_node_state(&self.config.node_id, FxHashMap::default());
 
         self.state = NodeState::Active;
     }
@@ -116,6 +146,11 @@ impl ClusterNode {
                 GossipMessageKind::Join { node_id } => {
                     self.gossip.add_peer(node_id);
                 }
+                GossipMessageKind::WorkloadMove { .. } |
+                GossipMessageKind::WorkloadHandoff { .. } |
+                GossipMessageKind::WorkloadDeploy { .. } => {
+                    self.orchestration_queue.push(msg.kind);
+                }
             }
         }
 
@@ -136,7 +171,7 @@ impl ClusterNode {
         // 5. Periodically sync local state to the mesh via gossip
         if self.tick_count % 5 == 0 {
             if let Some(local_state) = self.state_mesh.snapshot_node(&self.config.node_id) {
-                let raw_state: HashMap<String, Vec<u8>> = local_state.into_iter()
+                let raw_state: FxHashMap<String, Vec<u8>> = local_state.into_iter()
                     .map(|(k, v)| (k, v.value))
                     .collect();
                 self.gossip.broadcast(
@@ -170,7 +205,7 @@ impl ClusterNode {
     }
 
     /// Collect the full cluster state from the mesh for the Evaluator
-    pub fn collect_cluster_state(&self) -> HashMap<String, HashMap<String, Vec<u8>>> {
+    pub fn collect_cluster_state(&self) -> FxHashMap<String, FxHashMap<String, Vec<u8>>> {
         self.state_mesh.snapshot_raw()
     }
 
@@ -209,5 +244,9 @@ impl ClusterNode {
             mesh_nodes: self.state_mesh.node_count(),
             wal_entries: self.wal.as_ref().map(|w| w.len()).unwrap_or(0),
         }
+    }
+
+    pub fn drain_orchestration(&mut self) -> Vec<GossipMessageKind> {
+        std::mem::take(&mut self.orchestration_queue)
     }
 }

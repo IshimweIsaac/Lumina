@@ -13,3 +13,4 @@ bytes = "1.4.0"
 parking_lot = "0.12.1"
 lumina-parser = { path = "../lumina-parser", version = "2.0.0" }
 lumina-analyzer = { path = "../lumina-analyzer", version = "2.0.0" }
+rustc-hash = "1.1"

@@ -19,9 +19,9 @@ Lumina's engine then handles the reading, the comparison, the timing, and the st
 
 ---
 
-## 2. The 3-Tier Layered Logic
+## 2. The 4-Tier Layered Logic
 
-Lumina programs are built using three distinct layers of data, each with different properties:
+Lumina programs are built using four distinct layers of data, each with different properties:
 
 ### **Tier 1: Stored Fields (The Foundation)**
 These are the raw facts of your system. They only change when an external event occurs or a rule explicitly updates them.
@@ -51,6 +51,15 @@ Rules watch for "moments of transition" in your derived fields. This is where yo
 rule "Safety Trip"
 when Thermometer.is_overheating becomes true for 5m {
   alert severity: "critical", message: "Emergency Cooling Required!"
+}
+```
+
+### **Tier 4: The Cluster Mesh (The Network)**
+In v2.0, state isn't confined to a single node. You can define `cluster` topology, enabling workloads to seamlessly `migrate` and broadcast state changes across the network using a native UDP Gossip protocol.
+```lumina
+rule "Failover Orchestration"
+when MainServer.is_unhealthy becomes true {
+    migrate { workloads: "critical_db", target: "backup_node" }
 }
 ```
 
@@ -84,6 +93,9 @@ aggregate FactoryHealth over Sensor {
 
 ### **☁️ Cloud Compliance**
 Ensure infrastructure remains secure. Detect "drift" from your desired state and remediate it without manual polling.
+
+### **🌍 Multi-Datacenter Orchestration**
+Using v2.0's native clustering, detect when an entire datacenter region is degrading and automatically evaluate `migrate` expressions to evacuate workloads to healthy peers using quorum-based Raft elections.
 
 ### **📊 Reliability Engineering**
 Build alerting systems that auto-resolve. Use the `on clear` block to send recovery signals the millisecond a condition is no longer true.

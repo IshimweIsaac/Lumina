@@ -263,7 +263,14 @@ impl Parser {
                 Ok(Field::Ref(RefField { name, target_entity, span: start }))
             } else {
                 let ty = self.parse_type()?;
-                Ok(Field::Stored(StoredField { name, ty, metadata, span: start }))
+                // Issue 007: Support trailing metadata after type (e.g., `value: Number @range 0 to 500`)
+                let trailing = self.parse_metadata()?;
+                let merged = FieldMetadata {
+                    doc: metadata.doc.or(trailing.doc),
+                    range: metadata.range.or(trailing.range),
+                    affects: { let mut v = metadata.affects; v.extend(trailing.affects); v },
+                };
+                Ok(Field::Stored(StoredField { name, ty, metadata: merged, span: start }))
             }
         } else if self.check(&Token::ColonEq) {
             self.advance();
@@ -658,6 +665,7 @@ impl Parser {
         self.skip_newlines();
 
         let mut node_id = String::new();
+        let mut bind_addr = String::new();
         let mut peers = Vec::new();
         let mut quorum: u32 = 3;
         let mut election_timeout = Duration { value: 500.0, unit: TimeUnit::Seconds };
@@ -668,6 +676,11 @@ impl Parser {
                     self.advance();
                     self.expect(&Token::Colon)?;
                     node_id = self.expect_text("node_id value")?;
+                }
+                Token::KwBindAddr => {
+                    self.advance();
+                    self.expect(&Token::Colon)?;
+                    bind_addr = self.expect_text("bind_addr value")?;
                 }
                 Token::KwPeers => {
                     self.advance();
@@ -701,7 +714,7 @@ impl Parser {
         self.expect(&Token::RBrace)?;
 
         Ok(Statement::Cluster(ClusterDecl {
-            node_id, peers, quorum, election_timeout, span,
+            node_id, bind_addr, peers, quorum, election_timeout, span,
         }))
     }
 
@@ -814,6 +827,13 @@ impl Parser {
                 let instance = self.expect_ident("instance name")?;
                 self.expect(&Token::Dot)?;
                 let field = self.expect_ident("field name")?;
+                // Issue 006: Support nested field paths (e.g., server.cooling.power)
+                let sub_field = if self.check(&Token::Dot) {
+                    self.advance();
+                    Some(self.expect_ident("nested field name")?)
+                } else {
+                    None
+                };
                 let span = self.current_span();
                 // Accept both 'to' and '=' for assignment
                 if self.check(&Token::KwTo) {
@@ -823,7 +843,7 @@ impl Parser {
                 }
                 let value = self.parse_expr(0)?;
                 Ok(Action::Update {
-                    target: FieldPath { instance, field, span },
+                    target: FieldPath { instance, field, sub_field, span },
                     value,
                 })
             }
@@ -832,6 +852,13 @@ impl Parser {
                 let instance = self.expect_ident("instance name")?;
                 self.expect(&Token::Dot)?;
                 let field = self.expect_ident("field name")?;
+                // Issue 006: Support nested field paths
+                let sub_field = if self.check(&Token::Dot) {
+                    self.advance();
+                    Some(self.expect_ident("nested field name")?)
+                } else {
+                    None
+                };
                 let span = self.current_span();
                 // Accept both 'to' and '=' for consistency
                 if self.check(&Token::KwTo) {
@@ -841,7 +868,7 @@ impl Parser {
                 }
                 let value = self.parse_expr(0)?;
                 Ok(Action::Write {
-                    target: FieldPath { instance, field, span },
+                    target: FieldPath { instance, field, sub_field, span },
                     value,
                 })
             }
