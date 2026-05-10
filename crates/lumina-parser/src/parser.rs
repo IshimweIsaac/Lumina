@@ -1,49 +1,48 @@
-use lumina_lexer::token::{Token, SpannedToken, Span};
 use crate::ast::*;
 use crate::error::ParseError;
+use lumina_lexer::token::{Span, SpannedToken, Token};
 
 pub struct Parser {
     tokens: Vec<SpannedToken>,
-    pos:    usize,
+    pos: usize,
 }
 
 // ── Binding-power tables ───────────────────────────────────────────────────
 
 fn infix_bp(token: &Token) -> Option<(u8, u8)> {
     match token {
-        Token::KwOr                          => Some((1, 2)),
-        Token::KwAnd                         => Some((3, 4)),
-        Token::EqEq | Token::BangEq          => Some((5, 6)),
-        Token::Gt | Token::Lt
-        | Token::GtEq | Token::LtEq          => Some((7, 8)),
-        Token::Plus | Token::Minus            => Some((9, 10)),
-        Token::Star | Token::Slash            => Some((11, 12)),
-        Token::Dot                            => Some((17, 18)),
-        _                                     => None,
+        Token::KwOr => Some((1, 2)),
+        Token::KwAnd => Some((3, 4)),
+        Token::EqEq | Token::BangEq => Some((5, 6)),
+        Token::Gt | Token::Lt | Token::GtEq | Token::LtEq => Some((7, 8)),
+        Token::Plus | Token::Minus => Some((9, 10)),
+        Token::Star | Token::Slash => Some((11, 12)),
+        Token::Dot => Some((17, 18)),
+        _ => None,
     }
 }
 
 fn prefix_bp(token: &Token) -> Option<u8> {
     match token {
         Token::Minus | Token::KwNot => Some(13),
-        _                           => None,
+        _ => None,
     }
 }
 
 fn token_to_binop(token: &Token) -> BinOp {
     match token {
-        Token::Plus   => BinOp::Add,
-        Token::Minus  => BinOp::Sub,
-        Token::Star   => BinOp::Mul,
-        Token::Slash  => BinOp::Div,
-        Token::EqEq   => BinOp::Eq,
+        Token::Plus => BinOp::Add,
+        Token::Minus => BinOp::Sub,
+        Token::Star => BinOp::Mul,
+        Token::Slash => BinOp::Div,
+        Token::EqEq => BinOp::Eq,
         Token::BangEq => BinOp::Ne,
-        Token::Gt     => BinOp::Gt,
-        Token::Lt     => BinOp::Lt,
-        Token::GtEq   => BinOp::Ge,
-        Token::LtEq   => BinOp::Le,
-        Token::KwAnd  => BinOp::And,
-        Token::KwOr   => BinOp::Or,
+        Token::Gt => BinOp::Gt,
+        Token::Lt => BinOp::Lt,
+        Token::GtEq => BinOp::Ge,
+        Token::LtEq => BinOp::Le,
+        Token::KwAnd => BinOp::And,
+        Token::KwOr => BinOp::Or,
         _ => unreachable!("not a binary operator: {:?}", token),
     }
 }
@@ -84,7 +83,10 @@ impl Parser {
     fn expect(&mut self, token: &Token) -> Result<Span, ParseError> {
         if self.is_at_end() {
             return Err(ParseError::new(
-                format!("I was looking for {}, but I reached the end of the file instead.", token.to_human_string()),
+                format!(
+                    "I was looking for {}, but I reached the end of the file instead.",
+                    token.to_human_string()
+                ),
                 self.current_span(),
             ));
         }
@@ -94,7 +96,11 @@ impl Parser {
             Ok(span)
         } else {
             Err(ParseError::new(
-                format!("I expected to see {}, but I found {} here instead.", token.to_human_string(), self.current().to_human_string()),
+                format!(
+                    "I expected to see {}, but I found {} here instead.",
+                    token.to_human_string(),
+                    self.current().to_human_string()
+                ),
                 self.current_span(),
             ))
         }
@@ -124,7 +130,10 @@ impl Parser {
             statements.push(self.parse_statement()?);
             self.skip_newlines();
         }
-        Ok(Program { statements, span: start })
+        Ok(Program {
+            statements,
+            span: start,
+        })
     }
 
     // ── statements ────────────────────────────────────────
@@ -167,7 +176,11 @@ impl Parser {
             };
             self.expect(&Token::KwAs)?;
             let alias = self.expect_ident("plugin alias name")?;
-            return Ok(Statement::PluginImport(PluginImportDecl { path, alias, span }));
+            return Ok(Statement::PluginImport(PluginImportDecl {
+                path,
+                alias,
+                span,
+            }));
         }
 
         // v1.9: Check for `import LSL::namespace::Entity` (namespace import)
@@ -181,16 +194,33 @@ impl Parser {
                     segments.push(seg);
                 }
                 let path = segments.join("::");
-                return Ok(Statement::Import(ImportDecl { path: path.clone(), namespace: Some(segments), span }));
+                return Ok(Statement::Import(ImportDecl {
+                    path: path.clone(),
+                    namespace: Some(segments),
+                    span,
+                }));
             }
         }
 
         // Standard module import
         let path = match self.current().clone() {
-            Token::Text(s) => { let p = s.clone(); self.advance(); p }
-            _ => return Err(ParseError::new("expected string path after import", self.current_span())),
+            Token::Text(s) => {
+                let p = s.clone();
+                self.advance();
+                p
+            }
+            _ => {
+                return Err(ParseError::new(
+                    "expected string path after import",
+                    self.current_span(),
+                ))
+            }
         };
-        Ok(Statement::Import(ImportDecl { path, namespace: None, span }))
+        Ok(Statement::Import(ImportDecl {
+            path,
+            namespace: None,
+            span,
+        }))
     }
 
     // ── provider (v1.9) ───────────────────────────────────
@@ -214,23 +244,48 @@ impl Parser {
         while !self.check(&Token::RBrace) && !self.is_at_end() {
             let entry_span = self.current_span();
             let key = match self.current().clone() {
-                Token::Ident(s) => { self.advance(); s }
-                Token::KwEndpoint => { self.advance(); "endpoint".to_string() }
-                Token::KwCredentials => { self.advance(); "credentials".to_string() }
-                Token::KwPollInterval => { self.advance(); "poll_interval".to_string() }
-                _ => return Err(ParseError::new(
-                    format!("Expected a configuration key inside provider block, got {}", self.current().to_human_string()),
-                    self.current_span(),
-                )),
+                Token::Ident(s) => {
+                    self.advance();
+                    s
+                }
+                Token::KwEndpoint => {
+                    self.advance();
+                    "endpoint".to_string()
+                }
+                Token::KwCredentials => {
+                    self.advance();
+                    "credentials".to_string()
+                }
+                Token::KwPollInterval => {
+                    self.advance();
+                    "poll_interval".to_string()
+                }
+                _ => {
+                    return Err(ParseError::new(
+                        format!(
+                            "Expected a configuration key inside provider block, got {}",
+                            self.current().to_human_string()
+                        ),
+                        self.current_span(),
+                    ))
+                }
             };
             self.expect(&Token::Colon)?;
             let value = self.parse_expr(0)?;
-            config.push(ProviderConfigEntry { key, value, span: entry_span });
+            config.push(ProviderConfigEntry {
+                key,
+                value,
+                span: entry_span,
+            });
             self.skip_newlines();
         }
         self.expect(&Token::RBrace)?;
 
-        Ok(Statement::Provider(ProviderDecl { protocol, config, span }))
+        Ok(Statement::Provider(ProviderDecl {
+            protocol,
+            config,
+            span,
+        }))
     }
 
     // ── entity ────────────────────────────────────────────
@@ -247,7 +302,11 @@ impl Parser {
             self.skip_newlines();
         }
         self.expect(&Token::RBrace)?;
-        Ok(Statement::Entity(EntityDecl { name, fields, span: start }))
+        Ok(Statement::Entity(EntityDecl {
+            name,
+            fields,
+            span: start,
+        }))
     }
 
     fn parse_field(&mut self) -> Result<Field, ParseError> {
@@ -260,7 +319,11 @@ impl Parser {
             if self.check(&Token::KwRef) {
                 self.advance();
                 let target_entity = self.expect_ident("target entity name")?;
-                Ok(Field::Ref(RefField { name, target_entity, span: start }))
+                Ok(Field::Ref(RefField {
+                    name,
+                    target_entity,
+                    span: start,
+                }))
             } else {
                 let ty = self.parse_type()?;
                 // Issue 007: Support trailing metadata after type (e.g., `value: Number @range 0 to 500`)
@@ -268,16 +331,33 @@ impl Parser {
                 let merged = FieldMetadata {
                     doc: metadata.doc.or(trailing.doc),
                     range: metadata.range.or(trailing.range),
-                    affects: { let mut v = metadata.affects; v.extend(trailing.affects); v },
+                    affects: {
+                        let mut v = metadata.affects;
+                        v.extend(trailing.affects);
+                        v
+                    },
                 };
-                Ok(Field::Stored(StoredField { name, ty, metadata: merged, span: start }))
+                Ok(Field::Stored(StoredField {
+                    name,
+                    ty,
+                    metadata: merged,
+                    span: start,
+                }))
             }
         } else if self.check(&Token::ColonEq) {
             self.advance();
             let expr = self.parse_expr(0)?;
-            Ok(Field::Derived(DerivedField { name, expr, metadata, span: start }))
+            Ok(Field::Derived(DerivedField {
+                name,
+                expr,
+                metadata,
+                span: start,
+            }))
         } else {
-            Err(ParseError::new("expected ':' or ':=' after field name", self.current_span()))
+            Err(ParseError::new(
+                "expected ':' or ':=' after field name",
+                self.current_span(),
+            ))
         }
     }
 
@@ -303,10 +383,12 @@ impl Parser {
                         meta.affects.push(self.expect_ident("@affects field")?);
                     }
                 }
-                _ => return Err(ParseError::new(
-                    format!("unknown metadata tag '@{}'", tag),
-                    self.current_span(),
-                )),
+                _ => {
+                    return Err(ParseError::new(
+                        format!("unknown metadata tag '@{}'", tag),
+                        self.current_span(),
+                    ))
+                }
             }
             self.skip_newlines();
         }
@@ -315,11 +397,26 @@ impl Parser {
 
     fn parse_type(&mut self) -> Result<LuminaType, ParseError> {
         let base = match self.current() {
-            Token::KwTypeText    => { self.advance(); LuminaType::Text }
-            Token::KwTypeNumber  => { self.advance(); LuminaType::Number }
-            Token::KwTypeBoolean => { self.advance(); LuminaType::Boolean }
-            Token::KwTypeTimestamp => { self.advance(); LuminaType::Timestamp }
-            Token::KwTypeSecret  => { self.advance(); LuminaType::Secret }
+            Token::KwTypeText => {
+                self.advance();
+                LuminaType::Text
+            }
+            Token::KwTypeNumber => {
+                self.advance();
+                LuminaType::Number
+            }
+            Token::KwTypeBoolean => {
+                self.advance();
+                LuminaType::Boolean
+            }
+            Token::KwTypeTimestamp => {
+                self.advance();
+                LuminaType::Timestamp
+            }
+            Token::KwTypeSecret => {
+                self.advance();
+                LuminaType::Secret
+            }
             Token::Ident(_) => {
                 let name = self.expect_ident("type name")?;
                 LuminaType::Entity(name)
@@ -364,9 +461,14 @@ impl Parser {
                 let strat = self.expect_ident("sync strategy")?;
                 sync_strategy = match strat.as_str() {
                     "realtime" => SyncStrategy::Realtime,
-                    "poll"     => SyncStrategy::Poll,
-                    "webhook"  => SyncStrategy::Webhook,
-                    _ => return Err(ParseError::new("unknown sync strategy", self.current_span())),
+                    "poll" => SyncStrategy::Poll,
+                    "webhook" => SyncStrategy::Webhook,
+                    _ => {
+                        return Err(ParseError::new(
+                            "unknown sync strategy",
+                            self.current_span(),
+                        ))
+                    }
                 };
             } else if self.check(&Token::KwPollInterval) {
                 self.advance();
@@ -399,8 +501,15 @@ impl Parser {
         self.expect(&Token::RBrace)?;
 
         Ok(Statement::ExternalEntity(ExternalEntityDecl {
-            name, fields, sync_path, sync_strategy, sync_fields,
-            poll_interval, sync_timeout, fallible, span: start,
+            name,
+            fields,
+            sync_path,
+            sync_strategy,
+            sync_fields,
+            poll_interval,
+            sync_timeout,
+            fallible,
+            span: start,
         }))
     }
 
@@ -413,7 +522,8 @@ impl Parser {
         self.expect(&Token::Eq)?;
 
         // Peek: if Ident followed by '{', it's an EntityInit
-        let value = if !self.is_at_end() && matches!(self.current(), Token::Ident(_))
+        let value = if !self.is_at_end()
+            && matches!(self.current(), Token::Ident(_))
             && self.peek() == Some(&Token::LBrace)
         {
             let entity_name = self.expect_ident("entity name")?;
@@ -422,7 +532,11 @@ impl Parser {
         } else {
             LetValue::Expr(self.parse_expr(0)?)
         };
-        Ok(Statement::Let(LetStmt { name, value, span: start }))
+        Ok(Statement::Let(LetStmt {
+            name,
+            value,
+            span: start,
+        }))
     }
 
     fn parse_entity_init(&mut self, entity_name: String) -> Result<EntityInit, ParseError> {
@@ -435,11 +549,17 @@ impl Parser {
             self.expect(&Token::Colon)?;
             let expr = self.parse_expr(0)?;
             fields.push((fname, expr));
-            if self.check(&Token::Comma) { self.advance(); }
+            if self.check(&Token::Comma) {
+                self.advance();
+            }
             self.skip_newlines();
         }
         self.expect(&Token::RBrace)?;
-        Ok(EntityInit { entity_name, fields, span: start })
+        Ok(EntityInit {
+            entity_name,
+            fields,
+            span: start,
+        })
     }
 
     // ── function declaration ──────────────────────────────────────
@@ -456,8 +576,14 @@ impl Parser {
             let p_name = self.expect_ident("parameter name")?;
             self.expect(&Token::Colon)?;
             let p_type = self.parse_type()?;
-            params.push(FnParam { name: p_name, type_: p_type, span: p_span });
-            if !self.check(&Token::RParen) { self.expect(&Token::Comma)?; }
+            params.push(FnParam {
+                name: p_name,
+                type_: p_type,
+                span: p_span,
+            });
+            if !self.check(&Token::RParen) {
+                self.expect(&Token::Comma)?;
+            }
         }
         self.expect(&Token::RParen)?;
         self.expect(&Token::Arrow)?; // "->"
@@ -470,8 +596,16 @@ impl Parser {
         self.expect(&Token::RBrace)?;
 
         Ok(Statement::Fn(FnDecl {
-            name, params, returns, body,
-            span: Span { start: start.start, end: self.current_span().end, line: start.line, col: start.col },
+            name,
+            params,
+            returns,
+            body,
+            span: Span {
+                start: start.start,
+                end: self.current_span().end,
+                line: start.line,
+                col: start.col,
+            },
         }))
     }
 
@@ -483,8 +617,14 @@ impl Parser {
 
         // Rule name: accept both identifier and string literal
         let name = match self.current().clone() {
-            Token::Text(s) => { self.advance(); s }
-            Token::Ident(s) => { self.advance(); s }
+            Token::Text(s) => {
+                self.advance();
+                s
+            }
+            Token::Ident(s) => {
+                self.advance();
+                s
+            }
             _ => return Err(ParseError::new("expected rule name", self.current_span())),
         };
 
@@ -496,7 +636,10 @@ impl Parser {
             self.expect(&Token::Colon)?;
             let entity_name = self.expect_ident("entity name")?;
             self.expect(&Token::RParen)?;
-            Some(RuleParam { name: param_name, entity: entity_name })
+            Some(RuleParam {
+                name: param_name,
+                entity: entity_name,
+            })
         } else {
             None
         };
@@ -573,7 +716,15 @@ impl Parser {
             None
         };
 
-        Ok(Statement::Rule(RuleDecl { name, param, trigger, actions, cooldown, on_clear, span: start }))
+        Ok(Statement::Rule(RuleDecl {
+            name,
+            param,
+            trigger,
+            actions,
+            cooldown,
+            on_clear,
+            span: start,
+        }))
     }
 
     fn parse_aggregate(&mut self) -> Result<Statement, ParseError> {
@@ -604,10 +755,10 @@ impl Parser {
         let mut fields = Vec::new();
         while !self.check(&Token::RBrace) && !self.is_at_end() {
             self.skip_newlines();
-            let fspan    = self.current_span();
-            let fname    = self.expect_ident("field name")?;
+            let fspan = self.current_span();
+            let fname = self.expect_ident("field name")?;
             self.expect(&Token::ColonEq)?; // ":=" derived assignment
-            
+
             // The aggregate function could be an identifier or a keyword like 'any'/'all'
             let agg_fn = match self.current() {
                 Token::Ident(name) => {
@@ -623,9 +774,14 @@ impl Parser {
                     self.advance();
                     "all".to_string()
                 }
-                _ => return Err(ParseError::new("expected aggregate function", self.current_span())),
+                _ => {
+                    return Err(ParseError::new(
+                        "expected aggregate function",
+                        self.current_span(),
+                    ))
+                }
             };
-            
+
             self.expect(&Token::LParen)?;
             let arg = if self.check(&Token::RParen) {
                 None
@@ -635,25 +791,37 @@ impl Parser {
             self.expect(&Token::RParen)?;
 
             let expr = match agg_fn.as_str() {
-                "avg"   => AggregateExpr::Avg(arg.unwrap_or_default()),
-                "min"   => AggregateExpr::Min(arg.unwrap_or_default()),
-                "max"   => AggregateExpr::Max(arg.unwrap_or_default()),
-                "sum"   => AggregateExpr::Sum(arg.unwrap_or_default()),
+                "avg" => AggregateExpr::Avg(arg.unwrap_or_default()),
+                "min" => AggregateExpr::Min(arg.unwrap_or_default()),
+                "max" => AggregateExpr::Max(arg.unwrap_or_default()),
+                "sum" => AggregateExpr::Sum(arg.unwrap_or_default()),
                 "count" => AggregateExpr::Count(arg),
-                "any"   => AggregateExpr::Any(arg.unwrap_or_default()),
-                "all"   => AggregateExpr::All(arg.unwrap_or_default()),
-                other   => return Err(ParseError::new(
-                    format!("unknown aggregate function: {}", other),
-                    self.current_span()
-                )),
+                "any" => AggregateExpr::Any(arg.unwrap_or_default()),
+                "all" => AggregateExpr::All(arg.unwrap_or_default()),
+                other => {
+                    return Err(ParseError::new(
+                        format!("unknown aggregate function: {}", other),
+                        self.current_span(),
+                    ))
+                }
             };
 
-            fields.push(AggregateField { name: fname, expr, span: fspan });
+            fields.push(AggregateField {
+                name: fname,
+                expr,
+                span: fspan,
+            });
             self.skip_newlines();
         }
         self.expect(&Token::RBrace)?;
 
-        Ok(Statement::Aggregate(AggregateDecl { name, over, fields, scope, span }))
+        Ok(Statement::Aggregate(AggregateDecl {
+            name,
+            over,
+            fields,
+            scope,
+            span,
+        }))
     }
 
     // ── cluster (v2.0) ────────────────────────────────────
@@ -668,7 +836,10 @@ impl Parser {
         let mut bind_addr = String::new();
         let mut peers = Vec::new();
         let mut quorum: u32 = 3;
-        let mut election_timeout = Duration { value: 500.0, unit: TimeUnit::Seconds };
+        let mut election_timeout = Duration {
+            value: 500.0,
+            unit: TimeUnit::Seconds,
+        };
 
         while !self.check(&Token::RBrace) && !self.is_at_end() {
             match self.current().clone() {
@@ -689,7 +860,9 @@ impl Parser {
                     self.skip_newlines();
                     while !self.check(&Token::RBracket) && !self.is_at_end() {
                         peers.push(self.expect_text("peer address")?);
-                        if self.check(&Token::Comma) { self.advance(); }
+                        if self.check(&Token::Comma) {
+                            self.advance();
+                        }
                         self.skip_newlines();
                     }
                     self.expect(&Token::RBracket)?;
@@ -704,17 +877,27 @@ impl Parser {
                     self.expect(&Token::Colon)?;
                     election_timeout = self.parse_duration()?;
                 }
-                _ => return Err(ParseError::new(
-                    format!("unexpected token in cluster block: {}", self.current().to_human_string()),
-                    self.current_span(),
-                )),
+                _ => {
+                    return Err(ParseError::new(
+                        format!(
+                            "unexpected token in cluster block: {}",
+                            self.current().to_human_string()
+                        ),
+                        self.current_span(),
+                    ))
+                }
             }
             self.skip_newlines();
         }
         self.expect(&Token::RBrace)?;
 
         Ok(Statement::Cluster(ClusterDecl {
-            node_id, bind_addr, peers, quorum, election_timeout, span,
+            node_id,
+            bind_addr,
+            peers,
+            quorum,
+            election_timeout,
+            span,
         }))
     }
 
@@ -730,7 +913,9 @@ impl Parser {
         let for_duration = if self.check(&Token::KwFor) {
             self.advance();
             Some(self.parse_duration()?)
-        } else { None };
+        } else {
+            None
+        };
         self.skip_newlines();
         let frequency = if matches!(self.current(), Token::Number(_)) {
             let span = self.current_span();
@@ -738,9 +923,21 @@ impl Parser {
             self.expect(&Token::KwTimes)?;
             self.expect(&Token::KwWithin)?;
             let within = self.parse_duration()?;
-            Some(Frequency { count, within, span })
-        } else { None };
-        Ok(FleetCondition { entity, field, becomes, for_duration, frequency })
+            Some(Frequency {
+                count,
+                within,
+                span,
+            })
+        } else {
+            None
+        };
+        Ok(FleetCondition {
+            entity,
+            field,
+            becomes,
+            for_duration,
+            frequency,
+        })
     }
 
     fn parse_condition(&mut self) -> Result<Condition, ParseError> {
@@ -750,11 +947,15 @@ impl Parser {
         let becomes = if self.check(&Token::KwBecomes) {
             self.advance();
             Some(self.parse_expr(5)?)
-        } else { None };
+        } else {
+            None
+        };
         let for_duration = if self.check(&Token::KwFor) {
             self.advance();
             Some(self.parse_duration()?)
-        } else { None };
+        } else {
+            None
+        };
         self.skip_newlines();
         let frequency = if matches!(self.current(), Token::Number(_)) {
             let span = self.current_span();
@@ -762,9 +963,20 @@ impl Parser {
             self.expect(&Token::KwTimes)?;
             self.expect(&Token::KwWithin)?;
             let within = self.parse_duration()?;
-            Some(Frequency { count, within, span })
-        } else { None };
-        Ok(Condition { expr, becomes, for_duration, frequency })
+            Some(Frequency {
+                count,
+                within,
+                span,
+            })
+        } else {
+            None
+        };
+        Ok(Condition {
+            expr,
+            becomes,
+            for_duration,
+            frequency,
+        })
     }
 
     fn parse_duration(&mut self) -> Result<Duration, ParseError> {
@@ -775,10 +987,12 @@ impl Parser {
             "m" => TimeUnit::Minutes,
             "h" => TimeUnit::Hours,
             "d" => TimeUnit::Days,
-            _   => return Err(ParseError::new(
-                format!("unknown time unit '{}', expected s/m/h/d", unit_str),
-                self.current_span(),
-            )),
+            _ => {
+                return Err(ParseError::new(
+                    format!("unknown time unit '{}', expected s/m/h/d", unit_str),
+                    self.current_span(),
+                ))
+            }
         };
         Ok(Duration { value, unit })
     }
@@ -792,7 +1006,10 @@ impl Parser {
             self.skip_newlines();
         }
         if actions.is_empty() {
-            return Err(ParseError::new("expected at least one 'then' action", self.current_span()));
+            return Err(ParseError::new(
+                "expected at least one 'then' action",
+                self.current_span(),
+            ));
         }
         Ok(actions)
     }
@@ -811,7 +1028,10 @@ impl Parser {
             self.skip_newlines();
         }
         if actions.is_empty() {
-            return Err(ParseError::new("expected at least one action in rule body", self.current_span()));
+            return Err(ParseError::new(
+                "expected at least one action in rule body",
+                self.current_span(),
+            ));
         }
         Ok(actions)
     }
@@ -843,7 +1063,12 @@ impl Parser {
                 }
                 let value = self.parse_expr(0)?;
                 Ok(Action::Update {
-                    target: FieldPath { instance, field, sub_field, span },
+                    target: FieldPath {
+                        instance,
+                        field,
+                        sub_field,
+                        span,
+                    },
                     value,
                 })
             }
@@ -868,7 +1093,12 @@ impl Parser {
                 }
                 let value = self.parse_expr(0)?;
                 Ok(Action::Write {
-                    target: FieldPath { instance, field, sub_field, span },
+                    target: FieldPath {
+                        instance,
+                        field,
+                        sub_field,
+                        span,
+                    },
                     value,
                 })
             }
@@ -883,7 +1113,9 @@ impl Parser {
                     self.expect(&Token::Colon)?;
                     let expr = self.parse_expr(0)?;
                     fields.push((fname, expr));
-                    if self.check(&Token::Comma) { self.advance(); }
+                    if self.check(&Token::Comma) {
+                        self.advance();
+                    }
                     self.skip_newlines();
                 }
                 self.expect(&Token::RBrace)?;
@@ -899,10 +1131,10 @@ impl Parser {
                 self.advance(); // consume "alert"
 
                 let mut severity: Option<Expr> = None;
-                let mut message:  Option<Expr> = None;
-                let mut source:   Option<Expr> = None;
-                let mut code:     Option<Expr> = None;
-                let mut payload:  Vec<(String, Expr)> = Vec::new();
+                let mut message: Option<Expr> = None;
+                let mut source: Option<Expr> = None;
+                let mut code: Option<Expr> = None;
+                let mut payload: Vec<(String, Expr)> = Vec::new();
 
                 // Parse key: value pairs separated by commas
                 loop {
@@ -911,10 +1143,22 @@ impl Parser {
                         break;
                     }
                     let key = match self.current() {
-                        Token::Severity => { self.advance(); "severity".to_string() },
-                        Token::Ident(s) if s == "message" => { self.advance(); "message".to_string() },
-                        Token::Ident(s) if s == "source"  => { self.advance(); "source".to_string() },
-                        Token::Ident(s) if s == "code"    => { self.advance(); "code".to_string() },
+                        Token::Severity => {
+                            self.advance();
+                            "severity".to_string()
+                        }
+                        Token::Ident(s) if s == "message" => {
+                            self.advance();
+                            "message".to_string()
+                        }
+                        Token::Ident(s) if s == "source" => {
+                            self.advance();
+                            "source".to_string()
+                        }
+                        Token::Ident(s) if s == "code" => {
+                            self.advance();
+                            "code".to_string()
+                        }
                         Token::Ident(s) => {
                             let k = s.clone();
                             self.advance();
@@ -926,20 +1170,28 @@ impl Parser {
                     let val = self.parse_expr(0)?;
                     match key.as_str() {
                         "severity" => severity = Some(val),
-                        "message"  => message  = Some(val),
-                        "source"   => source   = Some(val),
-                        "code"     => code     = Some(val),
-                        _          => payload.push((key, val)),
+                        "message" => message = Some(val),
+                        "source" => source = Some(val),
+                        "code" => code = Some(val),
+                        _ => payload.push((key, val)),
                     }
-                    if !self.check(&Token::Comma) { break; }
+                    if !self.check(&Token::Comma) {
+                        break;
+                    }
                     self.advance(); // consume comma
                 }
 
-                let severity = severity.ok_or_else(|| ParseError::new("alert requires severity", span))?;
-                let message  = message.ok_or_else(||  ParseError::new("alert requires message", span))?;
+                let severity =
+                    severity.ok_or_else(|| ParseError::new("alert requires severity", span))?;
+                let message =
+                    message.ok_or_else(|| ParseError::new("alert requires message", span))?;
 
                 Ok(Action::Alert(AlertAction {
-                    severity, message, source, code, payload,
+                    severity,
+                    message,
+                    source,
+                    code,
+                    payload,
                     span,
                 }))
             }
@@ -971,13 +1223,17 @@ impl Parser {
         while !self.is_at_end() {
             let token = self.current().clone();
             if let Some((l_bp, r_bp)) = infix_bp(&token) {
-                if l_bp < min_bp { break; }
+                if l_bp < min_bp {
+                    break;
+                }
                 if token == Token::Dot {
                     self.advance();
                     let field = self.expect_ident("field name")?;
                     let span = self.current_span();
                     lhs = Expr::FieldAccess {
-                        obj: Box::new(lhs), field, span,
+                        obj: Box::new(lhs),
+                        field,
+                        span,
                     };
                 } else {
                     self.advance();
@@ -998,30 +1254,33 @@ impl Parser {
 
     fn parse_prefix(&mut self) -> Result<Expr, ParseError> {
         if self.is_at_end() {
-            return Err(ParseError::new("unexpected end of input in expression", self.current_span()));
+            return Err(ParseError::new(
+                "unexpected end of input in expression",
+                self.current_span(),
+            ));
         }
         let span = self.current_span();
         let tok = self.current().clone();
         match tok {
             Token::Number(n) => {
                 self.advance();
-                
+
                 if !self.is_at_end() {
                     if let Token::Ident(ref unit) = self.current() {
                         let maybe_unit = match unit.as_str() {
-                        "s" => Some(TimeUnit::Seconds),
-                        "m" => Some(TimeUnit::Minutes),
-                        "h" => Some(TimeUnit::Hours),
-                        "d" => Some(TimeUnit::Days),
-                        _ => None,
-                    };
-                    if let Some(u) = maybe_unit {
-                        self.advance();
-                        return Ok(Expr::Duration(Duration { value: n, unit: u }));
+                            "s" => Some(TimeUnit::Seconds),
+                            "m" => Some(TimeUnit::Minutes),
+                            "h" => Some(TimeUnit::Hours),
+                            "d" => Some(TimeUnit::Days),
+                            _ => None,
+                        };
+                        if let Some(u) = maybe_unit {
+                            self.advance();
+                            return Ok(Expr::Duration(Duration { value: n, unit: u }));
+                        }
                     }
                 }
-                }
-                
+
                 Ok(Expr::Number(n))
             }
             Token::Text(ref s) => {
@@ -1034,7 +1293,10 @@ impl Parser {
                 let mut segments = Vec::new();
                 loop {
                     if self.is_at_end() {
-                        return Err(ParseError::new("unexpected end of input in interpolated string", self.current_span()));
+                        return Err(ParseError::new(
+                            "unexpected end of input in interpolated string",
+                            self.current_span(),
+                        ));
                     }
                     match self.current().clone() {
                         Token::InterpPart(s) => {
@@ -1068,37 +1330,49 @@ impl Parser {
                 self.expect(&Token::RParen)?;
                 Ok(Expr::Prev { field, span })
             }
-            Token::KwTrue  => { self.advance(); Ok(Expr::Bool(true)) }
-            Token::KwFalse => { self.advance(); Ok(Expr::Bool(false)) }
+            Token::KwTrue => {
+                self.advance();
+                Ok(Expr::Bool(true))
+            }
+            Token::KwFalse => {
+                self.advance();
+                Ok(Expr::Bool(false))
+            }
             Token::Ident(ref name) => {
                 let name = name.clone();
                 self.advance();
-                
+
                 // If followed by "(", it's a function call
                 if self.check(&Token::LParen) {
                     self.advance(); // consume "("
                     let mut args = Vec::new();
                     while !self.check(&Token::RParen) {
                         args.push(self.parse_expr(0)?);
-                        if !self.check(&Token::RParen) { self.expect(&Token::Comma)?; }
+                        if !self.check(&Token::RParen) {
+                            self.expect(&Token::Comma)?;
+                        }
                     }
                     self.expect(&Token::RParen)?;
                     return Ok(Expr::Call { name, args, span });
                 }
-                
+
                 // Otherwise it's a plain identifier reference
                 Ok(Expr::Ident(name))
             }
             Token::KwNow => {
                 let name = "now".to_string();
                 self.advance();
-                
+
                 if self.check(&Token::LParen) {
                     self.advance(); // consume "("
                     self.expect(&Token::RParen)?;
-                    return Ok(Expr::Call { name, args: vec![], span });
+                    return Ok(Expr::Call {
+                        name,
+                        args: vec![],
+                        span,
+                    });
                 }
-                
+
                 Ok(Expr::Ident(name))
             }
             Token::KwEnv => {
@@ -1108,7 +1382,11 @@ impl Parser {
                 self.expect(&Token::LParen)?;
                 let arg = self.parse_expr(0)?;
                 self.expect(&Token::RParen)?;
-                Ok(Expr::Call { name, args: vec![arg], span })
+                Ok(Expr::Call {
+                    name,
+                    args: vec![arg],
+                    span,
+                })
             }
             // v2.0: cluster.{node_id}.{field} access
             Token::KwCluster => {
@@ -1117,7 +1395,11 @@ impl Parser {
                 let node_id = self.expect_ident("node identifier or 'all'")?;
                 self.expect(&Token::Dot)?;
                 let field = self.expect_ident("field name")?;
-                Ok(Expr::ClusterAccess { node_id, field, span })
+                Ok(Expr::ClusterAccess {
+                    node_id,
+                    field,
+                    span,
+                })
             }
             // v2.0: migrate(workloads, to: target)
             Token::KwMigrate => {
@@ -1170,13 +1452,21 @@ impl Parser {
                 self.advance();
                 let bp = prefix_bp(&Token::Minus).unwrap();
                 let operand = self.parse_expr(bp)?;
-                Ok(Expr::Unary { op: UnOp::Neg, operand: Box::new(operand), span })
+                Ok(Expr::Unary {
+                    op: UnOp::Neg,
+                    operand: Box::new(operand),
+                    span,
+                })
             }
             Token::KwNot => {
                 self.advance();
                 let bp = prefix_bp(&Token::KwNot).unwrap();
                 let operand = self.parse_expr(bp)?;
-                Ok(Expr::Unary { op: UnOp::Not, operand: Box::new(operand), span })
+                Ok(Expr::Unary {
+                    op: UnOp::Not,
+                    operand: Box::new(operand),
+                    span,
+                })
             }
             Token::KwIf => {
                 self.advance();
@@ -1202,7 +1492,9 @@ impl Parser {
                 let mut elems = Vec::new();
                 while !self.check(&Token::RBracket) && !self.is_at_end() {
                     elems.push(self.parse_expr(0)?);
-                    if !self.check(&Token::RBracket) { self.expect(&Token::Comma)?; }
+                    if !self.check(&Token::RBracket) {
+                        self.expect(&Token::Comma)?;
+                    }
                 }
                 self.expect(&Token::RBracket)?; // ]
                 Ok(Expr::ListLiteral(elems))
@@ -1218,10 +1510,16 @@ impl Parser {
 
     fn expect_ident(&mut self, ctx: &str) -> Result<String, ParseError> {
         if self.is_at_end() {
-            return Err(ParseError::new(format!("expected {} but got end of input", ctx), self.current_span()));
+            return Err(ParseError::new(
+                format!("expected {} but got end of input", ctx),
+                self.current_span(),
+            ));
         }
         match self.current().clone() {
-            Token::Ident(name) => { self.advance(); Ok(name) }
+            Token::Ident(name) => {
+                self.advance();
+                Ok(name)
+            }
             other => Err(ParseError::new(
                 format!("expected {} (identifier), got {:?}", ctx, other),
                 self.current_span(),
@@ -1231,10 +1529,16 @@ impl Parser {
 
     fn expect_text(&mut self, ctx: &str) -> Result<String, ParseError> {
         if self.is_at_end() {
-            return Err(ParseError::new(format!("expected {} but got end of input", ctx), self.current_span()));
+            return Err(ParseError::new(
+                format!("expected {} but got end of input", ctx),
+                self.current_span(),
+            ));
         }
         match self.current().clone() {
-            Token::Text(s) => { self.advance(); Ok(s) }
+            Token::Text(s) => {
+                self.advance();
+                Ok(s)
+            }
             other => Err(ParseError::new(
                 format!("expected {} (string), got {:?}", ctx, other),
                 self.current_span(),
@@ -1244,10 +1548,16 @@ impl Parser {
 
     fn expect_number(&mut self, ctx: &str) -> Result<f64, ParseError> {
         if self.is_at_end() {
-            return Err(ParseError::new(format!("expected {} but got end of input", ctx), self.current_span()));
+            return Err(ParseError::new(
+                format!("expected {} but got end of input", ctx),
+                self.current_span(),
+            ));
         }
         match self.current().clone() {
-            Token::Number(n) => { self.advance(); Ok(n) }
+            Token::Number(n) => {
+                self.advance();
+                Ok(n)
+            }
             other => Err(ParseError::new(
                 format!("expected {} (number), got {:?}", ctx, other),
                 self.current_span(),
@@ -1260,8 +1570,8 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use lumina_lexer::tokenize;
     use super::*;
+    use lumina_lexer::tokenize;
 
     fn parse_source(source: &str) -> Program {
         let tokens = tokenize(source).expect("lexing failed");
@@ -1270,9 +1580,8 @@ mod tests {
 
     #[test]
     fn test_entity_with_stored_and_derived_fields() {
-        let prog = parse_source(
-            "entity Person {\n  name: Text\n  age: Number\n  isAdult := age >= 18\n}"
-        );
+        let prog =
+            parse_source("entity Person {\n  name: Text\n  age: Number\n  isAdult := age >= 18\n}");
         assert_eq!(prog.statements.len(), 1);
         match &prog.statements[0] {
             Statement::Entity(e) => {
@@ -1341,9 +1650,7 @@ mod tests {
 
     #[test]
     fn test_let_with_entity_init() {
-        let prog = parse_source(
-            "let isaac = Person { name: \"Isaac\", birthYear: 2000 }"
-        );
+        let prog = parse_source("let isaac = Person { name: \"Isaac\", birthYear: 2000 }");
         match &prog.statements[0] {
             Statement::Let(l) => {
                 assert_eq!(l.name, "isaac");
@@ -1363,14 +1670,14 @@ mod tests {
 
     #[test]
     fn test_if_then_else_expression() {
-        let prog = parse_source(
-            "let status = if age >= 18 then \"adult\" else \"minor\""
-        );
+        let prog = parse_source("let status = if age >= 18 then \"adult\" else \"minor\"");
         match &prog.statements[0] {
             Statement::Let(l) => {
                 assert_eq!(l.name, "status");
                 match &l.value {
-                    LetValue::Expr(Expr::If { cond, then_, else_, .. }) => {
+                    LetValue::Expr(Expr::If {
+                        cond, then_, else_, ..
+                    }) => {
                         assert!(matches!(cond.as_ref(), Expr::Binary { op: BinOp::Ge, .. }));
                         assert!(matches!(then_.as_ref(), Expr::Text(s) if s == "adult"));
                         assert!(matches!(else_.as_ref(), Expr::Text(s) if s == "minor"));

@@ -7,18 +7,22 @@ pub struct Instant;
 
 #[cfg(target_arch = "wasm32")]
 impl Instant {
-    pub fn now() -> Self { Instant }
-    pub fn elapsed(&self) -> std::time::Duration { std::time::Duration::from_secs(0) }
+    pub fn now() -> Self {
+        Instant
+    }
+    pub fn elapsed(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(0)
+    }
 }
-use rustc_hash::FxHashMap;
 use lumina_parser::ast::{RuleDecl, RuleTrigger};
+use rustc_hash::FxHashMap;
 
 /// A pending `for` timer — fires when condition holds for the full duration
 #[derive(Debug)]
 pub struct ForTimer {
-    pub rule_name:     String,
+    pub rule_name: String,
     pub instance_name: String,
-    pub started_at:    Instant,
+    pub started_at: Instant,
     pub duration_secs: f64,
 }
 
@@ -31,9 +35,9 @@ impl ForTimer {
 /// A pending `every` timer — fires repeatedly on a fixed interval
 #[derive(Debug)]
 pub struct EveryTimer {
-    pub rule_name:    String,
+    pub rule_name: String,
     pub interval_secs: f64,
-    pub last_fired:   Instant,
+    pub last_fired: Instant,
 }
 
 impl EveryTimer {
@@ -48,14 +52,14 @@ impl EveryTimer {
 
 /// Manages all active timers in the runtime
 pub struct TimerHeap {
-    pub for_timers:   FxHashMap<String, ForTimer>,
+    pub for_timers: FxHashMap<String, ForTimer>,
     pub every_timers: FxHashMap<String, EveryTimer>,
 }
 
 impl TimerHeap {
     pub fn new() -> Self {
         Self {
-            for_timers:   FxHashMap::default(),
+            for_timers: FxHashMap::default(),
             every_timers: FxHashMap::default(),
         }
     }
@@ -67,9 +71,9 @@ impl TimerHeap {
                 self.every_timers.insert(
                     rule.name.clone(),
                     EveryTimer {
-                        rule_name:     rule.name.clone(),
+                        rule_name: rule.name.clone(),
                         interval_secs: duration.to_seconds(),
-                        last_fired:    Instant::now(),
+                        last_fired: Instant::now(),
                     },
                 );
             }
@@ -86,12 +90,15 @@ impl TimerHeap {
     ) -> Result<(), String> {
         let key = format!("{rule_name}::{instance_name}");
         if !self.for_timers.contains_key(&key) {
-            self.for_timers.insert(key, ForTimer {
-                rule_name:     rule_name.to_string(),
-                instance_name: instance_name.to_string(),
-                started_at:    Instant::now(),
-                duration_secs,
-            });
+            self.for_timers.insert(
+                key,
+                ForTimer {
+                    rule_name: rule_name.to_string(),
+                    instance_name: instance_name.to_string(),
+                    started_at: Instant::now(),
+                    duration_secs,
+                },
+            );
         }
         Ok(())
     }
@@ -104,19 +111,22 @@ impl TimerHeap {
 
     /// Collect all elapsed `for` timers — returns them and removes from heap
     pub fn drain_elapsed_for_timers(&mut self) -> Vec<ForTimer> {
-        let elapsed_keys: Vec<String> = self.for_timers
+        let elapsed_keys: Vec<String> = self
+            .for_timers
             .iter()
             .filter(|(_, t)| t.has_elapsed())
             .map(|(k, _)| k.clone())
             .collect();
-        elapsed_keys.into_iter()
+        elapsed_keys
+            .into_iter()
             .filter_map(|k| self.for_timers.remove(&k))
             .collect()
     }
 
     /// Collect all due `every` timers — resets them and returns rule names
     pub fn drain_due_every_timers(&mut self) -> Vec<String> {
-        let due: Vec<String> = self.every_timers
+        let due: Vec<String> = self
+            .every_timers
             .iter()
             .filter(|(_, t)| t.is_due())
             .map(|(k, _)| k.clone())
@@ -133,9 +143,9 @@ impl TimerHeap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
-    use lumina_parser::ast::*;
     use lumina_lexer::token::Span;
+    use lumina_parser::ast::*;
+    use std::thread;
 
     #[test]
     fn test_for_timer_elapsed() {

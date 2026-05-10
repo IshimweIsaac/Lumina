@@ -10,7 +10,10 @@ pub struct StaticAdapter {
 
 impl StaticAdapter {
     pub fn new(entity: impl Into<String>) -> Self {
-        Self { entity: entity.into(), queue: VecDeque::new() }
+        Self {
+            entity: entity.into(),
+            queue: VecDeque::new(),
+        }
     }
 
     /// Push a value to be delivered on the next poll.
@@ -20,9 +23,13 @@ impl StaticAdapter {
 }
 
 impl LuminaAdapter for StaticAdapter {
-    fn entity_name(&self) -> &str { &self.entity }
+    fn entity_name(&self) -> &str {
+        &self.entity
+    }
 
-    fn poll(&mut self) -> Option<(String, String, Value)> { self.queue.pop_front() }
+    fn poll(&mut self) -> Option<(String, String, Value)> {
+        self.queue.pop_front()
+    }
 
     fn on_write(&mut self, _: &str, _: &Value) {}
 }

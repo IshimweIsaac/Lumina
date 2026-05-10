@@ -1,41 +1,41 @@
-use rustc_hash::{FxHashMap, FxHashSet};
-use std::time::Instant;
-use std::sync::{Arc, Mutex};
-use lumina_cluster::ClusterNode;
-use crate::aggregate::AggregateStore;
-use lumina_analyzer::types::Schema;
-use lumina_analyzer::graph::DependencyGraph;
-use lumina_parser::ast::*;
-use crate::value::Value;
-use crate::store::{EntityStore, Instance};
-use crate::snapshot::{SnapshotStack, PropResult, FiredEvent, RollbackResult, Diagnostic};
-use crate::RuntimeError;
-use crate::rules;
-use crate::timers::TimerHeap;
 use crate::adapter::LuminaAdapter;
+use crate::aggregate::AggregateStore;
 use crate::fleet::FleetState;
+use crate::rules;
+use crate::snapshot::{Diagnostic, FiredEvent, PropResult, RollbackResult, SnapshotStack};
+use crate::store::{EntityStore, Instance};
+use crate::timers::TimerHeap;
+use crate::value::Value;
+use crate::RuntimeError;
+use lumina_analyzer::graph::DependencyGraph;
+use lumina_analyzer::types::Schema;
+use lumina_cluster::ClusterNode;
+use lumina_parser::ast::*;
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 pub const MAX_DEPTH: usize = 100;
 
 pub struct Evaluator {
-    pub schema:    Schema,
-    pub graph:     DependencyGraph,
-    pub rules:     Vec<RuleDecl>,
-    pub store:     EntityStore,
+    pub schema: Schema,
+    pub graph: DependencyGraph,
+    pub rules: Vec<RuleDecl>,
+    pub store: EntityStore,
     pub snapshots: SnapshotStack,
-    pub env:       FxHashMap<String, Value>,
+    pub env: FxHashMap<String, Value>,
     pub instances: FxHashMap<String, String>,
     pub derived_exprs: FxHashMap<(String, String), Expr>,
     pub functions: FxHashMap<String, FnDecl>,
-    pub timers:    TimerHeap,
-    pub adapters:  Vec<Box<dyn LuminaAdapter>>,
+    pub timers: TimerHeap,
+    pub adapters: Vec<Box<dyn LuminaAdapter>>,
     pub prev_store: Option<EntityStore>,
     pub fleet_state: FleetState,
     prev_fleet_any: FxHashMap<(String, String), bool>,
     prev_fleet_all: FxHashMap<(String, String), bool>,
-    depth:         usize,
+    depth: usize,
     fired_this_cycle: FxHashSet<String>,
-    output:        Vec<String>,
+    output: Vec<String>,
     prev_rule_conditions: FxHashMap<(String, String), bool>,
     pub cooldown_map: FxHashMap<(String, String), f64>,
     pub rule_active: FxHashMap<(String, String), bool>,
@@ -43,7 +43,7 @@ pub struct Evaluator {
     pub agg_store: AggregateStore,
     pub cluster_state: FxHashMap<String, FxHashMap<String, Value>>,
     pub cluster_config: Option<lumina_cluster::ClusterConfig>,
-    pub now:       f64,
+    pub now: f64,
     /// Issue 003: Current rule parameter alias (param_name, entity_name)
     pub rule_param_alias: Option<(String, String)>,
     pub is_initializing: bool,
@@ -64,7 +64,9 @@ impl Evaluator {
         let mut timers = TimerHeap::new();
         timers.register_every_rules(&rules);
         Self {
-            schema, graph, rules,
+            schema,
+            graph,
+            rules,
             store: EntityStore::new(),
             snapshots: SnapshotStack::new(),
             env: FxHashMap::default(),
@@ -142,8 +144,10 @@ impl Evaluator {
                 let raw_mesh = node.collect_cluster_state();
                 for (node_id, fields) in raw_mesh {
                     // Don't overwrite local state with our own gossiped state in the cluster view
-                    if node_id == node.config.node_id { continue; }
-                    
+                    if node_id == node.config.node_id {
+                        continue;
+                    }
+
                     let entry = self.cluster_state.entry(node_id).or_default();
                     for (field, bytes) in fields {
                         if let Ok(val) = serde_json::from_slice::<Value>(&bytes) {
@@ -161,9 +165,13 @@ impl Evaluator {
         if self.schema.entities.is_empty() {
             return "(no entities declared)".into();
         }
-        self.schema.entities.iter()
+        self.schema
+            .entities
+            .iter()
             .map(|(name, ent)| {
-                let fields = ent.fields.iter()
+                let fields = ent
+                    .fields
+                    .iter()
                     .map(|(n, f)| format!("{}: {:?}", n, f.ty))
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -174,7 +182,10 @@ impl Evaluator {
     }
 
     pub fn should_fire(&self, rule_name: &str, instance_name: &str, cooldown: &Duration) -> bool {
-        if let Some(last_fired) = self.cooldown_map.get(&(rule_name.to_string(), instance_name.to_string())) {
+        if let Some(last_fired) = self
+            .cooldown_map
+            .get(&(rule_name.to_string(), instance_name.to_string()))
+        {
             (self.now - *last_fired) >= (cooldown.to_seconds() * 1000.0)
         } else {
             true
@@ -182,11 +193,13 @@ impl Evaluator {
     }
 
     pub fn record_firing(&mut self, rule_name: &str, instance_name: &str) {
-        self.cooldown_map.insert((rule_name.to_string(), instance_name.to_string()), self.now);
+        self.cooldown_map
+            .insert((rule_name.to_string(), instance_name.to_string()), self.now);
     }
 
     pub fn register_derived(&mut self, entity: &str, field: &str, expr: Expr) {
-        self.derived_exprs.insert((entity.to_string(), field.to_string()), expr);
+        self.derived_exprs
+            .insert((entity.to_string(), field.to_string()), expr);
     }
 
     /// Register an external entity adapter.
@@ -199,7 +212,11 @@ impl Evaluator {
     }
 
     pub fn get_field_idx(&self, entity_name: &str, field_name: &str) -> Option<usize> {
-        self.schema.get_entity(entity_name)?.field_indices.get(field_name).copied()
+        self.schema
+            .get_entity(entity_name)?
+            .field_indices
+            .get(field_name)
+            .copied()
     }
 
     pub fn get_instance_field(&self, instance: &Instance, field: &str) -> Option<Value> {
@@ -212,10 +229,27 @@ impl Evaluator {
         instance.prev(idx).cloned()
     }
 
-    pub fn set_instance_field(&mut self, instance_name: &str, field: &str, val: Value) -> Result<(), RuntimeError> {
-        let entity_name = self.store.get(instance_name).ok_or(RuntimeError::R001 { instance: instance_name.to_string() })?.entity_name.clone();
-        let idx = self.get_field_idx(&entity_name, field).ok_or(RuntimeError::R005 { instance: instance_name.to_string(), field: field.to_string() })?;
-        
+    pub fn set_instance_field(
+        &mut self,
+        instance_name: &str,
+        field: &str,
+        val: Value,
+    ) -> Result<(), RuntimeError> {
+        let entity_name = self
+            .store
+            .get(instance_name)
+            .ok_or(RuntimeError::R001 {
+                instance: instance_name.to_string(),
+            })?
+            .entity_name
+            .clone();
+        let idx = self
+            .get_field_idx(&entity_name, field)
+            .ok_or(RuntimeError::R005 {
+                instance: instance_name.to_string(),
+                field: field.to_string(),
+            })?;
+
         if let Some(inst) = self.store.get_mut(instance_name) {
             inst.set(idx, val);
         }
@@ -251,7 +285,9 @@ impl Evaluator {
                 if self.instances.contains_key(name) {
                     return Ok(Value::Text(name.clone()));
                 }
-                Err(RuntimeError::R001 { instance: name.clone() })
+                Err(RuntimeError::R001 {
+                    instance: name.clone(),
+                })
             }
 
             Expr::FieldAccess { obj, field, .. } => {
@@ -261,7 +297,10 @@ impl Evaluator {
                     if field == "age" {
                         return Ok(Value::Duration(self.now - ts));
                     }
-                    return Err(RuntimeError::R005 { instance: "Timestamp".into(), field: field.clone() });
+                    return Err(RuntimeError::R005 {
+                        instance: "Timestamp".into(),
+                        field: field.clone(),
+                    });
                 }
 
                 let mut inst_name = match obj_val {
@@ -270,10 +309,16 @@ impl Evaluator {
                         if let Expr::Ident(n) = obj.as_ref() {
                             n.clone()
                         } else {
-                            return Err(RuntimeError::R001 { instance: format!("{:?}", obj) });
+                            return Err(RuntimeError::R001 {
+                                instance: format!("{:?}", obj),
+                            });
                         }
                     }
-                    _ => return Err(RuntimeError::R001 { instance: format!("{:?}", obj) }),
+                    _ => {
+                        return Err(RuntimeError::R001 {
+                            instance: format!("{:?}", obj),
+                        })
+                    }
                 };
 
                 // Bug Fix: If inst_name is an entity name, and it matches the current context's entity,
@@ -304,31 +349,42 @@ impl Evaluator {
                     return Ok(Value::Text(inst_name.clone()));
                 }
 
-                let instance = self.store.get(&inst_name)
-                    .ok_or(RuntimeError::R001 { instance: inst_name.clone() })?;
+                let instance = self.store.get(&inst_name).ok_or(RuntimeError::R001 {
+                    instance: inst_name.clone(),
+                })?;
 
-                let val = self.get_instance_field(instance, field)
-                    .ok_or(RuntimeError::R005 { instance: inst_name.clone(), field: field.clone() })?;
+                let val = self
+                    .get_instance_field(instance, field)
+                    .ok_or(RuntimeError::R005 {
+                        instance: inst_name.clone(),
+                        field: field.clone(),
+                    })?;
 
                 match &val {
-                    Value::Timestamp(ts) if field == "age" => {
-                        Ok(Value::Duration(self.now - ts))
-                    }
+                    Value::Timestamp(ts) if field == "age" => Ok(Value::Duration(self.now - ts)),
                     _ => Ok(val),
                 }
             }
 
-            Expr::Binary { op, left, right, .. } => {
+            Expr::Binary {
+                op, left, right, ..
+            } => {
                 // Short-circuit
                 if *op == BinOp::And {
                     let l = self.eval_expr(left, ctx)?;
-                    if l == Value::Bool(false) { return Ok(Value::Bool(false)); }
+                    if l == Value::Bool(false) {
+                        return Ok(Value::Bool(false));
+                    }
                     let r = self.eval_expr(right, ctx)?;
-                    return Ok(Value::Bool(l == Value::Bool(true) && r == Value::Bool(true)));
+                    return Ok(Value::Bool(
+                        l == Value::Bool(true) && r == Value::Bool(true),
+                    ));
                 }
                 if *op == BinOp::Or {
                     let l = self.eval_expr(left, ctx)?;
-                    if l == Value::Bool(true) { return Ok(Value::Bool(true)); }
+                    if l == Value::Bool(true) {
+                        return Ok(Value::Bool(true));
+                    }
                     let r = self.eval_expr(right, ctx)?;
                     return Ok(Value::Bool(r == Value::Bool(true)));
                 }
@@ -343,16 +399,24 @@ impl Evaluator {
                 match op {
                     UnOp::Neg => match v {
                         Value::Number(n) => Ok(Value::Number(-n)),
-                        _ => Err(RuntimeError::R018 { expected: "Number".into(), found: v.type_name().into() }),
+                        _ => Err(RuntimeError::R018 {
+                            expected: "Number".into(),
+                            found: v.type_name().into(),
+                        }),
                     },
                     UnOp::Not => match v {
                         Value::Bool(b) => Ok(Value::Bool(!b)),
-                        _ => Err(RuntimeError::R018 { expected: "Boolean".into(), found: v.type_name().into() }),
+                        _ => Err(RuntimeError::R018 {
+                            expected: "Boolean".into(),
+                            found: v.type_name().into(),
+                        }),
                     },
                 }
             }
 
-            Expr::If { cond, then_, else_, .. } => {
+            Expr::If {
+                cond, then_, else_, ..
+            } => {
                 if self.eval_expr(cond, ctx)? == Value::Bool(true) {
                     self.eval_expr(then_, ctx)
                 } else {
@@ -383,13 +447,21 @@ impl Evaluator {
                     }
                     "min" => {
                         let list = self.eval_to_num_list(&args[0], ctx)?;
-                        if list.is_empty() { return Err(RuntimeError::R004 { index: 0, len: 0 }); }
-                        return Ok(Value::Number(list.iter().cloned().fold(f64::INFINITY, f64::min)));
+                        if list.is_empty() {
+                            return Err(RuntimeError::R004 { index: 0, len: 0 });
+                        }
+                        return Ok(Value::Number(
+                            list.iter().cloned().fold(f64::INFINITY, f64::min),
+                        ));
                     }
                     "max" => {
                         let list = self.eval_to_num_list(&args[0], ctx)?;
-                        if list.is_empty() { return Err(RuntimeError::R004 { index: 0, len: 0 }); }
-                        return Ok(Value::Number(list.iter().cloned().fold(f64::NEG_INFINITY, f64::max)));
+                        if list.is_empty() {
+                            return Err(RuntimeError::R004 { index: 0, len: 0 });
+                        }
+                        return Ok(Value::Number(
+                            list.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+                        ));
                     }
                     "sum" => {
                         let list = self.eval_to_num_list(&args[0], ctx)?;
@@ -403,20 +475,29 @@ impl Evaluator {
                     }
                     "head" => {
                         let list = self.eval_to_list(&args[0], ctx)?;
-                        if list.is_empty() { return Err(RuntimeError::R004 { index: 0, len: 0 }); }
+                        if list.is_empty() {
+                            return Err(RuntimeError::R004 { index: 0, len: 0 });
+                        }
                         return Ok(list[0].clone());
                     }
                     "tail" => {
                         let list = self.eval_to_list(&args[0], ctx)?;
-                        if list.is_empty() { return Err(RuntimeError::R004 { index: 0, len: 0 }); }
+                        if list.is_empty() {
+                            return Err(RuntimeError::R004 { index: 0, len: 0 });
+                        }
                         return Ok(Value::List(list[1..].to_vec()));
                     }
                     "at" => {
                         let list = self.eval_to_list(&args[0], ctx)?;
-                        let idx = self.eval_expr(&args[1], ctx)?.as_number()
+                        let idx = self
+                            .eval_expr(&args[1], ctx)?
+                            .as_number()
                             .ok_or(RuntimeError::R002)? as usize;
                         if idx >= list.len() {
-                            return Err(RuntimeError::R004 { index: idx, len: list.len() });
+                            return Err(RuntimeError::R004 {
+                                index: idx,
+                                len: list.len(),
+                            });
                         }
                         return Ok(list[idx].clone());
                     }
@@ -437,10 +518,9 @@ impl Evaluator {
                     }
                     _ => {} // Fall through to user-defined fn lookup
                 }
-                let decl = self.functions.get(name)
-                    .ok_or(RuntimeError::R002)?
-                    .clone();
-                let arg_vals: Vec<Value> = args.iter()
+                let decl = self.functions.get(name).ok_or(RuntimeError::R002)?.clone();
+                let arg_vals: Vec<Value> = args
+                    .iter()
                     .map(|a| self.eval_expr(a, ctx))
                     .collect::<Result<_, _>>()?;
                 let mut local: FxHashMap<String, Value> = FxHashMap::default();
@@ -450,36 +530,52 @@ impl Evaluator {
                 self.eval_expr_local(&decl.body, &local)
             }
             Expr::ListLiteral(elems) => {
-                let vals: Vec<Value> = elems.iter()
+                let vals: Vec<Value> = elems
+                    .iter()
                     .map(|e| self.eval_expr(e, ctx))
                     .collect::<Result<_, _>>()?;
                 Ok(Value::List(vals))
             }
             Expr::Index { list, index, .. } => {
                 let list_val = self.eval_to_list(list, ctx)?;
-                let idx = self.eval_expr(index, ctx)?.as_number()
+                let idx = self
+                    .eval_expr(index, ctx)?
+                    .as_number()
                     .ok_or(RuntimeError::R002)? as usize;
                 if idx >= list_val.len() {
-                    return Err(RuntimeError::R004 { index: idx, len: list_val.len() });
+                    return Err(RuntimeError::R004 {
+                        index: idx,
+                        len: list_val.len(),
+                    });
                 }
                 Ok(list_val[idx].clone())
             }
             Expr::Prev { field, .. } => {
-                let inst_name = ctx.ok_or(RuntimeError::R001 { instance: "global".into() })?;
-                
+                let inst_name = ctx.ok_or(RuntimeError::R001 {
+                    instance: "global".into(),
+                })?;
+
                 // First check prev_store
                 if let Some(prev) = &self.prev_store {
                     if let Some(instance) = prev.get(inst_name) {
-                        return self.get_instance_field(instance, field)
-                            .ok_or(RuntimeError::R005 { instance: inst_name.to_string(), field: field.clone() });
+                        return self.get_instance_field(instance, field).ok_or(
+                            RuntimeError::R005 {
+                                instance: inst_name.to_string(),
+                                field: field.clone(),
+                            },
+                        );
                     }
                 }
-                
+
                 // Fallback to current store if prev_store is not set (e.g. initialization)
-                let instance = self.store.get(inst_name)
-                    .ok_or(RuntimeError::R001 { instance: inst_name.to_string() })?;
+                let instance = self.store.get(inst_name).ok_or(RuntimeError::R001 {
+                    instance: inst_name.to_string(),
+                })?;
                 self.get_instance_field(instance, field)
-                    .ok_or(RuntimeError::R005 { instance: inst_name.to_string(), field: field.clone() })
+                    .ok_or(RuntimeError::R005 {
+                        instance: inst_name.to_string(),
+                        field: field.clone(),
+                    })
             }
             Expr::ClusterAccess { node_id, field, .. } => {
                 // v2.0: Access cluster state.
@@ -487,22 +583,38 @@ impl Evaluator {
                     if let Some(val) = node_state.get(field) {
                         return Ok(val.clone());
                     }
-                    return Err(RuntimeError::R014 { node: node_id.clone(), entity: field.clone() }); // Unresolvable ref
+                    return Err(RuntimeError::R014 {
+                        node: node_id.clone(),
+                        entity: field.clone(),
+                    }); // Unresolvable ref
                 }
-                Err(RuntimeError::R012 { reason: format!("Node {} not found in cluster state", node_id) }) // Node isolated / missing
+                Err(RuntimeError::R012 {
+                    reason: format!("Node {} not found in cluster state", node_id),
+                }) // Node isolated / missing
             }
-            Expr::Migrate { workloads, target, .. } => {
+            Expr::Migrate {
+                workloads, target, ..
+            } => {
                 let w_val = self.eval_expr(workloads, ctx)?;
                 let t_val = self.eval_expr(target, ctx)?;
-                
+
                 let target_node = match t_val {
                     Value::Text(s) => s,
                     _ => return Err(RuntimeError::R002),
                 };
-                
+
                 let inst_names: Vec<String> = match w_val {
                     Value::Text(s) => vec![s],
-                    Value::List(l) => l.into_iter().filter_map(|v| if let Value::Text(s) = v { Some(s) } else { None }).collect(),
+                    Value::List(l) => l
+                        .into_iter()
+                        .filter_map(|v| {
+                            if let Value::Text(s) = v {
+                                Some(s)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
                     _ => return Err(RuntimeError::R002),
                 };
 
@@ -512,10 +624,8 @@ impl Evaluator {
                         target_node,
                         workload: inst_names,
                     };
-                    node.gossip.broadcast(
-                        node.config.node_id.clone(),
-                        msg.clone(),
-                    );
+                    node.gossip
+                        .broadcast(node.config.node_id.clone(), msg.clone());
                     // Local loopback: handle migration of our own instances
                     node.orchestration_queue.push(msg);
                 }
@@ -525,7 +635,16 @@ impl Evaluator {
                 let e_val = self.eval_expr(entities, ctx)?;
                 let entity_names: Vec<String> = match e_val {
                     Value::Text(s) => vec![s],
-                    Value::List(l) => l.into_iter().filter_map(|v| if let Value::Text(s) = v { Some(s) } else { None }).collect(),
+                    Value::List(l) => l
+                        .into_iter()
+                        .filter_map(|v| {
+                            if let Value::Text(s) = v {
+                                Some(s)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
                     _ => return Err(RuntimeError::R002),
                 };
 
@@ -541,8 +660,11 @@ impl Evaluator {
                     if let Some(ref node_lock) = self.cluster_node {
                         let mut node = node_lock.lock().unwrap();
                         let peers = node.gossip.peer_statuses();
-                        let alive_peers: Vec<_> = peers.iter().filter(|p| p.health == lumina_cluster::PeerHealth::Alive).collect();
-                        
+                        let alive_peers: Vec<_> = peers
+                            .iter()
+                            .filter(|p| p.health == lumina_cluster::PeerHealth::Alive)
+                            .collect();
+
                         if !alive_peers.is_empty() {
                             // Simple round-robin or just pick first alive peer for now
                             let target_node = alive_peers[0].peer_id.clone();
@@ -550,10 +672,8 @@ impl Evaluator {
                                 target_node,
                                 workload: instances_to_move,
                             };
-                            node.gossip.broadcast(
-                                node.config.node_id.clone(),
-                                msg.clone(),
-                            );
+                            node.gossip
+                                .broadcast(node.config.node_id.clone(), msg.clone());
                             // Local loopback
                             node.orchestration_queue.push(msg);
                         }
@@ -576,49 +696,84 @@ impl Evaluator {
         match op {
             BinOp::Add => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
-                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
             BinOp::Sub => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a - b)),
-                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
             BinOp::Mul => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a * b)),
-                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
             BinOp::Div => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => {
-                    if b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a / b)) }
+                    if b == 0.0 {
+                        Err(RuntimeError::R002)
+                    } else {
+                        Ok(Value::Number(a / b))
+                    }
                 }
-                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
             BinOp::Mod => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => {
-                    if b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a % b)) }
+                    if b == 0.0 {
+                        Err(RuntimeError::R002)
+                    } else {
+                        Ok(Value::Number(a % b))
+                    }
                 }
-                (l, r) => Err(RuntimeError::R018 { expected: "Number".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
             BinOp::Eq => Ok(Value::Bool(l == r)),
             BinOp::Ne => Ok(Value::Bool(l != r)),
-            BinOp::Gt  => match (l, r) { 
+            BinOp::Gt => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a > b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a > b)),
-                (l, r) => Err(RuntimeError::R018 { expected: "Number or Duration".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number or Duration".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
-            BinOp::Lt  => match (l, r) { 
+            BinOp::Lt => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a < b)),
-                (l, r) => Err(RuntimeError::R018 { expected: "Number or Duration".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number or Duration".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
-            BinOp::Ge  => match (l, r) { 
+            BinOp::Ge => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a >= b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a >= b)),
-                (l, r) => Err(RuntimeError::R018 { expected: "Number or Duration".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number or Duration".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
-            BinOp::Le  => match (l, r) { 
+            BinOp::Le => match (l, r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a <= b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a <= b)),
-                (l, r) => Err(RuntimeError::R018 { expected: "Number or Duration".into(), found: format!("{}, {}", l.type_name(), r.type_name()) }),
+                (l, r) => Err(RuntimeError::R018 {
+                    expected: "Number or Duration".into(),
+                    found: format!("{}, {}", l.type_name(), r.type_name()),
+                }),
             },
             BinOp::And | BinOp::Or => unreachable!(),
         }
@@ -626,28 +781,44 @@ impl Evaluator {
 
     /// Public wrapper around apply_binop for use by the rules module
     /// when evaluating expressions against historical state.
-    pub fn eval_binary_values(&self, op: &BinOp, l: &Value, r: &Value) -> Result<Value, RuntimeError> {
+    pub fn eval_binary_values(
+        &self,
+        op: &BinOp,
+        l: &Value,
+        r: &Value,
+    ) -> Result<Value, RuntimeError> {
         self.apply_binop(op, l.clone(), r.clone())
     }
 
-    fn eval_expr_local(&self, expr: &Expr, locals: &FxHashMap<String, Value>) -> Result<Value, RuntimeError> {
+    fn eval_expr_local(
+        &self,
+        expr: &Expr,
+        locals: &FxHashMap<String, Value>,
+    ) -> Result<Value, RuntimeError> {
         match expr {
-            Expr::Ident(name) => locals.get(name)
-                .cloned()
-                .ok_or(RuntimeError::R005 { instance: name.clone(), field: name.clone() }),
+            Expr::Ident(name) => locals.get(name).cloned().ok_or(RuntimeError::R005 {
+                instance: name.clone(),
+                field: name.clone(),
+            }),
             Expr::Number(n) => Ok(Value::Number(*n)),
             Expr::Text(s) => Ok(Value::Text(s.clone())),
             Expr::Bool(b) => Ok(Value::Bool(*b)),
-            Expr::Binary { op, left, right, .. } => {
+            Expr::Binary {
+                op, left, right, ..
+            } => {
                 if *op == BinOp::And {
                     let l = self.eval_expr_local(left, locals)?;
-                    if l == Value::Bool(false) { return Ok(Value::Bool(false)); }
+                    if l == Value::Bool(false) {
+                        return Ok(Value::Bool(false));
+                    }
                     let r = self.eval_expr_local(right, locals)?;
                     return Ok(Value::Bool(r == Value::Bool(true)));
                 }
                 if *op == BinOp::Or {
                     let l = self.eval_expr_local(left, locals)?;
-                    if l == Value::Bool(true) { return Ok(Value::Bool(true)); }
+                    if l == Value::Bool(true) {
+                        return Ok(Value::Bool(true));
+                    }
                     let r = self.eval_expr_local(right, locals)?;
                     return Ok(Value::Bool(r == Value::Bool(true)));
                 }
@@ -655,7 +826,9 @@ impl Evaluator {
                 let r = self.eval_expr_local(right, locals)?;
                 self.apply_binop(op, l, r)
             }
-            Expr::If { cond, then_, else_, .. } => {
+            Expr::If {
+                cond, then_, else_, ..
+            } => {
                 let c = self.eval_expr_local(cond, locals)?;
                 if c == Value::Bool(true) {
                     self.eval_expr_local(then_, locals)
@@ -677,7 +850,8 @@ impl Evaluator {
                 Ok(Value::Text(out))
             }
             Expr::ListLiteral(elems) => {
-                let vals: Vec<Value> = elems.iter()
+                let vals: Vec<Value> = elems
+                    .iter()
                     .map(|e| self.eval_expr_local(e, locals))
                     .collect::<Result<_, _>>()?;
                 Ok(Value::List(vals))
@@ -688,10 +862,15 @@ impl Evaluator {
                     Value::List(l) => l,
                     _ => return Err(RuntimeError::R002),
                 };
-                let idx = self.eval_expr_local(index, locals)?.as_number()
+                let idx = self
+                    .eval_expr_local(index, locals)?
+                    .as_number()
                     .ok_or(RuntimeError::R002)? as usize;
                 if idx >= items.len() {
-                    return Err(RuntimeError::R004 { index: idx, len: items.len() });
+                    return Err(RuntimeError::R004 {
+                        index: idx,
+                        len: items.len(),
+                    });
                 }
                 Ok(items[idx].clone())
             }
@@ -715,18 +894,20 @@ impl Evaluator {
                                 lumina_parser::ast::LuminaType::Text => Value::Text(String::new()),
                                 lumina_parser::ast::LuminaType::Boolean => Value::Bool(false),
                                 lumina_parser::ast::LuminaType::Timestamp => Value::Timestamp(0.0),
-                                lumina_parser::ast::LuminaType::Secret => Value::Secret(String::new()),
+                                lumina_parser::ast::LuminaType::Secret => {
+                                    Value::Secret(String::new())
+                                }
                                 lumina_parser::ast::LuminaType::Duration => Value::Duration(0.0),
                                 lumina_parser::ast::LuminaType::List(_) => Value::List(vec![]),
-                                lumina_parser::ast::LuminaType::Entity(_) => Value::Text(String::new()),
+                                lumina_parser::ast::LuminaType::Entity(_) => {
+                                    Value::Text(String::new())
+                                }
                             };
                             fields.insert(f.name.clone(), default_val);
                         }
                         lumina_parser::ast::Field::Derived(df) => {
-                            self.derived_exprs.insert(
-                                (decl.name.clone(), df.name.clone()),
-                                df.expr.clone(),
-                            );
+                            self.derived_exprs
+                                .insert((decl.name.clone(), df.name.clone()), df.expr.clone());
                             fields.insert(df.name.clone(), Value::Unknown);
                         }
                         lumina_parser::ast::Field::Ref(r) => {
@@ -740,7 +921,8 @@ impl Evaluator {
                     if let Some(idx) = entity_schema.field_indices.get(&name) {
                         if let Value::Text(ref target) = val {
                             if self.schema.is_ref_field(&decl.name, &name) {
-                                self.reverse_refs.entry(target.clone())
+                                self.reverse_refs
+                                    .entry(target.clone())
                                     .or_default()
                                     .insert((decl.name.clone(), decl.name.clone()));
                             }
@@ -756,7 +938,8 @@ impl Evaluator {
             }
             Statement::Aggregate(decl) => {
                 self.agg_store.register(decl.clone());
-                self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
+                self.agg_store
+                    .recompute(&self.store, &self.schema, Some(&self.cluster_state));
                 Ok(vec![])
             }
             Statement::Fn(decl) => {
@@ -778,16 +961,19 @@ impl Evaluator {
                             let val = self.eval_expr(expr, None)?;
                             if let Value::Text(ref target) = val {
                                 if self.schema.is_ref_field(&entity_name, name) {
-                                    self.reverse_refs.entry(target.clone())
+                                    self.reverse_refs
+                                        .entry(target.clone())
                                         .or_default()
                                         .insert((inst_name.clone(), entity_name.clone()));
                                 }
                             }
                             fields.insert(name.clone(), val);
                         }
-                        self.instances.insert(inst_name.clone(), entity_name.clone());
+                        self.instances
+                            .insert(inst_name.clone(), entity_name.clone());
                         let entity_schema = self.schema.get_entity(&entity_name).unwrap();
-                        let mut instance = Instance::new(&entity_name, entity_schema.field_names.len());
+                        let mut instance =
+                            Instance::new(&entity_name, entity_schema.field_names.len());
                         for (name, val) in fields {
                             if let Some(idx) = entity_schema.field_indices.get(&name) {
                                 instance.set(*idx, val);
@@ -797,11 +983,15 @@ impl Evaluator {
                         // Compute derived fields for the new instance
                         self.propagate_derived(&inst_name, &entity_name)?;
                         if !self.is_initializing {
-                            self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
+                            self.agg_store.recompute(
+                                &self.store,
+                                &self.schema,
+                                Some(&self.cluster_state),
+                            );
                         }
                         self.store.commit_dirty(&self.dirty_instances);
                         self.dirty_instances.clear();
-                        
+
                         // Initial rule evaluation for this new instance
                         if !self.is_initializing {
                             self.evaluate_rules(&inst_name)
@@ -834,14 +1024,21 @@ impl Evaluator {
             Statement::PluginImport(_) => Ok(vec![]), // v1.8: Plugin registration handled at build time
             Statement::Provider(decl) => {
                 // v1.9: Log provider registration for the orchestrator
-                self.output.push(format!("Provider '{}' registered (endpoint configured)", decl.protocol));
+                self.output.push(format!(
+                    "Provider '{}' registered (endpoint configured)",
+                    decl.protocol
+                ));
                 Ok(vec![])
             }
             Statement::Cluster(decl) => {
                 // v2.0: Store cluster configuration for use by the CLI cluster commands
                 let config = lumina_cluster::ClusterConfig::from_decl(decl);
-                self.output.push(format!("Cluster configured: node='{}' peers={} quorum={}",
-                    config.node_id, config.peers.len(), config.quorum));
+                self.output.push(format!(
+                    "Cluster configured: node='{}' peers={} quorum={}",
+                    config.node_id,
+                    config.peers.len(),
+                    config.quorum
+                ));
                 self.cluster_config = Some(config);
                 Ok(vec![])
             }
@@ -850,7 +1047,11 @@ impl Evaluator {
 
     // ── Action executor ───────────────────────────────────
 
-    pub fn exec_action(&mut self, action: &Action, ctx: Option<&str>) -> Result<Vec<FiredEvent>, RuntimeError> {
+    pub fn exec_action(
+        &mut self,
+        action: &Action,
+        ctx: Option<&str>,
+    ) -> Result<Vec<FiredEvent>, RuntimeError> {
         match action {
             Action::Show(expr) => {
                 let val = self.eval_expr(expr, ctx)?;
@@ -880,12 +1081,17 @@ impl Evaluator {
                 // Issue 006: Handle nested field paths (e.g., server.cooling.power)
                 if let Some(ref sub_field) = target.sub_field {
                     if let Some(inst) = self.store.get(&inst_name) {
-                        if let Some(Value::Text(ref_target)) = self.get_instance_field(inst, &target.field) {
+                        if let Some(Value::Text(ref_target)) =
+                            self.get_instance_field(inst, &target.field)
+                        {
                             let ref_inst = ref_target.clone();
                             return self.apply_update(&ref_inst, sub_field, val);
                         }
                     }
-                    return Err(RuntimeError::R005 { instance: inst_name, field: target.field.clone() });
+                    return Err(RuntimeError::R005 {
+                        instance: inst_name,
+                        field: target.field.clone(),
+                    });
                 }
                 self.apply_update(&inst_name, &target.field, val)
             }
@@ -893,12 +1099,13 @@ impl Evaluator {
                 let mut fv = FxHashMap::default();
                 let count = self.store.all_of_entity(entity).count();
                 let inst_name = format!("{}_{}", entity.to_lowercase(), count + 1);
-                
+
                 for (name, expr) in fields {
                     let val = self.eval_expr(expr, ctx)?;
                     if let Value::Text(ref target) = val {
                         if self.schema.is_ref_field(entity, name) {
-                            self.reverse_refs.entry(target.clone())
+                            self.reverse_refs
+                                .entry(target.clone())
                                 .or_default()
                                 .insert((inst_name.clone(), entity.clone()));
                         }
@@ -925,7 +1132,8 @@ impl Evaluator {
                 self.store.insert(inst_name, instance);
 
                 // Recompute aggregates to include the new instance
-                self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
+                self.agg_store
+                    .recompute(&self.store, &self.schema, Some(&self.cluster_state));
 
                 Ok(vec![])
             }
@@ -951,16 +1159,18 @@ impl Evaluator {
                     }
                     self.reverse_refs.remove(&inst_name);
                 } else {
-                    return Err(RuntimeError::R001 { instance: inst_name.clone() });
+                    return Err(RuntimeError::R001 {
+                        instance: inst_name.clone(),
+                    });
                 }
                 Ok(vec![])
             }
             Action::Alert(alert_action) => {
-                let severity = self.eval_expr(&alert_action.severity, ctx)?
-                    .to_string();
-                let message = self.eval_expr(&alert_action.message, ctx)?
-                    .to_string();
-                let source = alert_action.source.as_ref()
+                let severity = self.eval_expr(&alert_action.severity, ctx)?.to_string();
+                let message = self.eval_expr(&alert_action.message, ctx)?.to_string();
+                let source = alert_action
+                    .source
+                    .as_ref()
                     .and_then(|e| self.eval_expr(e, ctx).ok())
                     .map(|v| v.to_string())
                     .unwrap_or_default();
@@ -1005,20 +1215,29 @@ impl Evaluator {
                 // Issue 006: Handle nested field paths
                 let actual_field = if let Some(ref sub_field) = target.sub_field {
                     if let Some(inst) = self.store.get(&inst_name) {
-                        if let Some(Value::Text(ref_target)) = self.get_instance_field(inst, &target.field) {
+                        if let Some(Value::Text(ref_target)) =
+                            self.get_instance_field(inst, &target.field)
+                        {
                             inst_name = ref_target.clone();
                             sub_field.clone()
                         } else {
-                            return Err(RuntimeError::R005 { instance: inst_name, field: target.field.clone() });
+                            return Err(RuntimeError::R005 {
+                                instance: inst_name,
+                                field: target.field.clone(),
+                            });
                         }
                     } else {
-                        return Err(RuntimeError::R001 { instance: inst_name });
+                        return Err(RuntimeError::R001 {
+                            instance: inst_name,
+                        });
                     }
                 } else {
                     target.field.clone()
                 };
                 // Dispatch to adapter if one is registered for this entity
-                let entity_name = self.instances.get(&inst_name)
+                let entity_name = self
+                    .instances
+                    .get(&inst_name)
                     .cloned()
                     .unwrap_or_else(|| inst_name.clone());
                 let mut dispatched = false;
@@ -1062,15 +1281,25 @@ impl Evaluator {
 
         let snap = self.snapshots.take(&self.store);
         self.snapshots.push(snap);
-        
-        let entity_name = self.store.get(instance_name)
-            .ok_or(RuntimeError::R001 { instance: instance_name.to_string() })?
-            .entity_name.clone();
+
+        let entity_name = self
+            .store
+            .get(instance_name)
+            .ok_or(RuntimeError::R001 {
+                instance: instance_name.to_string(),
+            })?
+            .entity_name
+            .clone();
         // Check if field is derived (cannot be manually updated)
-        if self.derived_exprs.contains_key(&(entity_name.clone(), field_name.to_string())) {
+        if self
+            .derived_exprs
+            .contains_key(&(entity_name.clone(), field_name.to_string()))
+        {
             self.snapshots.pop();
             self.depth -= 1;
-            return Err(RuntimeError::R009 { field: field_name.to_string() });
+            return Err(RuntimeError::R009 {
+                field: field_name.to_string(),
+            });
         }
 
         // Check @range
@@ -1080,21 +1309,42 @@ impl Evaluator {
                     if *n < min || *n > max {
                         self.snapshots.pop();
                         self.depth -= 1;
-                        return Err(RuntimeError::R006 { field: field_name.into(), value: *n, min, max });
+                        return Err(RuntimeError::R006 {
+                            field: field_name.into(),
+                            value: *n,
+                            min,
+                            max,
+                        });
                     }
                 }
             }
         }
 
         // Capture old Boolean value for fleet tracking
-        let old_bool = self.store.get(instance_name)
+        let old_bool = self
+            .store
+            .get(instance_name)
             .and_then(|inst| self.get_instance_field(inst, field_name))
-            .and_then(|v| if let Value::Bool(b) = v { Some(b) } else { None });
+            .and_then(|v| {
+                if let Value::Bool(b) = v {
+                    Some(b)
+                } else {
+                    None
+                }
+            });
 
         // Capture old string value for RefField tracking
-        let old_text = self.store.get(instance_name)
+        let old_text = self
+            .store
+            .get(instance_name)
             .and_then(|inst| self.get_instance_field(inst, field_name))
-            .and_then(|v| if let Value::Text(s) = v { Some(s.clone()) } else { None });
+            .and_then(|v| {
+                if let Value::Text(s) = v {
+                    Some(s.clone())
+                } else {
+                    None
+                }
+            });
 
         // Apply
         self.set_instance_field(instance_name, field_name, new_value.clone())?;
@@ -1104,7 +1354,8 @@ impl Evaluator {
         if let Some(ref node_lock) = self.cluster_node {
             if let Ok(node) = node_lock.lock() {
                 if let Ok(bytes) = serde_json::to_vec(&new_value) {
-                    node.state_mesh.update_local(&node.config.node_id, field_name, bytes);
+                    node.state_mesh
+                        .update_local(&node.config.node_id, field_name, bytes);
                 }
             }
         }
@@ -1117,7 +1368,8 @@ impl Evaluator {
                 }
             }
             if let Value::Text(new_target) = &new_value {
-                self.reverse_refs.entry(new_target.clone())
+                self.reverse_refs
+                    .entry(new_target.clone())
                     .or_default()
                     .insert((instance_name.to_string(), entity_name.clone()));
             }
@@ -1127,8 +1379,11 @@ impl Evaluator {
         if let Value::Bool(new_b) = &new_value {
             let total = self.store.all_of_entity(&entity_name).count();
             self.fleet_state.update(
-                &entity_name, field_name,
-                old_bool.unwrap_or(false), *new_b, total,
+                &entity_name,
+                field_name,
+                old_bool.unwrap_or(false),
+                *new_b,
+                total,
             );
         }
 
@@ -1149,7 +1404,8 @@ impl Evaluator {
 
         // Cross-instance ref propagation: find all instances that reference
         // the updated instance via a `ref` field, and re-propagate their deriveds.
-        let referencing_instances: Vec<(String, String)> = self.reverse_refs
+        let referencing_instances: Vec<(String, String)> = self
+            .reverse_refs
             .get(instance_name)
             .map(|refs| refs.iter().cloned().collect())
             .unwrap_or_default();
@@ -1163,7 +1419,8 @@ impl Evaluator {
             }
         }
 
-        self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
+        self.agg_store
+            .recompute(&self.store, &self.schema, Some(&self.cluster_state));
 
         // Evaluate rules for the directly updated instance
         let mut all_events = self.evaluate_rules(instance_name)?;
@@ -1198,7 +1455,10 @@ impl Evaluator {
             }
 
             // Issue 003: Set parameter alias for this rule so eval_expr can resolve param names
-            self.rule_param_alias = rule.param.as_ref().map(|p| (p.name.clone(), p.entity.clone()));
+            self.rule_param_alias = rule
+                .param
+                .as_ref()
+                .map(|p| (p.name.clone(), p.entity.clone()));
 
             match &rule.trigger {
                 RuleTrigger::When(conditions) => {
@@ -1219,14 +1479,19 @@ impl Evaluator {
                         })
                     } else {
                         conditions.iter().all(|c| {
-                            rules::condition_is_met(self, c, instance_name, has_becomes).unwrap_or(false)
+                            rules::condition_is_met(self, c, instance_name, has_becomes)
+                                .unwrap_or(false)
                         })
                     };
 
                     // E2 Fix: Rising Edge Detection for triggers.
                     // Only fire when condition transitions false→true.
                     let edge_key = (rule.name.clone(), instance_name.to_string());
-                    let prev_met = self.prev_rule_conditions.get(&edge_key).copied().unwrap_or(false);
+                    let prev_met = self
+                        .prev_rule_conditions
+                        .get(&edge_key)
+                        .copied()
+                        .unwrap_or(false);
                     let is_rising_edge = all_met && !prev_met;
                     self.prev_rule_conditions.insert(edge_key, all_met);
 
@@ -1242,7 +1507,8 @@ impl Evaluator {
                             // Evaluate sliding window for frequency triggers
                             let freq = conditions.first().and_then(|c| c.frequency.as_ref());
                             if let Some(f) = freq {
-                                let history = self.frequency_events.entry(active_key.clone()).or_default();
+                                let history =
+                                    self.frequency_events.entry(active_key.clone()).or_default();
                                 history.push(self.now);
 
                                 // Retain timestamps within the window
@@ -1257,12 +1523,15 @@ impl Evaluator {
                                 // Reset the sliding window after firing
                                 history.clear();
                             }
-                            
+
                             // Use the for_duration from the first condition if present
-                            let for_duration = conditions.first().and_then(|c| c.for_duration.as_ref());
+                            let for_duration =
+                                conditions.first().and_then(|c| c.for_duration.as_ref());
                             if let Some(dur) = for_duration {
                                 let _ = self.timers.start_for_timer(
-                                    &rule.name, instance_name, dur.to_seconds(),
+                                    &rule.name,
+                                    instance_name,
+                                    dur.to_seconds(),
                                 );
                             } else {
                                 if let Some(cd) = &rule.cooldown {
@@ -1274,7 +1543,7 @@ impl Evaluator {
                                 self.record_firing(&rule.name, instance_name);
 
                                 self.fired_this_cycle.insert(fire_key);
-                                 for action in &rule.actions {
+                                for action in &rule.actions {
                                     let evts = self.exec_action(action, Some(instance_name))?;
                                     all_events.extend(evts);
                                 }
@@ -1295,7 +1564,8 @@ impl Evaluator {
                         false => {
                             self.timers.cancel_for_timer(&rule.name, instance_name);
                             // on_clear: if rule was previously active, fire on_clear actions
-                            let was_active = self.rule_active.get(&active_key).copied().unwrap_or(false);
+                            let was_active =
+                                self.rule_active.get(&active_key).copied().unwrap_or(false);
                             if was_active {
                                 self.rule_active.insert(active_key, false);
                                 if let Some(clear_actions) = &rule.on_clear {
@@ -1329,16 +1599,26 @@ impl Evaluator {
                     let fire_key = format!("{}::fleet_any", rule.name);
 
                     // Issue 002: Resolve the triggering instance for fleet context
-                    let fleet_ctx: Option<&str> = if self.instances.get(instance_name)
-                        .map(|e| e == &fc.entity).unwrap_or(false) {
+                    let fleet_ctx: Option<&str> = if self
+                        .instances
+                        .get(instance_name)
+                        .map(|e| e == &fc.entity)
+                        .unwrap_or(false)
+                    {
                         Some(instance_name)
-                    } else { None };
+                    } else {
+                        None
+                    };
 
                     // Edge detection: fire only on rising edge (or start timer)
                     if now_met {
                         if !prev {
                             if let Some(dur) = &fc.for_duration {
-                                let _ = self.timers.start_for_timer(&rule.name, "fleet", dur.to_seconds());
+                                let _ = self.timers.start_for_timer(
+                                    &rule.name,
+                                    "fleet",
+                                    dur.to_seconds(),
+                                );
                             } else {
                                 if !self.fired_this_cycle.contains(&fire_key) {
                                     self.fired_this_cycle.insert(fire_key);
@@ -1350,7 +1630,10 @@ impl Evaluator {
                                         rule: rule.name.clone(),
                                         instance: "fleet".to_string(),
                                         severity: "info".to_string(),
-                                        message: format!("Fleet any trigger fired for '{}'", rule.name),
+                                        message: format!(
+                                            "Fleet any trigger fired for '{}'",
+                                            rule.name
+                                        ),
                                         ts: self.now,
                                     });
                                 }
@@ -1359,7 +1642,8 @@ impl Evaluator {
                         self.rule_active.insert(active_key, true);
                     } else {
                         self.timers.cancel_for_timer(&rule.name, "fleet");
-                        let was_active = self.rule_active.get(&active_key).copied().unwrap_or(false);
+                        let was_active =
+                            self.rule_active.get(&active_key).copied().unwrap_or(false);
                         if was_active {
                             self.rule_active.insert(active_key, false);
                             if let Some(clear_actions) = &rule.on_clear {
@@ -1371,7 +1655,10 @@ impl Evaluator {
                                     rule: format!("{}_clear", rule.name),
                                     instance: "fleet".to_string(),
                                     severity: "resolved".to_string(),
-                                    message: format!("Fleet any trigger cleared for '{}'", rule.name),
+                                    message: format!(
+                                        "Fleet any trigger cleared for '{}'",
+                                        rule.name
+                                    ),
                                     ts: self.now,
                                 });
                             }
@@ -1392,16 +1679,26 @@ impl Evaluator {
                     let fire_key = format!("{}::fleet_all", rule.name);
 
                     // Issue 002: Resolve the triggering instance for fleet context
-                    let fleet_ctx: Option<&str> = if self.instances.get(instance_name)
-                        .map(|e| e == &fc.entity).unwrap_or(false) {
+                    let fleet_ctx: Option<&str> = if self
+                        .instances
+                        .get(instance_name)
+                        .map(|e| e == &fc.entity)
+                        .unwrap_or(false)
+                    {
                         Some(instance_name)
-                    } else { None };
+                    } else {
+                        None
+                    };
 
                     // Edge detection: fire only on rising edge (or start timer)
                     if now_met {
                         if !prev {
                             if let Some(dur) = &fc.for_duration {
-                                let _ = self.timers.start_for_timer(&rule.name, "fleet", dur.to_seconds());
+                                let _ = self.timers.start_for_timer(
+                                    &rule.name,
+                                    "fleet",
+                                    dur.to_seconds(),
+                                );
                             } else {
                                 if !self.fired_this_cycle.contains(&fire_key) {
                                     self.fired_this_cycle.insert(fire_key);
@@ -1413,7 +1710,10 @@ impl Evaluator {
                                         rule: rule.name.clone(),
                                         instance: "fleet".to_string(),
                                         severity: "info".to_string(),
-                                        message: format!("Fleet all trigger fired for '{}'", rule.name),
+                                        message: format!(
+                                            "Fleet all trigger fired for '{}'",
+                                            rule.name
+                                        ),
                                         ts: self.now,
                                     });
                                 }
@@ -1422,7 +1722,8 @@ impl Evaluator {
                         self.rule_active.insert(active_key, true);
                     } else {
                         self.timers.cancel_for_timer(&rule.name, "fleet");
-                        let was_active = self.rule_active.get(&active_key).copied().unwrap_or(false);
+                        let was_active =
+                            self.rule_active.get(&active_key).copied().unwrap_or(false);
                         if was_active {
                             self.rule_active.insert(active_key, false);
                             if let Some(clear_actions) = &rule.on_clear {
@@ -1434,7 +1735,10 @@ impl Evaluator {
                                     rule: format!("{}_clear", rule.name),
                                     instance: "fleet".to_string(),
                                     severity: "resolved".to_string(),
-                                    message: format!("Fleet all trigger cleared for '{}'", rule.name),
+                                    message: format!(
+                                        "Fleet all trigger cleared for '{}'",
+                                        rule.name
+                                    ),
                                     ts: self.now,
                                 });
                             }
@@ -1454,9 +1758,10 @@ impl Evaluator {
     /// Typically used after initialization to establish first stable state.
     pub fn recalculate_all_rules(&mut self) -> Result<Vec<FiredEvent>, RuntimeError> {
         let mut all_events = Vec::new();
-        
+
         // Single batch recomputation of aggregates after initialization
-        self.agg_store.recompute(&self.store, &self.schema, Some(&self.cluster_state));
+        self.agg_store
+            .recompute(&self.store, &self.schema, Some(&self.cluster_state));
 
         let instance_names: Vec<String> = self.store.all().map(|(n, _)| n.clone()).collect();
         for name in instance_names {
@@ -1467,23 +1772,40 @@ impl Evaluator {
         Ok(all_events)
     }
 
-    fn propagate_derived(&mut self, instance_name: &str, entity_name: &str) -> Result<(), RuntimeError> {
-        let mut derived: Vec<(String, String)> = self.derived_exprs.keys()
+    fn propagate_derived(
+        &mut self,
+        instance_name: &str,
+        entity_name: &str,
+    ) -> Result<(), RuntimeError> {
+        let mut derived: Vec<(String, String)> = self
+            .derived_exprs
+            .keys()
             .filter(|(ent, _)| ent == entity_name)
             .cloned()
             .collect();
         derived.sort_by_key(|(e, f)| self.graph.get_node(e, f).unwrap_or(u32::MAX));
 
         for (ent, field) in derived {
-            if let Some(expr) = self.derived_exprs.get(&(ent.clone(), field.clone())).cloned() {
+            if let Some(expr) = self
+                .derived_exprs
+                .get(&(ent.clone(), field.clone()))
+                .cloned()
+            {
                 // Capture old value for fleet tracking
-                let old_val = self.store.get(instance_name).and_then(|inst| self.get_instance_field(inst, &field));
-                
+                let old_val = self
+                    .store
+                    .get(instance_name)
+                    .and_then(|inst| self.get_instance_field(inst, &field));
+
                 let val = self.eval_expr(&expr, Some(instance_name))?;
-                
+
                 // Update fleet state if field is Boolean
                 if let Value::Bool(new_b) = &val {
-                    let old_b = if let Some(Value::Bool(b)) = old_val { b } else { false };
+                    let old_b = if let Some(Value::Bool(b)) = old_val {
+                        b
+                    } else {
+                        false
+                    };
                     let total = self.store.all_of_entity(&ent).count();
                     self.fleet_state.update(&ent, &field, old_b, *new_b, total);
                 }
@@ -1501,7 +1823,11 @@ impl Evaluator {
         rule: &RuleDecl,
         instance_name: &str,
     ) -> Result<Vec<FiredEvent>, RuntimeError> {
-        let ctx = if instance_name.is_empty() { None } else { Some(instance_name) };
+        let ctx = if instance_name.is_empty() {
+            None
+        } else {
+            Some(instance_name)
+        };
         let mut events = vec![];
         for action in &rule.actions {
             let evts = self.exec_action(action, ctx)?;
@@ -1533,14 +1859,17 @@ impl Evaluator {
         let mut all_events = vec![];
 
         // ── Poll external entity adapters ──────────────────────────
-        let updates: Vec<(String, String, String, Value)> = self.adapters
+        let updates: Vec<(String, String, String, Value)> = self
+            .adapters
             .iter_mut()
             .flat_map(|a| {
                 let ent_name = a.entity_name().to_string();
                 std::iter::from_fn(move || {
                     a.poll().map(|(inst, f, v)| (ent_name.clone(), inst, f, v))
-                }).collect::<Vec<_>>()
-            }).collect();
+                })
+                .collect::<Vec<_>>()
+            })
+            .collect();
 
         for (entity, instance, field, value) in updates {
             let inst_name = if instance == "default" {
@@ -1575,17 +1904,18 @@ impl Evaluator {
         // ── Fire elapsed `for` timers ──────────────────────────────────
         let elapsed = self.timers.drain_elapsed_for_timers();
         for timer in elapsed {
-            let rule = self.rules.iter()
+            let rule = self
+                .rules
+                .iter()
                 .find(|r| r.name == timer.rule_name)
                 .cloned();
             if let Some(rule) = rule {
                 let snap = self.snapshots.take(&self.store);
                 let still_true = match &rule.trigger {
-                    RuleTrigger::When(conditions) => {
-                        conditions.iter().all(|c| {
-                            rules::condition_is_met(self, c, &timer.instance_name, false).unwrap_or(false)
-                        })
-                    }
+                    RuleTrigger::When(conditions) => conditions.iter().all(|c| {
+                        rules::condition_is_met(self, c, &timer.instance_name, false)
+                            .unwrap_or(false)
+                    }),
                     RuleTrigger::Any(fc) => {
                         let target = matches!(&fc.becomes, Expr::Bool(true));
                         if target {
@@ -1616,7 +1946,8 @@ impl Evaluator {
                             self.store = snap.store;
                             return Err(RollbackResult {
                                 diagnostic: Diagnostic::from_runtime_error(
-                                    e.code(), &e.message(),
+                                    e.code(),
+                                    &e.message(),
                                     self.snapshots.current_version(),
                                     vec![rule.name.clone()],
                                 ),
@@ -1630,9 +1961,7 @@ impl Evaluator {
         // ── Fire due `every` timers ────────────────────────────────────
         let due_rules = self.timers.drain_due_every_timers();
         for rule_name in due_rules {
-            let rule = self.rules.iter()
-                .find(|r| r.name == rule_name)
-                .cloned();
+            let rule = self.rules.iter().find(|r| r.name == rule_name).cloned();
             if let Some(rule) = rule {
                 let snap = self.snapshots.take(&self.store);
                 match self.exec_rule_actions(&rule, "") {
@@ -1645,7 +1974,8 @@ impl Evaluator {
                         self.store = snap.store;
                         return Err(RollbackResult {
                             diagnostic: Diagnostic::from_runtime_error(
-                                e.code(), &e.message(),
+                                e.code(),
+                                &e.message(),
                                 self.snapshots.current_version(),
                                 vec![rule.name.clone()],
                             ),
@@ -1674,8 +2004,10 @@ impl Evaluator {
             }),
             Err(e) => Err(RollbackResult {
                 diagnostic: Diagnostic::from_runtime_error(
-                    e.code(), &e.message(),
-                    self.snapshots.current_version(), vec![],
+                    e.code(),
+                    &e.message(),
+                    self.snapshots.current_version(),
+                    vec![],
                 ),
             }),
         }
@@ -1707,17 +2039,22 @@ impl Evaluator {
     fn eval_to_list(&self, expr: &Expr, ctx: Option<&str>) -> Result<Vec<Value>, RuntimeError> {
         match self.eval_expr(expr, ctx)? {
             Value::List(l) => Ok(l),
-            v => Err(RuntimeError::R018 { expected: "List".into(), found: v.type_name().into() }),
+            v => Err(RuntimeError::R018 {
+                expected: "List".into(),
+                found: v.type_name().into(),
+            }),
         }
     }
 
     fn eval_to_num_list(&self, expr: &Expr, ctx: Option<&str>) -> Result<Vec<f64>, RuntimeError> {
         let list = self.eval_to_list(expr, ctx)?;
         list.into_iter()
-            .map(|v| v.as_number().ok_or_else(|| RuntimeError::R018 { 
-                expected: "Number".into(), 
-                found: v.type_name().into() 
-            }))
+            .map(|v| {
+                v.as_number().ok_or_else(|| RuntimeError::R018 {
+                    expected: "Number".into(),
+                    found: v.type_name().into(),
+                })
+            })
             .collect()
     }
 
@@ -1728,9 +2065,8 @@ impl Evaluator {
             Value::Text(s) => serde_json::json!(s),
             Value::Bool(b) => serde_json::json!(b),
             Value::List(items) => {
-                let arr: Vec<serde_json::Value> = items.iter()
-                    .map(|v| self.value_to_json(v))
-                    .collect();
+                let arr: Vec<serde_json::Value> =
+                    items.iter().map(|v| self.value_to_json(v)).collect();
                 serde_json::json!(arr)
             }
             Value::Timestamp(t) => serde_json::json!(*t),
@@ -1744,10 +2080,14 @@ impl Evaluator {
     /// Returns a list of warnings for missing adapters.
     pub fn validate_adapters(&self) -> Vec<String> {
         let mut warnings = Vec::new();
-        let registered_entities: FxHashSet<&str> = self.adapters.iter().map(|a| a.entity_name()).collect();
+        let registered_entities: FxHashSet<&str> =
+            self.adapters.iter().map(|a| a.entity_name()).collect();
         for (name, entity) in &self.schema.entities {
             if entity.is_external && !registered_entities.contains(name.as_str()) {
-                warnings.push(format!("External entity '{}' has no registered adapter and will be ignored.", name));
+                warnings.push(format!(
+                    "External entity '{}' has no registered adapter and will be ignored.",
+                    name
+                ));
             }
         }
         warnings
@@ -1763,7 +2103,10 @@ impl Evaluator {
 
         for event in orchestration_events {
             match event {
-                lumina_cluster::GossipMessageKind::WorkloadMove { target_node, workload } => {
+                lumina_cluster::GossipMessageKind::WorkloadMove {
+                    target_node,
+                    workload,
+                } => {
                     if target_node != local_node_id {
                         let mut to_handoff = Vec::new();
                         for name in &workload {
@@ -1778,9 +2121,9 @@ impl Evaluator {
                                 let node = node_lock.lock().unwrap();
                                 node.gossip.broadcast(
                                     local_node_id.clone(),
-                                    lumina_cluster::GossipMessageKind::WorkloadHandoff { 
+                                    lumina_cluster::GossipMessageKind::WorkloadHandoff {
                                         target_node: target_node.clone(),
-                                        instances: to_handoff.clone() 
+                                        instances: to_handoff.clone(),
                                     },
                                 );
                             }
@@ -1791,19 +2134,34 @@ impl Evaluator {
                         }
                     }
                 }
-                lumina_cluster::GossipMessageKind::WorkloadHandoff { target_node, instances } => {
+                lumina_cluster::GossipMessageKind::WorkloadHandoff {
+                    target_node,
+                    instances,
+                } => {
                     if target_node == local_node_id {
                         for (name, entity, data) in instances {
-                            let inst: Instance = serde_json::from_slice(&data).map_err(|_| RuntimeError::R007 { entity: entity.clone(), reason: "Orchestration handoff deserialization failed".into() })?;
+                            let inst: Instance =
+                                serde_json::from_slice(&data).map_err(|_| RuntimeError::R007 {
+                                    entity: entity.clone(),
+                                    reason: "Orchestration handoff deserialization failed".into(),
+                                })?;
                             self.store.insert(name.clone(), inst);
                             self.instances.insert(name, entity);
                         }
                     }
                 }
-                lumina_cluster::GossipMessageKind::WorkloadDeploy { target_node, instances, .. } => {
+                lumina_cluster::GossipMessageKind::WorkloadDeploy {
+                    target_node,
+                    instances,
+                    ..
+                } => {
                     if target_node == local_node_id {
                         for (name, entity, data) in instances {
-                            let inst: Instance = serde_json::from_slice(&data).map_err(|_| RuntimeError::R007 { entity: entity.clone(), reason: "Orchestration deploy deserialization failed".into() })?;
+                            let inst: Instance =
+                                serde_json::from_slice(&data).map_err(|_| RuntimeError::R007 {
+                                    entity: entity.clone(),
+                                    reason: "Orchestration deploy deserialization failed".into(),
+                                })?;
                             self.store.insert(name.clone(), inst);
                             self.instances.insert(name, entity);
                         }
@@ -1821,9 +2179,9 @@ impl Evaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lumina_lexer::token::Span;
     use lumina_analyzer::graph::DependencyGraph;
     use lumina_analyzer::types::Schema;
+    use lumina_lexer::token::Span;
 
     fn empty_eval() -> Evaluator {
         Evaluator::new(Schema::new(), DependencyGraph::new(), vec![])
@@ -1831,7 +2189,8 @@ mod tests {
 
     fn build_eval(source: &str) -> Evaluator {
         let program = lumina_parser::parse(source).expect("parse failed");
-        let analyzed = lumina_analyzer::analyze(program, source, "<runtime-test>", true).expect("analysis failed");
+        let analyzed = lumina_analyzer::analyze(program, source, "<runtime-test>", true)
+            .expect("analysis failed");
         let mut rules = Vec::new();
         let mut derived = FxHashMap::default();
         for stmt in &analyzed.program.statements {
@@ -1874,7 +2233,10 @@ mod tests {
         insert_instance(&mut ev, "m1", "Math", vec![("val", Value::Number(10.0))]);
         ev.propagate_derived("m1", "Math").unwrap();
         let inst = ev.store.get("m1").unwrap();
-        assert_eq!(ev.get_instance_field(inst, "res").unwrap(), Value::Number(20.0));
+        assert_eq!(
+            ev.get_instance_field(inst, "res").unwrap(),
+            Value::Number(20.0)
+        );
     }
 
     #[test]
@@ -1927,14 +2289,22 @@ mod tests {
     #[test]
     fn test_derived_recomputes() {
         let mut ev = build_eval("entity Person {\n  age: Number\n  isAdult := age >= 18\n}");
-        insert_instance(&mut ev, "p1", "Person", vec![
-            ("age", Value::Number(17.0)),
-            ("isAdult", Value::Bool(false)),
-        ]);
+        insert_instance(
+            &mut ev,
+            "p1",
+            "Person",
+            vec![
+                ("age", Value::Number(17.0)),
+                ("isAdult", Value::Bool(false)),
+            ],
+        );
 
         ev.apply_update("p1", "age", Value::Number(18.0)).unwrap();
         let inst = ev.store.get("p1").unwrap();
-        assert_eq!(ev.get_instance_field(inst, "isAdult").unwrap(), Value::Bool(true));
+        assert_eq!(
+            ev.get_instance_field(inst, "isAdult").unwrap(),
+            Value::Bool(true)
+        );
     }
 
     #[test]
@@ -1950,27 +2320,40 @@ mod tests {
     #[test]
     fn test_rollback_on_div_zero() {
         let mut ev = build_eval("entity A {\n  x: Number\n  y: Number\n  ratio := x / y\n}");
-        insert_instance(&mut ev, "a1", "A", vec![
-            ("x", Value::Number(10.0)),
-            ("y", Value::Number(2.0)),
-            ("ratio", Value::Number(5.0)),
-        ]);
+        insert_instance(
+            &mut ev,
+            "a1",
+            "A",
+            vec![
+                ("x", Value::Number(10.0)),
+                ("y", Value::Number(2.0)),
+                ("ratio", Value::Number(5.0)),
+            ],
+        );
 
         let result = ev.apply_update("a1", "y", Value::Number(0.0));
         assert!(result.is_err());
         // Store should be rolled back
         let inst = ev.store.get("a1").unwrap();
-        assert_eq!(ev.get_instance_field(inst, "y").unwrap(), Value::Number(2.0));
+        assert_eq!(
+            ev.get_instance_field(inst, "y").unwrap(),
+            Value::Number(2.0)
+        );
     }
 
     #[test]
     fn test_export_state() {
         let source = "entity Person { name: Text age: Number }";
         let mut ev = build_eval(source);
-        insert_instance(&mut ev, "isaac", "Person", vec![
-            ("name", Value::Text("Isaac".into())),
-            ("age", Value::Number(26.0)),
-        ]);
+        insert_instance(
+            &mut ev,
+            "isaac",
+            "Person",
+            vec![
+                ("name", Value::Text("Isaac".into())),
+                ("age", Value::Number(26.0)),
+            ],
+        );
 
         let state = ev.export_state();
         assert!(state["instances"]["isaac"]["entity"] == "Person");
@@ -1995,10 +2378,15 @@ mod tests {
     fn test_adapter_poll_triggers_rule() {
         let src = "entity Sensor {\n  reading: Number\n  isCritical := reading > 90\n}\nrule overheat when Sensor.isCritical becomes true {\n  show \"overheating\"\n}";
         let mut ev = build_eval(src);
-        insert_instance(&mut ev, "Sensor", "Sensor", vec![
-            ("reading", Value::Number(50.0)),
-            ("isCritical", Value::Bool(false)),
-        ]);
+        insert_instance(
+            &mut ev,
+            "Sensor",
+            "Sensor",
+            vec![
+                ("reading", Value::Number(50.0)),
+                ("isCritical", Value::Bool(false)),
+            ],
+        );
 
         let mut adapter = crate::adapters::static_adapter::StaticAdapter::new("Sensor");
         adapter.push("Sensor", "reading", Value::Number(95.0));
@@ -2007,8 +2395,14 @@ mod tests {
         let result = ev.tick();
         assert!(result.is_ok());
         let inst = ev.store.get("Sensor").unwrap();
-        assert_eq!(ev.get_instance_field(inst, "reading").unwrap(), Value::Number(95.0));
-        assert_eq!(ev.get_instance_field(inst, "isCritical").unwrap(), Value::Bool(true));
+        assert_eq!(
+            ev.get_instance_field(inst, "reading").unwrap(),
+            Value::Number(95.0)
+        );
+        assert_eq!(
+            ev.get_instance_field(inst, "isCritical").unwrap(),
+            Value::Bool(true)
+        );
     }
 
     #[test]
@@ -2036,15 +2430,24 @@ entity Battery {
 }
         "#;
         let mut ev = build_eval(src);
-        insert_instance(&mut ev, "batt1", "Battery", vec![
-            ("level", Value::Number(100.0)),
-            ("drop", Value::Number(0.0)),
-        ]);
-        ev.store.commit_all(); 
-        
-        ev.apply_update("batt1", "level", Value::Number(90.0)).unwrap();
+        insert_instance(
+            &mut ev,
+            "batt1",
+            "Battery",
+            vec![
+                ("level", Value::Number(100.0)),
+                ("drop", Value::Number(0.0)),
+            ],
+        );
+        ev.store.commit_all();
+
+        ev.apply_update("batt1", "level", Value::Number(90.0))
+            .unwrap();
         let inst = ev.store.get("batt1").unwrap();
-        assert_eq!(ev.get_instance_field(inst, "drop").unwrap(), Value::Number(10.0));
+        assert_eq!(
+            ev.get_instance_field(inst, "drop").unwrap(),
+            Value::Number(10.0)
+        );
     }
 
     #[test]
@@ -2059,8 +2462,13 @@ entity Battery {
             }
         "#;
         let mut ev = build_eval(source);
-        insert_instance(&mut ev, "res1", "Resource", vec![("status", Value::Text("active".to_string()))]);
-        
+        insert_instance(
+            &mut ev,
+            "res1",
+            "Resource",
+            vec![("status", Value::Text("active".to_string()))],
+        );
+
         let res = ev.apply_update("res1", "status", Value::Text("deleted".to_string()));
         res.unwrap();
         assert!(ev.store.get("res1").is_none());

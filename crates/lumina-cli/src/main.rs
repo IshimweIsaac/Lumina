@@ -1,21 +1,21 @@
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-mod repl;
 mod commands;
 mod formatter;
+mod repl;
 
-use lumina_parser::parse;
-use lumina_parser::ast::*;
 use lumina_analyzer::analyze;
-use lumina_runtime::engine::Evaluator;
-use lumina_runtime::adapters::static_adapter::StaticAdapter;
+use lumina_diagnostics::DiagnosticRenderer;
+use lumina_parser::ast::*;
+use lumina_parser::parse;
 #[cfg(all(not(target_arch = "wasm32"), not(windows)))]
 use lumina_runtime::adapters::mqtt_adapter::MqttAdapter;
+use lumina_runtime::adapters::static_adapter::StaticAdapter;
 #[cfg(not(target_arch = "wasm32"))]
-use lumina_runtime::adapters::{http_adapter::HttpPollAdapter, file_adapter::FileWatchAdapter};
-use lumina_diagnostics::DiagnosticRenderer;
+use lumina_runtime::adapters::{file_adapter::FileWatchAdapter, http_adapter::HttpPollAdapter};
+use lumina_runtime::engine::Evaluator;
 
 mod loader;
 use crate::loader::ModuleLoader;
@@ -26,15 +26,15 @@ async fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     match args.get(1).map(|s| s.as_str()) {
-        Some("run")      => cmd_run(&args),
-        Some("check")    => cmd_check(&args),
-        Some("repl")     => cmd_repl(),
-        Some("fmt")      => cmd_fmt(&args),
-        Some("query")    => cmd_query(&args),
+        Some("run") => cmd_run(&args),
+        Some("check") => cmd_check(&args),
+        Some("repl") => cmd_repl(),
+        Some("fmt") => cmd_fmt(&args),
+        Some("query") => cmd_query(&args),
         Some("provider") => cmd_provider(&args),
-        Some("setup")    => cmd_setup(),
+        Some("setup") => cmd_setup(),
         Some("uninstall") => cmd_uninstall(),
-        Some("cluster")  => cmd_cluster(&args),
+        Some("cluster") => cmd_cluster(&args),
         Some("version") | Some("--version") | Some("-v") => {
             println!("Lumina v2.0.0: The Cluster Release");
             std::process::exit(0);
@@ -61,7 +61,9 @@ fn cmd_cluster(args: &[String]) {
     match args.get(2).map(|s| s.as_str()) {
         Some("start") => {
             let spec = args.get(3).unwrap_or_else(|| {
-                eprintln!("Error: missing spec file. Usage: lumina cluster start <spec.lum> [node_id]");
+                eprintln!(
+                    "Error: missing spec file. Usage: lumina cluster start <spec.lum> [node_id]"
+                );
                 std::process::exit(1);
             });
             let source = fs::read_to_string(spec).unwrap_or_else(|e| {
@@ -77,12 +79,20 @@ fn cmd_cluster(args: &[String]) {
             };
 
             // Extract cluster declaration from the program
-            let cluster_decl = program.statements.iter().find_map(|s| {
-                if let Statement::Cluster(c) = s { Some(c) } else { None }
-            }).unwrap_or_else(|| {
-                eprintln!("Error: no 'cluster {{ }}' block found in {}", spec);
-                std::process::exit(1);
-            });
+            let cluster_decl = program
+                .statements
+                .iter()
+                .find_map(|s| {
+                    if let Statement::Cluster(c) = s {
+                        Some(c)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|| {
+                    eprintln!("Error: no 'cluster {{ }}' block found in {}", spec);
+                    std::process::exit(1);
+                });
 
             // Allow overriding node_id from command line
             let mut config = lumina_cluster::ClusterConfig::from_decl(cluster_decl);
@@ -96,7 +106,10 @@ fn cmd_cluster(args: &[String]) {
             println!("  Node ID:     {}", config.node_id);
             println!("  Peers:       {:?}", config.peers);
             println!("  Quorum:      {}", config.quorum);
-            println!("  Election:    {:.0}ms timeout", config.election_timeout.as_millis());
+            println!(
+                "  Election:    {:.0}ms timeout",
+                config.election_timeout.as_millis()
+            );
             println!("──────────────────────────────────────────────────");
 
             // Initialize the cluster node
@@ -154,14 +167,14 @@ fn cmd_setup() {
 
     // All VS Code-compatible IDEs (they all support --install-extension)
     let ide_commands: &[(&str, &str)] = &[
-        ("code",        "VS Code"),
-        ("codium",      "VSCodium"),
-        ("cursor",      "Cursor"),
+        ("code", "VS Code"),
+        ("codium", "VSCodium"),
+        ("cursor", "Cursor"),
         ("antigravity", "Antigravity"),
-        ("windsurf",    "Windsurf"),
-        ("positron",    "Positron"),
+        ("windsurf", "Windsurf"),
+        ("positron", "Positron"),
         ("code-insiders", "VS Code Insiders"),
-        ("code-oss",    "Code OSS"),
+        ("code-oss", "Code OSS"),
     ];
 
     let id = "luminalang.lumina-lang";
@@ -187,14 +200,20 @@ fn cmd_setup() {
         // Try to download the .vsix from the website for offline install
         println!("→ No local extension found. Downloading from server...");
         let download_dest = exe_dir.join(vsix_name);
-        let url = format!("https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina/{}", vsix_name);
+        let url = format!(
+            "https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina/{}",
+            vsix_name
+        );
         match download_vsix(&url, &download_dest) {
             Ok(_) => {
                 println!("  ✓ Downloaded {}", vsix_name);
                 download_dest.to_string_lossy().to_string()
             }
             Err(e) => {
-                println!("  ✗ Download failed ({}). Falling back to marketplace ID.", e);
+                println!(
+                    "  ✗ Download failed ({}). Falling back to marketplace ID.",
+                    e
+                );
                 id.to_string()
             }
         }
@@ -255,10 +274,10 @@ fn cmd_setup() {
         if nvim_dir.exists() {
             print!("  Neovim (nvim)... ");
             std::io::stdout().flush().ok();
-            
+
             let plugin_dir = nvim_dir.join("plugin");
             let _ = std::fs::create_dir_all(&plugin_dir);
-            
+
             let lua_script = r#"-- Auto-generated by Lumina Installer
 if vim.fn.executable('lumina-lsp') == 1 then
   vim.filetype.add({
@@ -289,7 +308,10 @@ end"#;
     if !installed {
         println!("\n⚠  No supported IDE detected.");
         println!("  Install the extension manually from:");
-        println!("  https://marketplace.visualstudio.com/items?itemName={}", id);
+        println!(
+            "  https://marketplace.visualstudio.com/items?itemName={}",
+            id
+        );
     }
 
     println!("\nSetup complete. Happy coding!");
@@ -321,14 +343,14 @@ fn cmd_uninstall() {
 
     // 1. Uninstall IDE extensions
     let ide_commands: &[(&str, &str)] = &[
-        ("code",        "VS Code"),
-        ("codium",      "VSCodium"),
-        ("cursor",      "Cursor"),
+        ("code", "VS Code"),
+        ("codium", "VSCodium"),
+        ("cursor", "Cursor"),
         ("antigravity", "Antigravity"),
-        ("windsurf",    "Windsurf"),
-        ("positron",    "Positron"),
+        ("windsurf", "Windsurf"),
+        ("positron", "Positron"),
         ("code-insiders", "VS Code Insiders"),
-        ("code-oss",    "Code OSS"),
+        ("code-oss", "Code OSS"),
     ];
     let id = "luminalang.lumina-lang";
 
@@ -347,7 +369,9 @@ fn cmd_uninstall() {
                 .map(|o| o.status.success())
                 .unwrap_or(false)
         };
-        if !exists { continue; }
+        if !exists {
+            continue;
+        }
 
         print!("  {} ({})... ", name, cmd);
         std::io::stdout().flush().ok();
@@ -360,10 +384,7 @@ fn cmd_uninstall() {
             std::process::Command::new(cmd)
         };
 
-        let status = command
-            .arg("--uninstall-extension")
-            .arg(id)
-            .output();
+        let status = command.arg("--uninstall-extension").arg(id).output();
 
         match status {
             Ok(output) if output.status.success() => println!("✓ Removed"),
@@ -394,7 +415,11 @@ fn cmd_uninstall() {
             if let Ok(contents) = std::fs::read_to_string(&profile) {
                 let cleaned: String = contents
                     .lines()
-                    .filter(|line| !line.contains(".lumina/bin") && !line.contains(".lumina/env") && line.trim() != "# Lumina")
+                    .filter(|line| {
+                        !line.contains(".lumina/bin")
+                            && !line.contains(".lumina/env")
+                            && line.trim() != "# Lumina"
+                    })
                     .collect::<Vec<_>>()
                     .join("\n");
                 if cleaned != contents {
@@ -421,7 +446,10 @@ fn read_file(args: &[String]) -> (String, String) {
     (path.clone(), source)
 }
 
-fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram, target_node_id: Option<&str>) -> Evaluator {
+fn build_evaluator(
+    analyzed: &lumina_analyzer::AnalyzedProgram,
+    target_node_id: Option<&str>,
+) -> Evaluator {
     let mut rules = Vec::new();
     let mut derived = HashMap::new();
     let mut adapters: Vec<Box<dyn lumina_runtime::adapter::LuminaAdapter>> = Vec::new();
@@ -451,11 +479,17 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram, target_node_id: 
                 // Initialize adapters based on sync_path
                 if e.sync_path.starts_with("static://") {
                     adapters.push(Box::new(StaticAdapter::new(&e.name)));
-                } 
+                }
                 #[cfg(all(not(target_arch = "wasm32"), not(windows)))]
                 {
                     if e.sync_path.starts_with("mqtt://") {
-                        if let Ok(a) = MqttAdapter::new(&e.name, &e.sync_path, "lumina-cli", "lumina/in", "lumina/out") {
+                        if let Ok(a) = MqttAdapter::new(
+                            &e.name,
+                            &e.sync_path,
+                            "lumina-cli",
+                            "lumina/in",
+                            "lumina/out",
+                        ) {
                             adapters.push(Box::new(a));
                         }
                     }
@@ -463,16 +497,27 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram, target_node_id: 
                 #[cfg(all(not(target_arch = "wasm32"), windows))]
                 {
                     if e.sync_path.starts_with("mqtt://") {
-                        eprintln!("Warning: MQTT support is currently unavailable in this Windows build.");
+                        eprintln!(
+                            "Warning: MQTT support is currently unavailable in this Windows build."
+                        );
                     }
                 }
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     if e.sync_path.starts_with("http://") || e.sync_path.starts_with("https://") {
-                        adapters.push(Box::new(HttpPollAdapter::new(&e.name, e.sync_path.clone(), e.poll_interval.as_ref().map(|d| d.to_std_duration()).unwrap_or(std::time::Duration::from_secs(5)))));
+                        adapters.push(Box::new(HttpPollAdapter::new(
+                            &e.name,
+                            e.sync_path.clone(),
+                            e.poll_interval
+                                .as_ref()
+                                .map(|d| d.to_std_duration())
+                                .unwrap_or(std::time::Duration::from_secs(5)),
+                        )));
                     } else if e.sync_path.starts_with("file://") {
                         let path_str = e.sync_path.trim_start_matches("file://");
-                        if let Ok(a) = FileWatchAdapter::new(&e.name, std::path::PathBuf::from(path_str)) {
+                        if let Ok(a) =
+                            FileWatchAdapter::new(&e.name, std::path::PathBuf::from(path_str))
+                        {
                             adapters.push(Box::new(a));
                         }
                     }
@@ -497,7 +542,7 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram, target_node_id: 
         node.initialize();
         ev.cluster_node = Some(Arc::new(Mutex::new(node)));
     }
-    
+
     ev
 }
 
@@ -521,12 +566,12 @@ fn cmd_run(args: &[String]) {
     let mut node_id = None;
     for i in 0..args.len() {
         if args[i] == "--node-id" && i + 1 < args.len() {
-            node_id = Some(args[i+1].as_str());
+            node_id = Some(args[i + 1].as_str());
         }
     }
 
     let mut evaluator = build_evaluator(&analyzed, node_id);
-    
+
     // Validate that all external entities have adapters
     let warnings = evaluator.validate_adapters();
     for warning in warnings {
@@ -548,9 +593,9 @@ fn cmd_run(args: &[String]) {
         std::process::exit(1);
     }
 
-    if evaluator.timers.for_timers.is_empty() 
-        && evaluator.timers.every_timers.is_empty() 
-        && evaluator.adapters.is_empty() 
+    if evaluator.timers.for_timers.is_empty()
+        && evaluator.timers.every_timers.is_empty()
+        && evaluator.adapters.is_empty()
     {
         return;
     }
@@ -561,17 +606,26 @@ fn cmd_run(args: &[String]) {
             Ok(events) => {
                 for event in events {
                     let color = match event.severity.as_str() {
-                        "info"     => "\x1b[36m", // Cyan
-                        "warning"  => "\x1b[33m", // Yellow
+                        "info" => "\x1b[36m",     // Cyan
+                        "warning" => "\x1b[33m",  // Yellow
                         "critical" => "\x1b[31m", // Red
                         "resolved" => "\x1b[32m", // Green
-                        _          => "\x1b[0m",  // Reset
+                        _ => "\x1b[0m",           // Reset
                     };
-                    println!("{}[{}] {}: {}\x1b[0m", color, event.severity.to_uppercase(), event.rule, event.message);
+                    println!(
+                        "{}[{}] {}: {}\x1b[0m",
+                        color,
+                        event.severity.to_uppercase(),
+                        event.rule,
+                        event.message
+                    );
                 }
             }
             Err(rollback) => {
-                eprintln!("\x1b[31mRuntime error: {}\x1b[0m", rollback.diagnostic.message);
+                eprintln!(
+                    "\x1b[31mRuntime error: {}\x1b[0m",
+                    rollback.diagnostic.message
+                );
                 eprintln!("Suggested fix: {}", rollback.diagnostic.suggested_fix);
                 std::process::exit(1);
             }
@@ -594,7 +648,8 @@ fn cmd_check(args: &[String]) {
     match analyze(program, &source, &path, true) {
         Ok(_) => {
             let basename = std::path::Path::new(&path)
-                .file_name().unwrap_or_default()
+                .file_name()
+                .unwrap_or_default()
                 .to_string_lossy();
             println!("✓ {} — no errors found", basename);
         }
@@ -606,8 +661,8 @@ fn cmd_check(args: &[String]) {
 }
 
 fn cmd_repl() {
-    use crate::repl::{ReplSession, ReplResult};
     use crate::commands::run_command;
+    use crate::repl::{ReplResult, ReplSession};
     use std::io::{self, BufRead, Write};
 
     println!("Lumina v2.0.0 REPL — type Lumina expressions and statements");
@@ -618,12 +673,18 @@ fn cmd_repl() {
 
     loop {
         // Show prompt based on brace depth
-        let prompt = if session.brace_depth > 0 { "... " } else { "lumina> " };
+        let prompt = if session.brace_depth > 0 {
+            "... "
+        } else {
+            "lumina> "
+        };
         print!("{}", prompt);
         io::stdout().flush().ok();
 
         let mut line = String::new();
-        if stdin.lock().read_line(&mut line).unwrap_or(0) == 0 { break; }
+        if stdin.lock().read_line(&mut line).unwrap_or(0) == 0 {
+            break;
+        }
         let line = line.trim_end_matches('\n').trim_end_matches('\r');
 
         // Inspector commands start with ":"
@@ -633,12 +694,20 @@ fn cmd_repl() {
         }
 
         // Skip blank lines
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
 
         match session.feed(line) {
             ReplResult::NeedMore => {} // show "..." next iteration
-            ReplResult::Ok(out) => { if !out.is_empty() { println!("{}", out); } }
-            ReplResult::Error(err) => { eprintln!("{}", err); }
+            ReplResult::Ok(out) => {
+                if !out.is_empty() {
+                    println!("{}", out);
+                }
+            }
+            ReplResult::Error(err) => {
+                eprintln!("{}", err);
+            }
         }
     }
 }
@@ -663,7 +732,8 @@ fn cmd_fmt(args: &[String]) {
     }
 
     let basename = std::path::Path::new(&path)
-        .file_name().unwrap_or_default()
+        .file_name()
+        .unwrap_or_default()
         .to_string_lossy();
     println!("✓ {} — formatted", basename);
 }

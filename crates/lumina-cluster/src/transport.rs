@@ -1,9 +1,9 @@
+use crate::gossip::{GossipLayer, GossipMessage, GossipMessageKind};
+use serde_json;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::time::{self, Duration};
-use crate::gossip::{GossipLayer, GossipMessage, GossipMessageKind};
-use serde_json;
 
 pub struct UdpTransport {
     gossip: Arc<GossipLayer>,
@@ -34,7 +34,7 @@ impl UdpTransport {
         let socket = UdpSocket::bind(self.bind_addr).await?;
         let socket = Arc::new(socket);
         println!("  [UDP] Transport listening on {}", self.bind_addr);
-        
+
         let gossip_recv = Arc::clone(&self.gossip);
         let socket_recv = Arc::clone(&socket);
 

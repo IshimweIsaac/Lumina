@@ -1,6 +1,6 @@
-use tower_lsp::lsp_types::*;
 use lumina_lexer::token::Span;
 use lumina_parser::ast::*;
+use tower_lsp::lsp_types::*;
 
 /// Walk the AST and collect all locations where `target_name` appears as a symbol.
 /// Returns (uri, locations) pairs. The caller provides the document URI.
@@ -79,7 +79,13 @@ pub fn symbol_at_position(prog: &Program, src: &str, pos: Position) -> Option<St
 }
 
 /// Build rename edits: find all occurrences of `old_name` and replace with `new_name`.
-pub fn build_rename_edits(prog: &Program, _src: &str, uri: &Url, old_name: &str, new_name: &str) -> Vec<TextEdit> {
+pub fn build_rename_edits(
+    prog: &Program,
+    _src: &str,
+    uri: &Url,
+    old_name: &str,
+    new_name: &str,
+) -> Vec<TextEdit> {
     let refs = find_references_in_program(prog, old_name, uri);
     refs.into_iter()
         .map(|loc| TextEdit {
@@ -94,15 +100,21 @@ pub fn build_rename_edits(prog: &Program, _src: &str, uri: &Url, old_name: &str,
 fn collect_from_statement(stmt: &Statement, name: &str, uri: &Url, locs: &mut Vec<Location>) {
     match stmt {
         Statement::Entity(e) => {
-            if e.name == name { locs.push(span_to_location(&e.span, &e.name, uri)); }
+            if e.name == name {
+                locs.push(span_to_location(&e.span, &e.name, uri));
+            }
             collect_from_fields(&e.fields, name, uri, locs);
         }
         Statement::ExternalEntity(e) => {
-            if e.name == name { locs.push(span_to_location(&e.span, &e.name, uri)); }
+            if e.name == name {
+                locs.push(span_to_location(&e.span, &e.name, uri));
+            }
             collect_from_fields(&e.fields, name, uri, locs);
         }
         Statement::Rule(r) => {
-            if r.name == name { locs.push(span_to_location(&r.span, &r.name, uri)); }
+            if r.name == name {
+                locs.push(span_to_location(&r.span, &r.name, uri));
+            }
             collect_from_trigger(&r.trigger, name, uri, locs);
             for action in &r.actions {
                 collect_from_action(action, name, uri, locs);
@@ -114,11 +126,15 @@ fn collect_from_statement(stmt: &Statement, name: &str, uri: &Url, locs: &mut Ve
             }
         }
         Statement::Let(l) => {
-            if l.name == name { locs.push(span_to_location(&l.span, &l.name, uri)); }
+            if l.name == name {
+                locs.push(span_to_location(&l.span, &l.name, uri));
+            }
             match &l.value {
                 LetValue::Expr(e) => collect_from_expr(e, name, uri, locs),
                 LetValue::EntityInit(init) => {
-                    if init.entity_name == name { locs.push(span_to_location(&init.span, &init.entity_name, uri)); }
+                    if init.entity_name == name {
+                        locs.push(span_to_location(&init.span, &init.entity_name, uri));
+                    }
                     for (_, expr) in &init.fields {
                         collect_from_expr(expr, name, uri, locs);
                     }
@@ -126,14 +142,24 @@ fn collect_from_statement(stmt: &Statement, name: &str, uri: &Url, locs: &mut Ve
             }
         }
         Statement::Fn(f) => {
-            if f.name == name { locs.push(span_to_location(&f.span, &f.name, uri)); }
+            if f.name == name {
+                locs.push(span_to_location(&f.span, &f.name, uri));
+            }
             collect_from_expr(&f.body, name, uri, locs);
         }
         Statement::Aggregate(a) => {
-            if a.name == name { locs.push(span_to_location(&a.span, &a.name, uri)); }
-            if a.over == name { locs.push(span_to_location(&a.span, &a.over, uri)); }
+            if a.name == name {
+                locs.push(span_to_location(&a.span, &a.name, uri));
+            }
+            if a.over == name {
+                locs.push(span_to_location(&a.span, &a.over, uri));
+            }
         }
-        Statement::Import(_) | Statement::Action(_) | Statement::PluginImport(_) | Statement::Provider(_) | Statement::Cluster(_) => {}
+        Statement::Import(_)
+        | Statement::Action(_)
+        | Statement::PluginImport(_)
+        | Statement::Provider(_)
+        | Statement::Cluster(_) => {}
     }
 }
 
@@ -141,15 +167,23 @@ fn collect_from_fields(fields: &[Field], name: &str, uri: &Url, locs: &mut Vec<L
     for f in fields {
         match f {
             Field::Stored(sf) => {
-                if sf.name == name { locs.push(span_to_location(&sf.span, &sf.name, uri)); }
+                if sf.name == name {
+                    locs.push(span_to_location(&sf.span, &sf.name, uri));
+                }
             }
             Field::Derived(df) => {
-                if df.name == name { locs.push(span_to_location(&df.span, &df.name, uri)); }
+                if df.name == name {
+                    locs.push(span_to_location(&df.span, &df.name, uri));
+                }
                 collect_from_expr(&df.expr, name, uri, locs);
             }
             Field::Ref(rf) => {
-                if rf.name == name { locs.push(span_to_location(&rf.span, &rf.name, uri)); }
-                if rf.target_entity == name { locs.push(span_to_location(&rf.span, &rf.target_entity, uri)); }
+                if rf.name == name {
+                    locs.push(span_to_location(&rf.span, &rf.name, uri));
+                }
+                if rf.target_entity == name {
+                    locs.push(span_to_location(&rf.span, &rf.target_entity, uri));
+                }
             }
         }
     }
@@ -160,7 +194,9 @@ fn collect_from_trigger(trigger: &RuleTrigger, name: &str, uri: &Url, locs: &mut
         RuleTrigger::When(conditions) => {
             for cond in conditions {
                 collect_from_expr(&cond.expr, name, uri, locs);
-                if let Some(b) = &cond.becomes { collect_from_expr(b, name, uri, locs); }
+                if let Some(b) = &cond.becomes {
+                    collect_from_expr(b, name, uri, locs);
+                }
             }
         }
         RuleTrigger::Any(fc) | RuleTrigger::All(fc) => {
@@ -175,7 +211,9 @@ fn collect_from_action(action: &Action, name: &str, uri: &Url, locs: &mut Vec<Lo
     match action {
         Action::Show(e) => collect_from_expr(e, name, uri, locs),
         Action::Update { target, value } | Action::Write { target, value } => {
-            if target.instance == name { locs.push(span_to_location(&target.span, &target.instance, uri)); }
+            if target.instance == name {
+                locs.push(span_to_location(&target.span, &target.instance, uri));
+            }
             collect_from_expr(value, name, uri, locs);
         }
         Action::Create { entity: _, fields } => {
@@ -188,7 +226,9 @@ fn collect_from_action(action: &Action, name: &str, uri: &Url, locs: &mut Vec<Lo
         Action::Alert(a) => {
             collect_from_expr(&a.severity, name, uri, locs);
             collect_from_expr(&a.message, name, uri, locs);
-            if let Some(s) = &a.source { collect_from_expr(s, name, uri, locs); }
+            if let Some(s) = &a.source {
+                collect_from_expr(s, name, uri, locs);
+            }
         }
     }
 }
@@ -200,7 +240,9 @@ fn collect_from_expr(expr: &Expr, name: &str, uri: &Url, locs: &mut Vec<Location
             // Without a span on Ident we can't add a precise location
         }
         Expr::FieldAccess { obj, field, span } => {
-            if field == name { locs.push(span_to_location(span, name, uri)); }
+            if field == name {
+                locs.push(span_to_location(span, name, uri));
+            }
             collect_from_expr(obj, name, uri, locs);
         }
         Expr::Binary { left, right, .. } => {
@@ -208,17 +250,29 @@ fn collect_from_expr(expr: &Expr, name: &str, uri: &Url, locs: &mut Vec<Location
             collect_from_expr(right, name, uri, locs);
         }
         Expr::Unary { operand, .. } => collect_from_expr(operand, name, uri, locs),
-        Expr::If { cond, then_, else_, .. } => {
+        Expr::If {
+            cond, then_, else_, ..
+        } => {
             collect_from_expr(cond, name, uri, locs);
             collect_from_expr(then_, name, uri, locs);
             collect_from_expr(else_, name, uri, locs);
         }
-        Expr::Call { name: fn_name, args, span } => {
-            if fn_name == name { locs.push(span_to_location(span, name, uri)); }
-            for a in args { collect_from_expr(a, name, uri, locs); }
+        Expr::Call {
+            name: fn_name,
+            args,
+            span,
+        } => {
+            if fn_name == name {
+                locs.push(span_to_location(span, name, uri));
+            }
+            for a in args {
+                collect_from_expr(a, name, uri, locs);
+            }
         }
         Expr::ListLiteral(items) => {
-            for item in items { collect_from_expr(item, name, uri, locs); }
+            for item in items {
+                collect_from_expr(item, name, uri, locs);
+            }
         }
         Expr::Index { list, index, .. } => {
             collect_from_expr(list, name, uri, locs);
@@ -231,9 +285,12 @@ fn collect_from_expr(expr: &Expr, name: &str, uri: &Url, locs: &mut Vec<Location
                 }
             }
         }
-        Expr::Prev { .. } | Expr::Number(_) | Expr::Text(_) | Expr::Bool(_) | Expr::Duration(_) => {}
+        Expr::Prev { .. } | Expr::Number(_) | Expr::Text(_) | Expr::Bool(_) | Expr::Duration(_) => {
+        }
         Expr::ClusterAccess { .. } => {} // Field accesses on cluster are handled statically
-        Expr::Migrate { workloads, target, .. } => {
+        Expr::Migrate {
+            workloads, target, ..
+        } => {
             collect_from_expr(workloads, name, uri, locs);
             collect_from_expr(target, name, uri, locs);
         }
@@ -248,8 +305,14 @@ fn span_to_location(span: &Span, name: &str, uri: &Url) -> Location {
     Location {
         uri: uri.clone(),
         range: Range {
-            start: Position { line: l, character: c },
-            end: Position { line: l, character: c + name.len() as u32 },
+            start: Position {
+                line: l,
+                character: c,
+            },
+            end: Position {
+                line: l,
+                character: c + name.len() as u32,
+            },
         },
     }
 }
@@ -262,26 +325,34 @@ fn check_name_at(src: &str, name: &str, line: u32, col: u32) -> Option<String> {
     // Find the word at (line, col) in the source and check if it matches
     let target_line = src.lines().nth(line as usize)?;
     let col = col as usize;
-    if col >= target_line.len() { return None; }
+    if col >= target_line.len() {
+        return None;
+    }
 
     // Find word boundaries around the cursor
-    let start = target_line[..col].rfind(|c: char| !c.is_alphanumeric() && c != '_')
-        .map(|i| i + 1).unwrap_or(0);
-    let end = target_line[col..].find(|c: char| !c.is_alphanumeric() && c != '_')
-        .map(|i| col + i).unwrap_or(target_line.len());
+    let start = target_line[..col]
+        .rfind(|c: char| !c.is_alphanumeric() && c != '_')
+        .map(|i| i + 1)
+        .unwrap_or(0);
+    let end = target_line[col..]
+        .find(|c: char| !c.is_alphanumeric() && c != '_')
+        .map(|i| col + i)
+        .unwrap_or(target_line.len());
 
     let word = &target_line[start..end];
-    if word == name { Some(name.to_string()) } else { None }
+    if word == name {
+        Some(name.to_string())
+    } else {
+        None
+    }
 }
 
 fn symbol_in_field(f: &Field, src: &str, line: u32, col: u32) -> Option<String> {
     match f {
         Field::Stored(sf) => check_name_at(src, &sf.name, line, col),
         Field::Derived(df) => check_name_at(src, &df.name, line, col),
-        Field::Ref(rf) => {
-            check_name_at(src, &rf.name, line, col)
-                .or_else(|| check_name_at(src, &rf.target_entity, line, col))
-        }
+        Field::Ref(rf) => check_name_at(src, &rf.name, line, col)
+            .or_else(|| check_name_at(src, &rf.target_entity, line, col)),
     }
 }
 
@@ -295,10 +366,8 @@ fn symbol_in_trigger(trigger: &RuleTrigger, src: &str, line: u32, col: u32) -> O
             }
             None
         }
-        RuleTrigger::Any(fc) | RuleTrigger::All(fc) => {
-            check_name_at(src, &fc.entity, line, col)
-                .or_else(|| check_name_at(src, &fc.field, line, col))
-        }
+        RuleTrigger::Any(fc) | RuleTrigger::All(fc) => check_name_at(src, &fc.entity, line, col)
+            .or_else(|| check_name_at(src, &fc.field, line, col)),
         RuleTrigger::Every(_) => None,
     }
 }
@@ -329,15 +398,14 @@ fn symbol_in_expr(expr: &Expr, src: &str, line: u32, col: u32) -> Option<String>
             None
         }
         Expr::Binary { left, right, .. } => {
-            symbol_in_expr(left, src, line, col)
-                .or_else(|| symbol_in_expr(right, src, line, col))
+            symbol_in_expr(left, src, line, col).or_else(|| symbol_in_expr(right, src, line, col))
         }
         Expr::Unary { operand, .. } => symbol_in_expr(operand, src, line, col),
-        Expr::If { cond, then_, else_, .. } => {
-            symbol_in_expr(cond, src, line, col)
-                .or_else(|| symbol_in_expr(then_, src, line, col))
-                .or_else(|| symbol_in_expr(else_, src, line, col))
-        }
+        Expr::If {
+            cond, then_, else_, ..
+        } => symbol_in_expr(cond, src, line, col)
+            .or_else(|| symbol_in_expr(then_, src, line, col))
+            .or_else(|| symbol_in_expr(else_, src, line, col)),
         Expr::Ident(name) => {
             // Ident has no span, but we can try the name check
             check_name_at(src, name, line, col)

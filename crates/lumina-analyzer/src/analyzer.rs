@@ -1,29 +1,29 @@
-use std::collections::HashMap;
-use lumina_parser::ast::*;
-use lumina_lexer::token::Span;
-use crate::types::{Schema, EntitySchema, FieldSchema};
 use crate::graph::DependencyGraph;
+use crate::types::{EntitySchema, FieldSchema, Schema};
+use lumina_lexer::token::Span;
+use lumina_parser::ast::*;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct AnalyzerError {
-    pub code:    &'static str,
+    pub code: &'static str,
     pub message: String,
-    pub span:    Span,
+    pub span: Span,
 }
 
 /// The output of a successful analysis pass
 #[derive(Debug)]
 pub struct AnalyzedProgram {
     pub program: Program,
-    pub schema:  Schema,
-    pub graph:   DependencyGraph,
+    pub schema: Schema,
+    pub graph: DependencyGraph,
     pub fn_defs: HashMap<String, FnDecl>,
     pub instances: HashMap<String, LuminaType>,
 }
 
 pub struct Analyzer {
     schema: Schema,
-    graph:  DependencyGraph,
+    graph: DependencyGraph,
     pub errors: Vec<AnalyzerError>,
     pub allow_imports: bool,
     locals: HashMap<String, LuminaType>,
@@ -88,12 +88,18 @@ impl Analyzer {
                     if let Some(ref ns) = decl.namespace {
                         // v1.9: LSL namespace import — validate the path statically
                         let known_namespaces = [
-                            "LSL::datacenter::Server", "LSL::datacenter::Rack",
-                            "LSL::datacenter::PDU", "LSL::datacenter::CRAC",
-                            "LSL::network::Switch", "LSL::network::Router",
+                            "LSL::datacenter::Server",
+                            "LSL::datacenter::Rack",
+                            "LSL::datacenter::PDU",
+                            "LSL::datacenter::CRAC",
+                            "LSL::network::Switch",
+                            "LSL::network::Router",
                             "LSL::network::Firewall",
-                            "LSL::k8s::Pod", "LSL::k8s::Node", "LSL::k8s::Deployment",
-                            "LSL::power::UPS", "LSL::power::Generator",
+                            "LSL::k8s::Pod",
+                            "LSL::k8s::Node",
+                            "LSL::k8s::Deployment",
+                            "LSL::power::UPS",
+                            "LSL::power::Generator",
                         ];
                         if !known_namespaces.contains(&decl.path.as_str()) {
                             self.errors.push(AnalyzerError {
@@ -108,40 +114,46 @@ impl Analyzer {
                     } else if !self.allow_imports {
                         self.errors.push(AnalyzerError {
                             code: "L018",
-                            message: "import is not supported in single-file (WASM) mode".to_string(),
+                            message: "import is not supported in single-file (WASM) mode"
+                                .to_string(),
                             span: decl.span,
                         });
                     }
                 }
-                Statement::Let(decl) => {
-                    match &decl.value {
-                        LetValue::EntityInit(init) => {
-                            self.instances.insert(decl.name.clone(), LuminaType::Entity(init.entity_name.clone()));
-                        }
-                        LetValue::Expr(expr) => {
-                             if let Ok(ty) = self.infer_type(expr, None, None) {
-                                self.instances.insert(decl.name.clone(), ty);
-                             }
+                Statement::Let(decl) => match &decl.value {
+                    LetValue::EntityInit(init) => {
+                        self.instances.insert(
+                            decl.name.clone(),
+                            LuminaType::Entity(init.entity_name.clone()),
+                        );
+                    }
+                    LetValue::Expr(expr) => {
+                        if let Ok(ty) = self.infer_type(expr, None, None) {
+                            self.instances.insert(decl.name.clone(), ty);
                         }
                     }
-                }
+                },
                 Statement::Aggregate(decl) => {
                     // E3 Fix: Register aggregate name in the global scope as a
                     // numeric provider so that references like `fleet_stats.avg_temp`
                     // resolve correctly during type checking.
-                    self.instances.insert(decl.name.clone(), LuminaType::Entity(decl.name.clone()));
+                    self.instances
+                        .insert(decl.name.clone(), LuminaType::Entity(decl.name.clone()));
 
                     // v2.0 Fix: Register aggregate fields into the schema as a
                     // virtual entity so that FieldAccess (e.g. ClusterAvg.avg_cpu)
                     // resolves correctly instead of panicking on unwrap().
                     for agg_field in &decl.fields {
                         let field_ty = match &agg_field.expr {
-                            AggregateExpr::Avg(_) | AggregateExpr::Min(_) |
-                            AggregateExpr::Max(_) | AggregateExpr::Sum(_) |
-                            AggregateExpr::Count(_) => LuminaType::Number,
+                            AggregateExpr::Avg(_)
+                            | AggregateExpr::Min(_)
+                            | AggregateExpr::Max(_)
+                            | AggregateExpr::Sum(_)
+                            | AggregateExpr::Count(_) => LuminaType::Number,
                             AggregateExpr::Any(_) | AggregateExpr::All(_) => LuminaType::Boolean,
                         };
-                        self.schema.register_field(&decl.name, &agg_field.name, &field_ty);
+                        self.schema
+                            .register_field(&decl.name, &agg_field.name, &field_ty);
                     }
                 }
                 Statement::PluginImport(decl) => {
@@ -217,21 +229,25 @@ impl Analyzer {
         let mut fields = HashMap::new();
         for field in &decl.fields {
             let (name, schema_field) = match field {
-                Field::Stored(f) => {
-                    (f.name.clone(), FieldSchema {
+                Field::Stored(f) => (
+                    f.name.clone(),
+                    FieldSchema {
                         name: f.name.clone(),
                         ty: f.ty.clone(),
                         is_derived: false,
                         metadata: f.metadata.clone(),
-                    })
-                }
+                    },
+                ),
                 Field::Derived(f) => {
-                    (f.name.clone(), FieldSchema {
-                        name: f.name.clone(),
-                        ty: LuminaType::Number, // Placeholder, resolved in pass 2
-                        is_derived: true,
-                        metadata: f.metadata.clone(),
-                    })
+                    (
+                        f.name.clone(),
+                        FieldSchema {
+                            name: f.name.clone(),
+                            ty: LuminaType::Number, // Placeholder, resolved in pass 2
+                            is_derived: true,
+                            metadata: f.metadata.clone(),
+                        },
+                    )
                 }
                 Field::Ref(r) => {
                     // L036: Validate ref target entity exists
@@ -239,12 +255,15 @@ impl Analyzer {
                         // Defer check — target may not be registered yet in pass1
                         // We'll validate in pass2 instead
                     }
-                    (r.name.clone(), FieldSchema {
-                        name: r.name.clone(),
-                        ty: LuminaType::Entity(r.target_entity.clone()),
-                        is_derived: false,
-                        metadata: FieldMetadata::default(),
-                    })
+                    (
+                        r.name.clone(),
+                        FieldSchema {
+                            name: r.name.clone(),
+                            ty: LuminaType::Entity(r.target_entity.clone()),
+                            is_derived: false,
+                            metadata: FieldMetadata::default(),
+                        },
+                    )
                 }
             };
 
@@ -261,19 +280,26 @@ impl Analyzer {
 
         let mut field_names: Vec<String> = fields.keys().cloned().collect();
         field_names.sort();
-        let field_indices: HashMap<String, usize> = field_names.iter().enumerate().map(|(i, n)| (n.clone(), i)).collect();
+        let field_indices: HashMap<String, usize> = field_names
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.clone(), i))
+            .collect();
 
-        self.schema.entities.insert(decl.name.clone(), EntitySchema {
-            name: decl.name.clone(),
-            fields,
-            field_indices,
-            field_names,
-            is_external,
-            sync_path: String::new(),
-            sync_strategy: SyncStrategy::Realtime,
-            sync_on: None,
-            poll_interval: None,
-        });
+        self.schema.entities.insert(
+            decl.name.clone(),
+            EntitySchema {
+                name: decl.name.clone(),
+                fields,
+                field_indices,
+                field_names,
+                is_external,
+                sync_path: String::new(),
+                sync_strategy: SyncStrategy::Realtime,
+                sync_on: None,
+                poll_interval: None,
+            },
+        );
     }
 
     fn register_external_entity(&mut self, decl: &ExternalEntityDecl) {
@@ -290,49 +316,63 @@ impl Analyzer {
         let mut fields = HashMap::new();
         for field in &decl.fields {
             let (name, schema_field) = match field {
-                Field::Stored(f) => {
-                    (f.name.clone(), FieldSchema {
+                Field::Stored(f) => (
+                    f.name.clone(),
+                    FieldSchema {
                         name: f.name.clone(),
                         ty: f.ty.clone(),
                         is_derived: false,
                         metadata: f.metadata.clone(),
-                    })
-                }
-                Field::Derived(f) => {
-                    (f.name.clone(), FieldSchema {
+                    },
+                ),
+                Field::Derived(f) => (
+                    f.name.clone(),
+                    FieldSchema {
                         name: f.name.clone(),
                         ty: LuminaType::Number,
                         is_derived: true,
                         metadata: f.metadata.clone(),
-                    })
-                }
-                Field::Ref(r) => {
-                    (r.name.clone(), FieldSchema {
+                    },
+                ),
+                Field::Ref(r) => (
+                    r.name.clone(),
+                    FieldSchema {
                         name: r.name.clone(),
                         ty: LuminaType::Entity(r.target_entity.clone()),
                         is_derived: false,
                         metadata: FieldMetadata::default(),
-                    })
-                }
+                    },
+                ),
             };
             fields.insert(name, schema_field);
         }
 
         let mut field_names: Vec<String> = fields.keys().cloned().collect();
         field_names.sort();
-        let field_indices: HashMap<String, usize> = field_names.iter().enumerate().map(|(i, n)| (n.clone(), i)).collect();
+        let field_indices: HashMap<String, usize> = field_names
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.clone(), i))
+            .collect();
 
-        self.schema.entities.insert(decl.name.clone(), EntitySchema {
-            name: decl.name.clone(),
-            fields,
-            field_indices,
-            field_names,
-            is_external: true,
-            sync_path: decl.sync_path.clone(),
-            sync_strategy: decl.sync_strategy.clone(),
-            sync_on: if decl.sync_fields.is_empty() { None } else { Some(decl.sync_fields.clone()) },
-            poll_interval: decl.poll_interval.clone(),
-        });
+        self.schema.entities.insert(
+            decl.name.clone(),
+            EntitySchema {
+                name: decl.name.clone(),
+                fields,
+                field_indices,
+                field_names,
+                is_external: true,
+                sync_path: decl.sync_path.clone(),
+                sync_strategy: decl.sync_strategy.clone(),
+                sync_on: if decl.sync_fields.is_empty() {
+                    None
+                } else {
+                    Some(decl.sync_fields.clone())
+                },
+                poll_interval: decl.poll_interval.clone(),
+            },
+        );
     }
 
     fn pass2_typecheck(&mut self, program: &Program) -> Result<(), Vec<AnalyzerError>> {
@@ -373,7 +413,10 @@ impl Analyzer {
                     let mut rule_locals = HashMap::new();
                     if let Some(param) = &rule.param {
                         if self.schema.get_entity(&param.entity).is_some() {
-                            rule_locals.insert(param.name.clone(), LuminaType::Entity(param.entity.clone()));
+                            rule_locals.insert(
+                                param.name.clone(),
+                                LuminaType::Entity(param.entity.clone()),
+                            );
                         } else {
                             return Err(vec![AnalyzerError {
                                 code: "L026",
@@ -385,7 +428,11 @@ impl Analyzer {
                             }]);
                         }
                     }
-                    let locals_ref = if rule_locals.is_empty() { None } else { Some(&rule_locals) };
+                    let locals_ref = if rule_locals.is_empty() {
+                        None
+                    } else {
+                        Some(&rule_locals)
+                    };
 
                     // Type check condition
                     match &rule.trigger {
@@ -394,15 +441,22 @@ impl Analyzer {
                             if conds.len() > 3 {
                                 return Err(vec![AnalyzerError {
                                     code: "L035",
-                                    message: format!("multi-condition trigger has {} clauses, max is 3", conds.len()),
+                                    message: format!(
+                                        "multi-condition trigger has {} clauses, max is 3",
+                                        conds.len()
+                                    ),
                                     span: rule.span,
                                 }]);
                             }
                             for cond in conds {
-                                let ty = self.infer_type(&cond.expr, None, locals_ref).map_err(|e| vec![e])?;
-                                
+                                let ty = self
+                                    .infer_type(&cond.expr, None, locals_ref)
+                                    .map_err(|e| vec![e])?;
+
                                 if let Some(becomes_expr) = &cond.becomes {
-                                    let b_ty = self.infer_type(becomes_expr, None, locals_ref).map_err(|e| vec![e])?;
+                                    let b_ty = self
+                                        .infer_type(becomes_expr, None, locals_ref)
+                                        .map_err(|e| vec![e])?;
                                     if ty != b_ty {
                                         return Err(vec![AnalyzerError {
                                             code: "L002",
@@ -470,16 +524,22 @@ impl Analyzer {
                             } else {
                                 return Err(vec![AnalyzerError {
                                     code: "L026",
-                                    message: format!("unknown entity '{}' in fleet trigger", fc.entity),
+                                    message: format!(
+                                        "unknown entity '{}' in fleet trigger",
+                                        fc.entity
+                                    ),
                                     span: rule.span,
                                 }]);
                             }
                             // Validate becomes value is Boolean
-                            let b_ty = self.infer_type(&fc.becomes, None, locals_ref).map_err(|e| vec![e])?;
+                            let b_ty = self
+                                .infer_type(&fc.becomes, None, locals_ref)
+                                .map_err(|e| vec![e])?;
                             if b_ty != LuminaType::Boolean {
                                 return Err(vec![AnalyzerError {
                                     code: "L002",
-                                    message: "fleet trigger becomes value must be Boolean".to_string(),
+                                    message: "fleet trigger becomes value must be Boolean"
+                                        .to_string(),
                                     span: rule.span,
                                 }]);
                             }
@@ -488,14 +548,18 @@ impl Analyzer {
                                 if freq.count < 2 {
                                     return Err(vec![AnalyzerError {
                                         code: "L039",
-                                        message: format!("frequency count must be >= 2, got {}", freq.count),
+                                        message: format!(
+                                            "frequency count must be >= 2, got {}",
+                                            freq.count
+                                        ),
                                         span: freq.span,
                                     }]);
                                 }
                                 if freq.within.to_seconds() <= 0.0 {
                                     return Err(vec![AnalyzerError {
                                         code: "L040",
-                                        message: "frequency window duration must be > 0".to_string(),
+                                        message: "frequency window duration must be > 0"
+                                            .to_string(),
                                         span: freq.span,
                                     }]);
                                 }
@@ -558,11 +622,17 @@ impl Analyzer {
         }
     }
 
-    fn typecheck_entity_fields(&mut self, entity_name: &str, fields: &[Field]) -> Result<(), Vec<AnalyzerError>> {
+    fn typecheck_entity_fields(
+        &mut self,
+        entity_name: &str,
+        fields: &[Field],
+    ) -> Result<(), Vec<AnalyzerError>> {
         for field in fields {
             match field {
                 Field::Derived(df) => {
-                    let ty = self.infer_type_ctx(&df.expr, Some(entity_name), None, true).map_err(|e| vec![e])?;
+                    let ty = self
+                        .infer_type_ctx(&df.expr, Some(entity_name), None, true)
+                        .map_err(|e| vec![e])?;
                     // v1.8: L051 — Secret values cannot be used in derived fields
                     if ty == LuminaType::Secret {
                         return Err(vec![AnalyzerError {
@@ -595,7 +665,12 @@ impl Analyzer {
         Ok(())
     }
 
-    fn check_fn_body(&mut self, expr: &Expr, locals: &std::collections::HashSet<String>, span: Span) {
+    fn check_fn_body(
+        &mut self,
+        expr: &Expr,
+        locals: &std::collections::HashSet<String>,
+        span: Span,
+    ) {
         match expr {
             Expr::FieldAccess { obj, .. } => {
                 if let Expr::Ident(ref name) = **obj {
@@ -622,7 +697,9 @@ impl Analyzer {
             Expr::Unary { operand, .. } => {
                 self.check_fn_body(operand, locals, span);
             }
-            Expr::If { cond, then_, else_, .. } => {
+            Expr::If {
+                cond, then_, else_, ..
+            } => {
                 self.check_fn_body(cond, locals, span);
                 self.check_fn_body(then_, locals, span);
                 self.check_fn_body(else_, locals, span);
@@ -655,7 +732,13 @@ impl Analyzer {
 
     /// Wrapper that sets derived context before delegating to infer_type.
     /// Used for L041: now() is forbidden in derived field expressions.
-    fn infer_type_ctx(&mut self, expr: &Expr, entity_ctx: Option<&str>, locals: Option<&HashMap<String, LuminaType>>, is_derived: bool) -> Result<LuminaType, AnalyzerError> {
+    fn infer_type_ctx(
+        &mut self,
+        expr: &Expr,
+        entity_ctx: Option<&str>,
+        locals: Option<&HashMap<String, LuminaType>>,
+        is_derived: bool,
+    ) -> Result<LuminaType, AnalyzerError> {
         let prev = self.in_derived_context;
         self.in_derived_context = is_derived;
         let result = self.infer_type(expr, entity_ctx, locals);
@@ -663,7 +746,12 @@ impl Analyzer {
         result
     }
 
-    fn infer_type(&self, expr: &Expr, entity_ctx: Option<&str>, locals: Option<&HashMap<String, LuminaType>>) -> Result<LuminaType, AnalyzerError> {
+    fn infer_type(
+        &self,
+        expr: &Expr,
+        entity_ctx: Option<&str>,
+        locals: Option<&HashMap<String, LuminaType>>,
+    ) -> Result<LuminaType, AnalyzerError> {
         match expr {
             Expr::Number(_) => Ok(LuminaType::Number),
             Expr::Text(_) | Expr::InterpolatedString(_) => Ok(LuminaType::Text),
@@ -747,7 +835,12 @@ impl Analyzer {
                     }),
                 }
             }
-            Expr::Binary { op, left, right, span } => {
+            Expr::Binary {
+                op,
+                left,
+                right,
+                span,
+            } => {
                 let l_ty = self.infer_type(left, entity_ctx, locals)?;
                 let r_ty = self.infer_type(right, entity_ctx, locals)?;
                 match op {
@@ -819,7 +912,12 @@ impl Analyzer {
                     }
                 }
             }
-            Expr::If { cond, then_, else_, span } => {
+            Expr::If {
+                cond,
+                then_,
+                else_,
+                span,
+            } => {
                 let c_ty = self.infer_type(cond, entity_ctx, locals)?;
                 if c_ty != LuminaType::Boolean {
                     return Err(AnalyzerError {
@@ -845,7 +943,11 @@ impl Analyzer {
                 match name.as_str() {
                     "now" => {
                         if !args.is_empty() {
-                            return Err(AnalyzerError { code: "L013", message: "now() takes no arguments".to_string(), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L013",
+                                message: "now() takes no arguments".to_string(),
+                                span: *span,
+                            });
                         }
                         // L041: now() cannot be used in derived field expressions
                         if self.in_derived_context {
@@ -859,68 +961,133 @@ impl Analyzer {
                     }
                     "len" => {
                         if args.len() != 1 {
-                            return Err(AnalyzerError { code: "L013", message: format!("len expects 1 arg, got {}", args.len()), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L013",
+                                message: format!("len expects 1 arg, got {}", args.len()),
+                                span: *span,
+                            });
                         }
                         let arg_ty = self.infer_type(&args[0], entity_ctx, locals)?;
                         if !matches!(arg_ty, LuminaType::List(_)) {
-                            return Err(AnalyzerError { code: "L002", message: "len() requires a list argument".to_string(), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L002",
+                                message: "len() requires a list argument".to_string(),
+                                span: *span,
+                            });
                         }
                         return Ok(LuminaType::Number);
                     }
                     "min" | "max" | "sum" => {
                         if args.len() != 1 {
-                            return Err(AnalyzerError { code: "L013", message: format!("{} expects 1 arg, got {}", name, args.len()), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L013",
+                                message: format!("{} expects 1 arg, got {}", name, args.len()),
+                                span: *span,
+                            });
                         }
                         let arg_ty = self.infer_type(&args[0], entity_ctx, locals)?;
                         if arg_ty != LuminaType::List(Box::new(LuminaType::Number)) {
-                            return Err(AnalyzerError { code: "L002", message: format!("{}() requires a Number[] argument", name), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L002",
+                                message: format!("{}() requires a Number[] argument", name),
+                                span: *span,
+                            });
                         }
                         return Ok(LuminaType::Number);
                     }
                     "append" => {
                         if args.len() != 2 {
-                            return Err(AnalyzerError { code: "L013", message: format!("append expects 2 args, got {}", args.len()), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L013",
+                                message: format!("append expects 2 args, got {}", args.len()),
+                                span: *span,
+                            });
                         }
                         let list_ty = self.infer_type(&args[0], entity_ctx, locals)?;
                         let val_ty = self.infer_type(&args[1], entity_ctx, locals)?;
                         match &list_ty {
                             LuminaType::List(inner) if **inner == val_ty => return Ok(list_ty),
-                            LuminaType::List(_) => return Err(AnalyzerError { code: "L002", message: "append value type must match list element type".to_string(), span: *span }),
-                            _ => return Err(AnalyzerError { code: "L002", message: "append() first argument must be a list".to_string(), span: *span }),
+                            LuminaType::List(_) => {
+                                return Err(AnalyzerError {
+                                    code: "L002",
+                                    message: "append value type must match list element type"
+                                        .to_string(),
+                                    span: *span,
+                                })
+                            }
+                            _ => {
+                                return Err(AnalyzerError {
+                                    code: "L002",
+                                    message: "append() first argument must be a list".to_string(),
+                                    span: *span,
+                                })
+                            }
                         }
                     }
                     "head" => {
                         if args.len() != 1 {
-                            return Err(AnalyzerError { code: "L013", message: format!("head expects 1 arg, got {}", args.len()), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L013",
+                                message: format!("head expects 1 arg, got {}", args.len()),
+                                span: *span,
+                            });
                         }
                         let arg_ty = self.infer_type(&args[0], entity_ctx, locals)?;
                         match arg_ty {
                             LuminaType::List(inner) => return Ok(*inner),
-                            _ => return Err(AnalyzerError { code: "L002", message: "head() requires a list argument".to_string(), span: *span }),
+                            _ => {
+                                return Err(AnalyzerError {
+                                    code: "L002",
+                                    message: "head() requires a list argument".to_string(),
+                                    span: *span,
+                                })
+                            }
                         }
                     }
                     "tail" => {
                         if args.len() != 1 {
-                            return Err(AnalyzerError { code: "L013", message: format!("tail expects 1 arg, got {}", args.len()), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L013",
+                                message: format!("tail expects 1 arg, got {}", args.len()),
+                                span: *span,
+                            });
                         }
                         let arg_ty = self.infer_type(&args[0], entity_ctx, locals)?;
                         if !matches!(&arg_ty, LuminaType::List(_)) {
-                            return Err(AnalyzerError { code: "L002", message: "tail() requires a list argument".to_string(), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L002",
+                                message: "tail() requires a list argument".to_string(),
+                                span: *span,
+                            });
                         }
                         return Ok(arg_ty);
                     }
                     "at" => {
                         if args.len() != 2 {
-                            return Err(AnalyzerError { code: "L013", message: format!("at expects 2 args, got {}", args.len()), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L013",
+                                message: format!("at expects 2 args, got {}", args.len()),
+                                span: *span,
+                            });
                         }
                         let list_ty = self.infer_type(&args[0], entity_ctx, locals)?;
                         let idx_ty = self.infer_type(&args[1], entity_ctx, locals)?;
                         if idx_ty != LuminaType::Number {
-                            return Err(AnalyzerError { code: "L002", message: "at() index must be a Number".to_string(), span: *span });
+                            return Err(AnalyzerError {
+                                code: "L002",
+                                message: "at() index must be a Number".to_string(),
+                                span: *span,
+                            });
                         }
                         match list_ty {
                             LuminaType::List(inner) => return Ok(*inner),
-                            _ => return Err(AnalyzerError { code: "L002", message: "at() first argument must be a list".to_string(), span: *span }),
+                            _ => {
+                                return Err(AnalyzerError {
+                                    code: "L002",
+                                    message: "at() first argument must be a list".to_string(),
+                                    span: *span,
+                                })
+                            }
                         }
                     }
                     _ => {} // Fall through to user-defined fn lookup
@@ -1012,13 +1179,13 @@ impl Analyzer {
                         span: *span,
                     });
                 }
-                
+
                 let entity_name = entity_ctx.ok_or_else(|| AnalyzerError {
                     code: "L001",
                     message: "prev() can only be used within an entity context".to_string(),
                     span: *span,
                 })?;
-                
+
                 let field_schema = self.schema.get_field(entity_name, field).ok_or_else(|| AnalyzerError {
                     code: "L010",
                     message: format!(
@@ -1027,7 +1194,7 @@ impl Analyzer {
                     ),
                     span: *span,
                 })?;
-                
+
                 if field_schema.is_derived {
                     return Err(AnalyzerError {
                         code: "L024",
@@ -1035,7 +1202,7 @@ impl Analyzer {
                         span: *span,
                     });
                 }
-                
+
                 Ok(field_schema.ty.clone())
             }
             Expr::ClusterAccess { .. } => {
@@ -1049,7 +1216,12 @@ impl Analyzer {
         }
     }
 
-    fn collect_dependencies(&mut self, expr: &Expr, entity_name: &str, target_id: u32) -> Result<(), Vec<AnalyzerError>> {
+    fn collect_dependencies(
+        &mut self,
+        expr: &Expr,
+        entity_name: &str,
+        target_id: u32,
+    ) -> Result<(), Vec<AnalyzerError>> {
         match expr {
             Expr::Ident(name) => {
                 // If it's a field in the same entity
@@ -1059,7 +1231,9 @@ impl Analyzer {
                 }
             }
             Expr::FieldAccess { obj, field, .. } => {
-                let obj_ty = self.infer_type(obj, Some(entity_name), None).map_err(|e| vec![e])?;
+                let obj_ty = self
+                    .infer_type(obj, Some(entity_name), None)
+                    .map_err(|e| vec![e])?;
                 if let LuminaType::Entity(e_name) = obj_ty {
                     let dep_id = self.graph.intern(&e_name, field);
                     self.graph.add_edge(dep_id, target_id);
@@ -1073,7 +1247,9 @@ impl Analyzer {
             Expr::Unary { operand, .. } => {
                 self.collect_dependencies(operand, entity_name, target_id)?;
             }
-            Expr::If { cond, then_, else_, .. } => {
+            Expr::If {
+                cond, then_, else_, ..
+            } => {
                 self.collect_dependencies(cond, entity_name, target_id)?;
                 self.collect_dependencies(then_, entity_name, target_id)?;
                 self.collect_dependencies(else_, entity_name, target_id)?;
@@ -1110,7 +1286,12 @@ impl Analyzer {
         Ok(())
     }
 
-    fn check_action(&mut self, action: &Action, rule_span: Span, locals: Option<&HashMap<String, LuminaType>>) -> Result<(), Vec<AnalyzerError>> {
+    fn check_action(
+        &mut self,
+        action: &Action,
+        rule_span: Span,
+        locals: Option<&HashMap<String, LuminaType>>,
+    ) -> Result<(), Vec<AnalyzerError>> {
         match action {
             Action::Show(expr) => {
                 // v1.8: L050 — Secret values cannot be displayed
@@ -1125,7 +1306,9 @@ impl Analyzer {
                 Ok(())
             }
             Action::Update { target, value } => {
-                let entity_name = if let Some(Some(LuminaType::Entity(e))) = locals.map(|l| l.get(&target.instance)) {
+                let entity_name = if let Some(Some(LuminaType::Entity(e))) =
+                    locals.map(|l| l.get(&target.instance))
+                {
                     e
                 } else {
                     match self.instances.get(&target.instance) {
@@ -1133,11 +1316,19 @@ impl Analyzer {
                         _ => &target.instance,
                     }
                 };
-                let field_schema = self.schema.get_field(entity_name, &target.field).ok_or_else(|| vec![AnalyzerError {
-                    code: "L010",
-                    message: format!("Unknown field '{}' on entity '{}'", target.field, target.instance),
-                    span: target.span,
-                }])?;
+                let field_schema = self
+                    .schema
+                    .get_field(entity_name, &target.field)
+                    .ok_or_else(|| {
+                        vec![AnalyzerError {
+                            code: "L010",
+                            message: format!(
+                                "Unknown field '{}' on entity '{}'",
+                                target.field, target.instance
+                            ),
+                            span: target.span,
+                        }]
+                    })?;
 
                 if field_schema.is_derived {
                     return Err(vec![AnalyzerError {
@@ -1169,11 +1360,13 @@ impl Analyzer {
 
                 let mut provided_fields = HashMap::new();
                 for (name, expr) in fields {
-                    let field_schema = schema_entity.fields.get(name).ok_or_else(|| vec![AnalyzerError {
-                        code: "L010",
-                        message: format!("Unknown field '{}' on entity '{}'", name, entity),
-                        span: rule_span,
-                    }])?;
+                    let field_schema = schema_entity.fields.get(name).ok_or_else(|| {
+                        vec![AnalyzerError {
+                            code: "L010",
+                            message: format!("Unknown field '{}' on entity '{}'", name, entity),
+                            span: rule_span,
+                        }]
+                    })?;
 
                     let ty = self.infer_type(expr, None, locals).map_err(|e| vec![e])?;
                     if ty != field_schema.ty {
@@ -1213,7 +1406,9 @@ impl Analyzer {
             }
             Action::Alert(_) => Ok(()),
             Action::Write { target, value } => {
-                let entity_name = if let Some(Some(LuminaType::Entity(e))) = locals.map(|l| l.get(&target.instance)) {
+                let entity_name = if let Some(Some(LuminaType::Entity(e))) =
+                    locals.map(|l| l.get(&target.instance))
+                {
                     e
                 } else {
                     match self.instances.get(&target.instance) {
@@ -1245,7 +1440,10 @@ impl Analyzer {
                     } else {
                         return Err(vec![AnalyzerError {
                             code: "L010",
-                            message: format!("Unknown field '{}' on entity '{}'", target.field, entity_name),
+                            message: format!(
+                                "Unknown field '{}' on entity '{}'",
+                                target.field, entity_name
+                            ),
                             span: target.span,
                         }]);
                     }
@@ -1266,15 +1464,17 @@ impl Analyzer {
 
 #[cfg(test)]
 mod tests {
-    use lumina_parser::parse;
     use super::*;
+    use lumina_parser::parse;
 
     fn analyze_source(source: &str) -> Result<AnalyzedProgram, Vec<AnalyzerError>> {
-        let program = parse(source).map_err(|e| vec![AnalyzerError {
-            code: "LEX/PARSE",
-            message: e.to_string(),
-            span: Span::default(),
-        }])?;
+        let program = parse(source).map_err(|e| {
+            vec![AnalyzerError {
+                code: "LEX/PARSE",
+                message: e.to_string(),
+                span: Span::default(),
+            }]
+        })?;
         Analyzer::new().analyze(program)
     }
 
@@ -1342,7 +1542,11 @@ mod tests {
     fn test_l036_ref_to_nonexistent_entity() {
         let source = "entity A { link: ref NonExistent }";
         let errs = analyze_source(source).unwrap_err();
-        assert!(errs.iter().any(|e| e.code == "L036"), "expected L036, got: {:?}", errs);
+        assert!(
+            errs.iter().any(|e| e.code == "L036"),
+            "expected L036, got: {:?}",
+            errs
+        );
     }
 
     #[test]
@@ -1357,14 +1561,22 @@ mod tests {
     fn test_l038_write_on_non_external_entity() {
         let source = "entity Local { x: Number } rule w when true { write Local.x = 5 }";
         let errs = analyze_source(source).unwrap_err();
-        assert!(errs.iter().any(|e| e.code == "L038"), "expected L038, got: {:?}", errs);
+        assert!(
+            errs.iter().any(|e| e.code == "L038"),
+            "expected L038, got: {:?}",
+            errs
+        );
     }
 
     #[test]
     fn test_l042_invalid_timestamp_accessor() {
         let source = "entity S { ts: Timestamp bad := ts.foo }";
         let errs = analyze_source(source).unwrap_err();
-        assert!(errs.iter().any(|e| e.code == "L042"), "expected L042, got: {:?}", errs);
+        assert!(
+            errs.iter().any(|e| e.code == "L042"),
+            "expected L042, got: {:?}",
+            errs
+        );
     }
 
     #[test]
@@ -1373,7 +1585,11 @@ mod tests {
         let source = "entity S { ts: Timestamp } rule r when true { update S.ts to now() }";
         let res = analyze_source(source);
         // This should either succeed or fail with a type mismatch (Timestamp == Timestamp => ok)
-        assert!(res.is_ok(), "now() should return Timestamp type, got: {:?}", res.err());
+        assert!(
+            res.is_ok(),
+            "now() should return Timestamp type, got: {:?}",
+            res.err()
+        );
     }
 
     #[test]
@@ -1381,6 +1597,10 @@ mod tests {
         // ts.age should return Duration
         let source = "entity S { ts: Timestamp stale := ts.age > 60s }";
         let res = analyze_source(source);
-        assert!(res.is_ok(), ".age should return Duration, got: {:?}", res.err());
+        assert!(
+            res.is_ok(),
+            ".age should return Duration, got: {:?}",
+            res.err()
+        );
     }
 }

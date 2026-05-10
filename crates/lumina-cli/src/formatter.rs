@@ -24,23 +24,23 @@ pub fn format_program(program: &Program) -> String {
 
 fn format_statement(stmt: &Statement) -> String {
     match stmt {
-        Statement::Entity(e)         => format_entity(e),
+        Statement::Entity(e) => format_entity(e),
         Statement::ExternalEntity(e) => format_external_entity(e),
-        Statement::Let(l)            => format_let(l),
-        Statement::Rule(r)           => format_rule(r),
-        Statement::Action(a)         => format_action(a),
-        Statement::Fn(f)             => format_fn(f),
-        Statement::Import(i)         => {
+        Statement::Let(l) => format_let(l),
+        Statement::Rule(r) => format_rule(r),
+        Statement::Action(a) => format_action(a),
+        Statement::Fn(f) => format_fn(f),
+        Statement::Import(i) => {
             if let Some(ns) = &i.namespace {
                 format!("import {}", ns.join("::"))
             } else {
                 format!("import \"{}\"", i.path)
             }
         }
-        Statement::Aggregate(a)      => format_aggregate(a),
-        Statement::PluginImport(p)   => format!("import plugin \"{}\" as {}", p.path, p.alias),
-        Statement::Provider(p)       => format_provider(p),
-        Statement::Cluster(c)        => format_cluster(c),
+        Statement::Aggregate(a) => format_aggregate(a),
+        Statement::PluginImport(p) => format!("import plugin \"{}\" as {}", p.path, p.alias),
+        Statement::Provider(p) => format_provider(p),
+        Statement::Cluster(c) => format_cluster(c),
     }
 }
 
@@ -65,14 +65,22 @@ fn format_external_entity(e: &ExternalEntityDecl) -> String {
     }
     match e.sync_strategy {
         SyncStrategy::Realtime => {}
-        SyncStrategy::Poll     => out.push_str(&format!("{}on: poll\n", INDENT)),
-        SyncStrategy::Webhook  => out.push_str(&format!("{}on: webhook\n", INDENT)),
+        SyncStrategy::Poll => out.push_str(&format!("{}on: poll\n", INDENT)),
+        SyncStrategy::Webhook => out.push_str(&format!("{}on: webhook\n", INDENT)),
     }
     if !e.sync_fields.is_empty() {
-        out.push_str(&format!("{}sync_on ({})\n", INDENT, e.sync_fields.join(", ")));
+        out.push_str(&format!(
+            "{}sync_on ({})\n",
+            INDENT,
+            e.sync_fields.join(", ")
+        ));
     }
     if let Some(d) = &e.poll_interval {
-        out.push_str(&format!("{}poll_interval: {}\n", INDENT, format_duration(d)));
+        out.push_str(&format!(
+            "{}poll_interval: {}\n",
+            INDENT,
+            format_duration(d)
+        ));
     }
     if let Some(d) = &e.sync_timeout {
         out.push_str(&format!("{}timeout {}\n", INDENT, format_duration(d)));
@@ -106,7 +114,12 @@ fn format_metadata(meta: &FieldMetadata) -> String {
         out.push_str(&format!("{}@doc \"{}\"\n", INDENT, doc));
     }
     if let Some((lo, hi)) = meta.range {
-        out.push_str(&format!("{}@range {} to {}\n", INDENT, format_number(lo), format_number(hi)));
+        out.push_str(&format!(
+            "{}@range {} to {}\n",
+            INDENT,
+            format_number(lo),
+            format_number(hi)
+        ));
     }
     if !meta.affects.is_empty() {
         out.push_str(&format!("{}@affects {}\n", INDENT, meta.affects.join(", ")));
@@ -116,12 +129,12 @@ fn format_metadata(meta: &FieldMetadata) -> String {
 
 fn format_type(ty: &LuminaType) -> String {
     match ty {
-        LuminaType::Text      => "Text".into(),
-        LuminaType::Number    => "Number".into(),
-        LuminaType::Boolean   => "Boolean".into(),
+        LuminaType::Text => "Text".into(),
+        LuminaType::Number => "Number".into(),
+        LuminaType::Boolean => "Boolean".into(),
         LuminaType::Timestamp => "Timestamp".into(),
-        LuminaType::Duration  => "Duration".into(),
-        LuminaType::Secret    => "Secret".into(),
+        LuminaType::Duration => "Duration".into(),
+        LuminaType::Secret => "Secret".into(),
         LuminaType::Entity(n) => n.clone(),
         LuminaType::List(inner) => format!("{}[]", format_type(inner)),
     }
@@ -197,18 +210,31 @@ fn format_condition(cond: &Condition) -> String {
         out.push_str(&format!(" for {}", format_duration(d)));
     }
     if let Some(freq) = &cond.frequency {
-        out.push_str(&format!(" {} times within {}", freq.count, format_duration(&freq.within)));
+        out.push_str(&format!(
+            " {} times within {}",
+            freq.count,
+            format_duration(&freq.within)
+        ));
     }
     out
 }
 
 fn format_fleet_condition(fc: &FleetCondition) -> String {
-    let mut out = format!("{}.{} becomes {}", fc.entity, fc.field, format_expr(&fc.becomes));
+    let mut out = format!(
+        "{}.{} becomes {}",
+        fc.entity,
+        fc.field,
+        format_expr(&fc.becomes)
+    );
     if let Some(d) = &fc.for_duration {
         out.push_str(&format!(" for {}", format_duration(d)));
     }
     if let Some(freq) = &fc.frequency {
-        out.push_str(&format!(" {} times within {}", freq.count, format_duration(&freq.within)));
+        out.push_str(&format!(
+            " {} times within {}",
+            freq.count,
+            format_duration(&freq.within)
+        ));
     }
     out
 }
@@ -217,15 +243,31 @@ fn format_action(action: &Action) -> String {
     match action {
         Action::Show(expr) => format!("show {}", format_expr(expr)),
         Action::Update { target, value } => {
-            format!("update {}.{} to {}", target.instance, target.field, format_expr(value))
+            format!(
+                "update {}.{} to {}",
+                target.instance,
+                target.field,
+                format_expr(value)
+            )
         }
         Action::Write { target, value } => {
-            format!("write {}.{} = {}", target.instance, target.field, format_expr(value))
+            format!(
+                "write {}.{} = {}",
+                target.instance,
+                target.field,
+                format_expr(value)
+            )
         }
         Action::Create { entity, fields } => {
             let mut out = format!("create {} {{\n", entity);
             for (name, expr) in fields {
-                out.push_str(&format!("{}{}{}: {},\n", INDENT, INDENT, name, format_expr(expr)));
+                out.push_str(&format!(
+                    "{}{}{}: {},\n",
+                    INDENT,
+                    INDENT,
+                    name,
+                    format_expr(expr)
+                ));
             }
             out.push_str(&format!("{}}}", INDENT));
             out
@@ -251,10 +293,17 @@ fn format_action(action: &Action) -> String {
 }
 
 fn format_fn(f: &FnDecl) -> String {
-    let params: Vec<String> = f.params.iter()
+    let params: Vec<String> = f
+        .params
+        .iter()
         .map(|p| format!("{}: {}", p.name, format_type(&p.type_)))
         .collect();
-    let mut out = format!("fn {}({}) -> {} {{\n", f.name, params.join(", "), format_type(&f.returns));
+    let mut out = format!(
+        "fn {}({}) -> {} {{\n",
+        f.name,
+        params.join(", "),
+        format_type(&f.returns)
+    );
     out.push_str(&format!("{}{}\n", INDENT, format_expr(&f.body)));
     out.push('}');
     out
@@ -274,7 +323,7 @@ fn format_aggregate(a: &AggregateDecl) -> String {
             AggregateExpr::Max(f) => format!("max({})", f),
             AggregateExpr::Sum(f) => format!("sum({})", f),
             AggregateExpr::Count(Some(f)) => format!("count({})", f),
-            AggregateExpr::Count(None)    => "count()".into(),
+            AggregateExpr::Count(None) => "count()".into(),
             AggregateExpr::Any(f) => format!("any({})", f),
             AggregateExpr::All(f) => format!("all({})", f),
         };
@@ -288,8 +337,8 @@ fn format_duration(d: &Duration) -> String {
     let unit = match d.unit {
         TimeUnit::Seconds => "s",
         TimeUnit::Minutes => "m",
-        TimeUnit::Hours   => "h",
-        TimeUnit::Days    => "d",
+        TimeUnit::Hours => "h",
+        TimeUnit::Days => "d",
     };
     format!("{} {}", format_number(d.value), unit)
 }
@@ -304,14 +353,23 @@ fn format_expr(expr: &Expr) -> String {
         Expr::FieldAccess { obj, field, .. } => {
             format!("{}.{}", format_expr(obj), field)
         }
-        Expr::Binary { op, left, right, .. } => {
+        Expr::Binary {
+            op, left, right, ..
+        } => {
             format!("{} {} {}", format_expr(left), op, format_expr(right))
         }
         Expr::Unary { op, operand, .. } => {
             format!("{} {}", op, format_expr(operand))
         }
-        Expr::If { cond, then_, else_, .. } => {
-            format!("if {} then {} else {}", format_expr(cond), format_expr(then_), format_expr(else_))
+        Expr::If {
+            cond, then_, else_, ..
+        } => {
+            format!(
+                "if {} then {} else {}",
+                format_expr(cond),
+                format_expr(then_),
+                format_expr(else_)
+            )
         }
         Expr::InterpolatedString(segments) => {
             let mut out = String::from("\"");
@@ -343,8 +401,14 @@ fn format_expr(expr: &Expr) -> String {
         Expr::Prev { field, .. } => format!("prev({})", field),
         // v2.0 expressions
         Expr::ClusterAccess { node_id, field, .. } => format!("cluster.{}.{}", node_id, field),
-        Expr::Migrate { workloads, target, .. } => {
-            format!("migrate({}, to: {})", format_expr(workloads), format_expr(target))
+        Expr::Migrate {
+            workloads, target, ..
+        } => {
+            format!(
+                "migrate({}, to: {})",
+                format_expr(workloads),
+                format_expr(target)
+            )
         }
         Expr::Evacuate { entities, .. } => format!("evacuate({})", format_expr(entities)),
         Expr::Deploy { spec, .. } => format!("deploy({})", format_expr(spec)),
@@ -362,7 +426,12 @@ fn format_number(n: f64) -> String {
 fn format_provider(p: &ProviderDecl) -> String {
     let mut out = format!("provider \"{}\" {{\n", p.protocol);
     for entry in &p.config {
-        out.push_str(&format!("{}{}:{}\n", INDENT, entry.key, format!(" {}", format_expr(&entry.value))));
+        out.push_str(&format!(
+            "{}{}:{}\n",
+            INDENT,
+            entry.key,
+            format!(" {}", format_expr(&entry.value))
+        ));
     }
     out.push('}');
     out
@@ -371,10 +440,14 @@ fn format_provider(p: &ProviderDecl) -> String {
 fn format_cluster(c: &ClusterDecl) -> String {
     let mut out = String::from("cluster {\n");
     out.push_str(&format!("{}node_id: \"{}\"\n", INDENT, c.node_id));
-    let peers_str: Vec<String> = c.peers.iter().map(|p| format!("\"{}\"" , p)).collect();
+    let peers_str: Vec<String> = c.peers.iter().map(|p| format!("\"{}\"", p)).collect();
     out.push_str(&format!("{}peers: [{}]\n", INDENT, peers_str.join(", ")));
     out.push_str(&format!("{}quorum: {}\n", INDENT, c.quorum));
-    out.push_str(&format!("{}election_timeout: {}\n", INDENT, format_duration(&c.election_timeout)));
+    out.push_str(&format!(
+        "{}election_timeout: {}\n",
+        INDENT,
+        format_duration(&c.election_timeout)
+    ));
     out.push('}');
     out
 }

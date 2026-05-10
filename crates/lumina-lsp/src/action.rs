@@ -1,5 +1,5 @@
-use tower_lsp::lsp_types::*;
 use lumina_diagnostics::Diagnostic as LuminaDiag;
+use tower_lsp::lsp_types::*;
 
 /// Generate code actions (quick fixes) for known diagnostic codes.
 pub fn generate_actions(uri: &Url, diags: &[LuminaDiag]) -> Vec<CodeActionOrCommand> {
@@ -9,8 +9,14 @@ pub fn generate_actions(uri: &Url, diags: &[LuminaDiag]) -> Vec<CodeActionOrComm
         let l = d.location.line.saturating_sub(1);
         let c = d.location.col.saturating_sub(1);
         let range = Range {
-            start: Position { line: l, character: c },
-            end: Position { line: l, character: c + d.location.len.max(1) },
+            start: Position {
+                line: l,
+                character: c,
+            },
+            end: Position {
+                line: l,
+                character: c + d.location.len.max(1),
+            },
         };
 
         let diag = tower_lsp::lsp_types::Diagnostic {
@@ -27,16 +33,25 @@ pub fn generate_actions(uri: &Url, diags: &[LuminaDiag]) -> Vec<CodeActionOrComm
             "L001" => {
                 // Extract the entity name from the diagnostic message
                 let entity_name = extract_quoted(&d.message).unwrap_or("NewEntity".to_string());
-                let insert_pos = Position { line: l.saturating_sub(1), character: 0 };
+                let insert_pos = Position {
+                    line: l.saturating_sub(1),
+                    character: 0,
+                };
 
                 let mut changes = std::collections::HashMap::new();
-                changes.insert(uri.clone(), vec![TextEdit {
-                    range: Range { start: insert_pos, end: insert_pos },
-                    new_text: format!(
-                        "entity {} {{\n  // TODO: define fields\n}}\n\n",
-                        entity_name
-                    ),
-                }]);
+                changes.insert(
+                    uri.clone(),
+                    vec![TextEdit {
+                        range: Range {
+                            start: insert_pos,
+                            end: insert_pos,
+                        },
+                        new_text: format!(
+                            "entity {} {{\n  // TODO: define fields\n}}\n\n",
+                            entity_name
+                        ),
+                    }],
+                );
 
                 actions.push(CodeActionOrCommand::CodeAction(CodeAction {
                     title: format!("Create entity '{}'", entity_name),
@@ -53,16 +68,25 @@ pub fn generate_actions(uri: &Url, diags: &[LuminaDiag]) -> Vec<CodeActionOrComm
             // L036: ref target entity doesn't exist — same fix as L001
             "L036" => {
                 let entity_name = extract_quoted(&d.message).unwrap_or("TargetEntity".to_string());
-                let insert_pos = Position { line: l.saturating_sub(1), character: 0 };
+                let insert_pos = Position {
+                    line: l.saturating_sub(1),
+                    character: 0,
+                };
 
                 let mut changes = std::collections::HashMap::new();
-                changes.insert(uri.clone(), vec![TextEdit {
-                    range: Range { start: insert_pos, end: insert_pos },
-                    new_text: format!(
-                        "entity {} {{\n  // TODO: define fields\n}}\n\n",
-                        entity_name
-                    ),
-                }]);
+                changes.insert(
+                    uri.clone(),
+                    vec![TextEdit {
+                        range: Range {
+                            start: insert_pos,
+                            end: insert_pos,
+                        },
+                        new_text: format!(
+                            "entity {} {{\n  // TODO: define fields\n}}\n\n",
+                            entity_name
+                        ),
+                    }],
+                );
 
                 actions.push(CodeActionOrCommand::CodeAction(CodeAction {
                     title: format!("Create referenced entity '{}'", entity_name),
@@ -89,7 +113,7 @@ pub fn generate_actions(uri: &Url, diags: &[LuminaDiag]) -> Vec<CodeActionOrComm
                 }));
             }
 
-            // L035: Too many AND clauses — suggest splitting into multiple rules  
+            // L035: Too many AND clauses — suggest splitting into multiple rules
             "L035" => {
                 actions.push(CodeActionOrCommand::CodeAction(CodeAction {
                     title: "Split into multiple rules (max 3 AND clauses)".to_string(),
@@ -103,10 +127,13 @@ pub fn generate_actions(uri: &Url, diags: &[LuminaDiag]) -> Vec<CodeActionOrComm
             // L038: write target must be external — suggest changing to update
             "L038" => {
                 let mut changes = std::collections::HashMap::new();
-                changes.insert(uri.clone(), vec![TextEdit {
-                    range,
-                    new_text: "update".to_string(),
-                }]);
+                changes.insert(
+                    uri.clone(),
+                    vec![TextEdit {
+                        range,
+                        new_text: "update".to_string(),
+                    }],
+                );
 
                 actions.push(CodeActionOrCommand::CodeAction(CodeAction {
                     title: "Change 'write' to 'update' (target is not external)".to_string(),

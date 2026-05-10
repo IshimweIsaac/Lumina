@@ -1,29 +1,42 @@
 pub mod ast {
     pub use lumina_parser::ast::*;
 }
-pub mod types;
-pub mod graph;
 pub mod analyzer;
+pub mod graph;
+pub mod types;
 
-pub use analyzer::{Analyzer, AnalyzerError, AnalyzedProgram};
+pub use analyzer::{AnalyzedProgram, Analyzer, AnalyzerError};
+use lumina_diagnostics::{extract_line, Diagnostic, SourceLocation};
 use lumina_parser::ast::Program;
-use lumina_diagnostics::{Diagnostic, SourceLocation, extract_line};
 
-pub fn analyze(program: Program, source: &str, filename: &str, allow_imports: bool) -> Result<AnalyzedProgram, Vec<Diagnostic>> {
+pub fn analyze(
+    program: Program,
+    source: &str,
+    filename: &str,
+    allow_imports: bool,
+) -> Result<AnalyzedProgram, Vec<Diagnostic>> {
     let mut analyzer = Analyzer::new();
     analyzer.allow_imports = allow_imports;
     match analyzer.analyze(program) {
         Ok(analyzed) => Ok(analyzed),
         Err(raw_errors) => {
-            let diags = raw_errors.into_iter().map(|e| {
-                Diagnostic::new(
-                    e.code.to_string(),
-                    e.message.to_string(),
-                    SourceLocation::from_span(e.span.line, e.span.col, e.span.end.saturating_sub(e.span.start).max(1), filename),
-                    extract_line(source, e.span.line),
-                    help_for_code(&e.code),
-                )
-            }).collect();
+            let diags = raw_errors
+                .into_iter()
+                .map(|e| {
+                    Diagnostic::new(
+                        e.code.to_string(),
+                        e.message.to_string(),
+                        SourceLocation::from_span(
+                            e.span.line,
+                            e.span.col,
+                            e.span.end.saturating_sub(e.span.start).max(1),
+                            filename,
+                        ),
+                        extract_line(source, e.span.line),
+                        help_for_code(&e.code),
+                    )
+                })
+                .collect();
             Err(diags)
         }
     }

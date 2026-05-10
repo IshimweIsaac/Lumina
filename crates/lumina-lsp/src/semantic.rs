@@ -1,14 +1,14 @@
-use tower_lsp::lsp_types::*;
 use lumina_parser::ast::*;
+use tower_lsp::lsp_types::*;
 
 pub const LEGEND_TYPES: &[SemanticTokenType] = &[
-    SemanticTokenType::KEYWORD,     // 0
-    SemanticTokenType::VARIABLE,    // 1
-    SemanticTokenType::PROPERTY,    // 2
-    SemanticTokenType::FUNCTION,    // 3
-    SemanticTokenType::TYPE,        // 4
-    SemanticTokenType::STRING,      // 5
-    SemanticTokenType::NUMBER,      // 6
+    SemanticTokenType::KEYWORD,  // 0
+    SemanticTokenType::VARIABLE, // 1
+    SemanticTokenType::PROPERTY, // 2
+    SemanticTokenType::FUNCTION, // 3
+    SemanticTokenType::TYPE,     // 4
+    SemanticTokenType::STRING,   // 5
+    SemanticTokenType::NUMBER,   // 6
 ];
 
 /// Walk the source line-by-line and emit semantic tokens based on keyword/type recognition.
@@ -34,14 +34,53 @@ pub fn get_semantic_tokens(prog: &Program, src: &str) -> Vec<SemanticToken> {
     }
 
     let keywords = [
-        "entity", "external", "rule", "when", "then", "end", "let", "fn",
-        "if", "else", "and", "or", "not", "true", "false", "becomes",
-        "for", "every", "any", "all", "show", "update", "alert", "create",
-        "delete", "import", "aggregate", "over", "cooldown", "on_clear",
-        "ref", "write", "times", "within", "now", "prev",
+        "entity",
+        "external",
+        "rule",
+        "when",
+        "then",
+        "end",
+        "let",
+        "fn",
+        "if",
+        "else",
+        "and",
+        "or",
+        "not",
+        "true",
+        "false",
+        "becomes",
+        "for",
+        "every",
+        "any",
+        "all",
+        "show",
+        "update",
+        "alert",
+        "create",
+        "delete",
+        "import",
+        "aggregate",
+        "over",
+        "cooldown",
+        "on_clear",
+        "ref",
+        "write",
+        "times",
+        "within",
+        "now",
+        "prev",
         // v2.0 keywords
-        "cluster", "node_id", "peers", "quorum", "election_timeout",
-        "migrate", "to", "evacuate", "deploy", "region",
+        "cluster",
+        "node_id",
+        "peers",
+        "quorum",
+        "election_timeout",
+        "migrate",
+        "to",
+        "evacuate",
+        "deploy",
+        "region",
     ];
 
     let type_keywords = ["Number", "Text", "Boolean", "Timestamp"];
@@ -64,24 +103,48 @@ pub fn get_semantic_tokens(prog: &Program, src: &str) -> Vec<SemanticToken> {
                 let start = col;
                 col += 1;
                 while col < chars.len() && chars[col] != '"' {
-                    if chars[col] == '\\' { col += 1; } // skip escape
+                    if chars[col] == '\\' {
+                        col += 1;
+                    } // skip escape
                     col += 1;
                 }
-                if col < chars.len() { col += 1; } // closing quote
+                if col < chars.len() {
+                    col += 1;
+                } // closing quote
                 let len = col - start;
-                push_token(&mut tokens, line_num, start as u32, len as u32, 5, &mut prev_line, &mut prev_start);
+                push_token(
+                    &mut tokens,
+                    line_num,
+                    start as u32,
+                    len as u32,
+                    5,
+                    &mut prev_line,
+                    &mut prev_start,
+                );
                 continue;
             }
 
             // Number literal
-            if chars[col].is_ascii_digit() || (chars[col] == '-' && col + 1 < chars.len() && chars[col + 1].is_ascii_digit()) {
+            if chars[col].is_ascii_digit()
+                || (chars[col] == '-' && col + 1 < chars.len() && chars[col + 1].is_ascii_digit())
+            {
                 let start = col;
-                if chars[col] == '-' { col += 1; }
+                if chars[col] == '-' {
+                    col += 1;
+                }
                 while col < chars.len() && (chars[col].is_ascii_digit() || chars[col] == '.') {
                     col += 1;
                 }
                 let len = col - start;
-                push_token(&mut tokens, line_num, start as u32, len as u32, 6, &mut prev_line, &mut prev_start);
+                push_token(
+                    &mut tokens,
+                    line_num,
+                    start as u32,
+                    len as u32,
+                    6,
+                    &mut prev_line,
+                    &mut prev_start,
+                );
                 continue;
             }
 
@@ -117,7 +180,15 @@ pub fn get_semantic_tokens(prog: &Program, src: &str) -> Vec<SemanticToken> {
                 };
 
                 if let Some(tt) = token_type {
-                    push_token(&mut tokens, line_num, start as u32, len, tt, &mut prev_line, &mut prev_start);
+                    push_token(
+                        &mut tokens,
+                        line_num,
+                        start as u32,
+                        len,
+                        tt,
+                        &mut prev_line,
+                        &mut prev_start,
+                    );
                 }
                 continue;
             }
@@ -140,7 +211,11 @@ fn push_token(
     prev_start: &mut u32,
 ) {
     let delta_line = line - *prev_line;
-    let delta_start = if delta_line == 0 { start - *prev_start } else { start };
+    let delta_start = if delta_line == 0 {
+        start - *prev_start
+    } else {
+        start
+    };
 
     tokens.push(SemanticToken {
         delta_line,

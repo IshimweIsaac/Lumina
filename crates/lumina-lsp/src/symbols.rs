@@ -1,5 +1,5 @@
+use lumina_parser::ast::{Field, Program, Statement};
 use tower_lsp::lsp_types::*;
-use lumina_parser::ast::{Program, Statement, Field};
 
 pub fn get_document_symbols(prog: &Program) -> Vec<DocumentSymbol> {
     let mut symbols = Vec::new();
@@ -8,7 +8,7 @@ pub fn get_document_symbols(prog: &Program) -> Vec<DocumentSymbol> {
         match stmt {
             Statement::Entity(e) => {
                 let range = span_to_range(&e.span);
-                
+
                 #[allow(deprecated)]
                 let mut symbol = DocumentSymbol {
                     name: e.name.clone(),
@@ -20,13 +20,21 @@ pub fn get_document_symbols(prog: &Program) -> Vec<DocumentSymbol> {
                     selection_range: range,
                     children: Some(Vec::new()),
                 };
-                
+
                 let mut children = Vec::new();
                 for field in &e.fields {
                     let (name, detail, span) = match field {
-                        Field::Stored(s) => (s.name.clone(), format!("Stored {:?}", s.ty), s.span.clone()),
-                        Field::Derived(d) => (d.name.clone(), "Derived".to_string(), d.span.clone()),
-                        Field::Ref(r) => (r.name.clone(), format!("Ref {}", r.target_entity), r.span.clone()),
+                        Field::Stored(s) => {
+                            (s.name.clone(), format!("Stored {:?}", s.ty), s.span.clone())
+                        }
+                        Field::Derived(d) => {
+                            (d.name.clone(), "Derived".to_string(), d.span.clone())
+                        }
+                        Field::Ref(r) => (
+                            r.name.clone(),
+                            format!("Ref {}", r.target_entity),
+                            r.span.clone(),
+                        ),
                     };
                     let field_range = span_to_range(&span);
                     #[allow(deprecated)]
@@ -41,7 +49,7 @@ pub fn get_document_symbols(prog: &Program) -> Vec<DocumentSymbol> {
                         children: None,
                     });
                 }
-                
+
                 symbol.children = Some(children);
                 symbols.push(symbol);
             }

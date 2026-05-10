@@ -1,10 +1,10 @@
+mod action;
 mod backend;
 mod diag;
 mod hover;
-mod semantic;
-mod refs;
-mod action;
 mod inlay;
+mod refs;
+mod semantic;
 mod symbols;
 use backend::LuminaBackend;
 use tower_lsp::{LspService, Server};

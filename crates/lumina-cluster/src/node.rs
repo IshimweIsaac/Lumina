@@ -1,14 +1,14 @@
 use crate::config::ClusterConfig;
-use crate::gossip::{GossipLayer, GossipMessageKind};
 use crate::election::{ElectionState, NodeRole};
-use crate::wal::WriteAheadLog;
+use crate::gossip::{GossipLayer, GossipMessageKind};
 use crate::state_mesh::ClusterStateMesh;
-use rustc_hash::FxHashMap;
-use std::time::Instant;
-use std::sync::Arc;
-use std::net::SocketAddr;
 use crate::transport::UdpTransport;
-use serde::{Serialize, Deserialize};
+use crate::wal::WriteAheadLog;
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Instant;
 
 /// Node lifecycle state
 #[derive(Debug, Clone, PartialEq)]
@@ -84,11 +84,7 @@ impl ClusterNode {
 
         // Initialize networking transport
         if let Ok(bind_addr) = self.config.bind_addr.parse::<SocketAddr>() {
-            let transport = UdpTransport::new(
-                Arc::clone(&self.gossip),
-                bind_addr,
-                peer_map,
-            );
+            let transport = UdpTransport::new(Arc::clone(&self.gossip), bind_addr, peer_map);
             tokio::spawn(async move {
                 if let Err(e) = transport.start().await {
                     eprintln!("Failed to start cluster transport: {}", e);
@@ -103,11 +99,14 @@ impl ClusterNode {
         // Announce ourselves to the cluster
         self.gossip.broadcast(
             self.config.node_id.clone(),
-            GossipMessageKind::Join { node_id: self.config.node_id.clone() },
+            GossipMessageKind::Join {
+                node_id: self.config.node_id.clone(),
+            },
         );
 
         // Register ourselves in the state mesh
-        self.state_mesh.update_node_state(&self.config.node_id, FxHashMap::default());
+        self.state_mesh
+            .update_node_state(&self.config.node_id, FxHashMap::default());
 
         self.state = NodeState::Active;
     }
@@ -137,7 +136,11 @@ impl ClusterNode {
                         },
                     );
                 }
-                GossipMessageKind::VoteResponse { voter_id, term, granted } => {
+                GossipMessageKind::VoteResponse {
+                    voter_id,
+                    term,
+                    granted,
+                } => {
                     self.election.receive_vote(&voter_id, term, granted);
                 }
                 GossipMessageKind::StateSync { node_id, state } => {
@@ -146,9 +149,9 @@ impl ClusterNode {
                 GossipMessageKind::Join { node_id } => {
                     self.gossip.add_peer(node_id);
                 }
-                GossipMessageKind::WorkloadMove { .. } |
-                GossipMessageKind::WorkloadHandoff { .. } |
-                GossipMessageKind::WorkloadDeploy { .. } => {
+                GossipMessageKind::WorkloadMove { .. }
+                | GossipMessageKind::WorkloadHandoff { .. }
+                | GossipMessageKind::WorkloadDeploy { .. } => {
                     self.orchestration_queue.push(msg.kind);
                 }
             }
@@ -171,9 +174,8 @@ impl ClusterNode {
         // 5. Periodically sync local state to the mesh via gossip
         if self.tick_count % 5 == 0 {
             if let Some(local_state) = self.state_mesh.snapshot_node(&self.config.node_id) {
-                let raw_state: FxHashMap<String, Vec<u8>> = local_state.into_iter()
-                    .map(|(k, v)| (k, v.value))
-                    .collect();
+                let raw_state: FxHashMap<String, Vec<u8>> =
+                    local_state.into_iter().map(|(k, v)| (k, v.value)).collect();
                 self.gossip.broadcast(
                     self.config.node_id.clone(),
                     GossipMessageKind::StateSync {
@@ -196,7 +198,8 @@ impl ClusterNode {
 
     /// Push a local state update into the mesh (called by the Evaluator)
     pub fn apply_state_update(&mut self, field: &str, value: Vec<u8>) {
-        self.state_mesh.update_local(&self.config.node_id, field, value.clone());
+        self.state_mesh
+            .update_local(&self.config.node_id, field, value.clone());
 
         // Write to WAL
         if let Some(ref mut wal) = self.wal {

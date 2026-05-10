@@ -1,107 +1,197 @@
 use logos::Logos;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Logos, Debug, Clone, PartialEq)]
 pub enum Token {
     // ── Keywords ──────────────────────────────────────────
-    #[token("entity")]   KwEntity,
-    #[token("let")]      KwLet,
-    #[token("rule")]     KwRule,
-    #[token("when")]     KwWhen,
-    #[token("then")]     KwThen,
-    #[token("becomes")]  KwBecomes,
-    #[token("for")]      KwFor,
-    #[token("every")]    KwEvery,
-    #[token("external")] KwExternal,
-    #[token("sync")]     KwSync,
-    #[token("on")]       KwOn,
-    #[token("show")]     KwShow,
-    #[token("update")]   KwUpdate,
-    #[token("to")]       KwTo,
-    #[token("create")]   KwCreate,
-    #[token("delete")]   KwDelete,
-    #[token("if")]       KwIf,
-    #[token("else")]     KwElse,
-    #[token("and")]      KwAnd,
-    #[token("or")]       KwOr,
-    #[token("not")]      KwNot,
-    #[token("true")]     KwTrue,
-    #[token("false")]    KwFalse,
-    #[token("Text")]     KwTypeText,
-    #[token("Number")]   KwTypeNumber,
-    #[token("Boolean")]  KwTypeBoolean,
-    #[token("fn")]       KwFn,
-    #[token("import")]   Import,
-    #[token("prev")]     KwPrev,
-    #[token("any")]      KwAny,
-    #[token("all")]      KwAll,
-    #[token("alert")]    Alert,
-    #[token("severity")] Severity,
-    #[token("aggregate")] Aggregate,
-    #[token("over")]      Over,
-    #[token("cooldown")]   Cooldown,
-    #[token("clear")]      Clear,
-    #[token("poll_interval")] KwPollInterval,
-    #[token("sync_on")]      KwSyncOn,
-    #[token("ref")]        KwRef,
-    #[token("times")]      KwTimes,
-    #[token("within")]     KwWithin,
-    #[token("write")]      KwWrite,
-    #[token("Timestamp")]  KwTypeTimestamp,
-    #[token("now")]        KwNow,
+    #[token("entity")]
+    KwEntity,
+    #[token("let")]
+    KwLet,
+    #[token("rule")]
+    KwRule,
+    #[token("when")]
+    KwWhen,
+    #[token("then")]
+    KwThen,
+    #[token("becomes")]
+    KwBecomes,
+    #[token("for")]
+    KwFor,
+    #[token("every")]
+    KwEvery,
+    #[token("external")]
+    KwExternal,
+    #[token("sync")]
+    KwSync,
+    #[token("on")]
+    KwOn,
+    #[token("show")]
+    KwShow,
+    #[token("update")]
+    KwUpdate,
+    #[token("to")]
+    KwTo,
+    #[token("create")]
+    KwCreate,
+    #[token("delete")]
+    KwDelete,
+    #[token("if")]
+    KwIf,
+    #[token("else")]
+    KwElse,
+    #[token("and")]
+    KwAnd,
+    #[token("or")]
+    KwOr,
+    #[token("not")]
+    KwNot,
+    #[token("true")]
+    KwTrue,
+    #[token("false")]
+    KwFalse,
+    #[token("Text")]
+    KwTypeText,
+    #[token("Number")]
+    KwTypeNumber,
+    #[token("Boolean")]
+    KwTypeBoolean,
+    #[token("fn")]
+    KwFn,
+    #[token("import")]
+    Import,
+    #[token("prev")]
+    KwPrev,
+    #[token("any")]
+    KwAny,
+    #[token("all")]
+    KwAll,
+    #[token("alert")]
+    Alert,
+    #[token("severity")]
+    Severity,
+    #[token("aggregate")]
+    Aggregate,
+    #[token("over")]
+    Over,
+    #[token("cooldown")]
+    Cooldown,
+    #[token("clear")]
+    Clear,
+    #[token("poll_interval")]
+    KwPollInterval,
+    #[token("sync_on")]
+    KwSyncOn,
+    #[token("ref")]
+    KwRef,
+    #[token("times")]
+    KwTimes,
+    #[token("within")]
+    KwWithin,
+    #[token("write")]
+    KwWrite,
+    #[token("Timestamp")]
+    KwTypeTimestamp,
+    #[token("now")]
+    KwNow,
 
     // ── v1.8 Keywords ────────────────────────────────────────
-    #[token("plugin")]     KwPlugin,
-    #[token("as")]         KwAs,
-    #[token("Secret")]     KwTypeSecret,
-    #[token("timeout")]    KwTimeout,
-    #[token("fallible")]   KwFallible,
-    #[token("unknown")]    KwUnknown,
+    #[token("plugin")]
+    KwPlugin,
+    #[token("as")]
+    KwAs,
+    #[token("Secret")]
+    KwTypeSecret,
+    #[token("timeout")]
+    KwTimeout,
+    #[token("fallible")]
+    KwFallible,
+    #[token("unknown")]
+    KwUnknown,
 
     // ── v1.9 Keywords ────────────────────────────────────────
-    #[token("provider")]   KwProvider,
-    #[token("env")]        KwEnv,
-    #[token("from")]       KwFrom,
-    #[token("credentials")] KwCredentials,
-    #[token("endpoint")]   KwEndpoint,
+    #[token("provider")]
+    KwProvider,
+    #[token("env")]
+    KwEnv,
+    #[token("from")]
+    KwFrom,
+    #[token("credentials")]
+    KwCredentials,
+    #[token("endpoint")]
+    KwEndpoint,
 
     // ── v2.0 Keywords ────────────────────────────────────────
-    #[token("cluster")]          KwCluster,
-    #[token("node_id")]          KwNodeId,
-    #[token("peers")]            KwPeers,
-    #[token("quorum")]           KwQuorum,
-    #[token("election_timeout")] KwElectionTimeout,
-    #[token("migrate")]          KwMigrate,
-    #[token("evacuate")]         KwEvacuate,
-    #[token("deploy")]           KwDeploy,
-    #[token("bind_addr")]        KwBindAddr,
-    #[token("region")]           KwRegion,
+    #[token("cluster")]
+    KwCluster,
+    #[token("node_id")]
+    KwNodeId,
+    #[token("peers")]
+    KwPeers,
+    #[token("quorum")]
+    KwQuorum,
+    #[token("election_timeout")]
+    KwElectionTimeout,
+    #[token("migrate")]
+    KwMigrate,
+    #[token("evacuate")]
+    KwEvacuate,
+    #[token("deploy")]
+    KwDeploy,
+    #[token("bind_addr")]
+    KwBindAddr,
+    #[token("region")]
+    KwRegion,
 
     // ── Operators & punctuation ────────────────────────────
-    #[token("::")]  ColonColon,
-    #[token(":=")]  ColonEq,
-    #[token(":")]   Colon,
-    #[token("==")]  EqEq,
-    #[token("=")]   Eq,
-    #[token("!=")]  BangEq,
-    #[token(">=")]  GtEq,
-    #[token("<=")]  LtEq,
-    #[token(">")]   Gt,
-    #[token("<")]   Lt,
-    #[token("+")]   Plus,
-    #[token("-")]   Minus,
-    #[token("*")]   Star,
-    #[token("/")]   Slash,
-    #[token("{")]   LBrace,
-    #[token("}")]   RBrace,
-    #[token("(")]   LParen,
-    #[token(")")]   RParen,
-    #[token(",")]   Comma,
-    #[token(".")]   Dot,
-    #[token("@")]   At,
-    #[token("->")]  Arrow,
-    #[token("[")]   LBracket,
-    #[token("]")]   RBracket,
+    #[token("::")]
+    ColonColon,
+    #[token(":=")]
+    ColonEq,
+    #[token(":")]
+    Colon,
+    #[token("==")]
+    EqEq,
+    #[token("=")]
+    Eq,
+    #[token("!=")]
+    BangEq,
+    #[token(">=")]
+    GtEq,
+    #[token("<=")]
+    LtEq,
+    #[token(">")]
+    Gt,
+    #[token("<")]
+    Lt,
+    #[token("+")]
+    Plus,
+    #[token("-")]
+    Minus,
+    #[token("*")]
+    Star,
+    #[token("/")]
+    Slash,
+    #[token("{")]
+    LBrace,
+    #[token("}")]
+    RBrace,
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
+    #[token(",")]
+    Comma,
+    #[token(".")]
+    Dot,
+    #[token("@")]
+    At,
+    #[token("->")]
+    Arrow,
+    #[token("[")]
+    LBracket,
+    #[token("]")]
+    RBracket,
 
     // ── Literals ───────────────────────────────────────────
     #[regex(r"[0-9]+(\.[0-9]+)?", |lex| lex.slice().parse::<f64>().ok())]
@@ -127,7 +217,6 @@ pub enum Token {
     // ── Whitespace & comments ──────────────────────────────
     #[regex(r"--[^\n]*", logos::skip)]
     #[regex(r"[ \t\r]+", logos::skip)]
-
     #[token("\n")]
     Newline,
 }
@@ -202,7 +291,7 @@ impl Token {
             Token::KwBindAddr => "keyword 'bind_addr'".to_string(),
             Token::KwRegion => "keyword 'region'".to_string(),
             Token::ColonColon => "'::'".to_string(),
-            
+
             Token::ColonEq => "':='".to_string(),
             Token::Colon => "':'".to_string(),
             Token::EqEq => "'=='".to_string(),
@@ -226,12 +315,12 @@ impl Token {
             Token::Arrow => "'->'".to_string(),
             Token::LBracket => "'['".to_string(),
             Token::RBracket => "']'".to_string(),
-            
+
             Token::Number(n) => format!("number '{}'", n),
             Token::Text(s) => format!("text \"{}\"", s),
             Token::Ident(s) => format!("identifier '{}'", s),
             Token::Newline => "newline".to_string(),
-            
+
             Token::InterpStringStart => "start of string".to_string(),
             Token::InterpPart(s) => format!("string segment '{}'", s),
             Token::InterpExprStart => "'${'".to_string(),
@@ -244,13 +333,13 @@ impl Token {
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 pub struct Span {
     pub start: u32,
-    pub end:   u32,
-    pub line:  u32,
-    pub col:   u32,
+    pub end: u32,
+    pub line: u32,
+    pub col: u32,
 }
 
 #[derive(Debug, Clone)]
 pub struct SpannedToken {
     pub token: Token,
-    pub span:  Span,
+    pub span: Span,
 }

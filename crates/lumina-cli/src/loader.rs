@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
-use lumina_parser::parse;
 use lumina_parser::ast::{Program, Statement};
+use lumina_parser::parse;
 use lumina_parser::LuminaError;
 
 pub struct ModuleLoader {
@@ -25,9 +25,9 @@ impl ModuleLoader {
             in_stack: HashSet::new(),
         };
 
-        let canonical = entry.canonicalize().map_err(|e| {
-            file_not_found(entry, &e.to_string())
-        })?;
+        let canonical = entry
+            .canonicalize()
+            .map_err(|e| file_not_found(entry, &e.to_string()))?;
 
         loader.load_recursive(&canonical)?;
         Ok(loader.merge())
@@ -35,7 +35,9 @@ impl ModuleLoader {
 
     fn load_recursive(&mut self, path: &PathBuf) -> Result<(), String> {
         // Already loaded - skip (DAG, not tree)
-        if self.loaded.contains_key(path) { return Ok(()); }
+        if self.loaded.contains_key(path) {
+            return Ok(());
+        }
 
         // Cycle detection
         if self.in_stack.contains(path) {
@@ -45,13 +47,9 @@ impl ModuleLoader {
         self.in_stack.insert(path.clone());
 
         // Read and parse
-        let source = fs::read_to_string(path).map_err(|e| {
-            file_not_found(path, &e.to_string())
-        })?;
+        let source = fs::read_to_string(path).map_err(|e| file_not_found(path, &e.to_string()))?;
 
-        let program = parse(&source).map_err(|e| {
-            parse_to_diagnostic(e, path)
-        })?;
+        let program = parse(&source).map_err(|e| parse_to_diagnostic(e, path))?;
 
         // Recurse into imports before adding this file
         let dir = path.parent().unwrap_or(Path::new("."));
@@ -61,9 +59,9 @@ impl ModuleLoader {
                 continue;
             }
             let dep_path = dir.join(&import.path);
-            let dep_canonical = dep_path.canonicalize().map_err(|e| {
-                file_not_found(&dep_path, &e.to_string())
-            })?;
+            let dep_canonical = dep_path
+                .canonicalize()
+                .map_err(|e| file_not_found(&dep_path, &e.to_string()))?;
             self.load_recursive(&dep_canonical)?;
         }
 

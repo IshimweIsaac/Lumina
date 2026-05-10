@@ -1,8 +1,8 @@
-use lumina_parser::parse;
 use lumina_analyzer::analyze;
-use lumina_runtime::engine::Evaluator;
 use lumina_diagnostics::DiagnosticRenderer;
-use lumina_parser::ast::{Statement, Field};
+use lumina_parser::ast::{Field, Statement};
+use lumina_parser::parse;
+use lumina_runtime::engine::Evaluator;
 
 pub struct ReplSession {
     pub evaluator: Evaluator,
@@ -14,8 +14,8 @@ pub struct ReplSession {
 }
 
 pub enum ReplResult {
-    NeedMore, // multi-line construct - show "..." prompt
-    Ok(String), // success - optional output string to print
+    NeedMore,      // multi-line construct - show "..." prompt
+    Ok(String),    // success - optional output string to print
     Error(String), // error - rendered diagnostic string
 }
 
@@ -37,7 +37,7 @@ impl ReplSession {
             match ch {
                 '{' => self.brace_depth += 1,
                 '}' => self.brace_depth -= 1,
-                _=> {}
+                _ => {}
             }
         }
 
@@ -45,7 +45,9 @@ impl ReplSession {
         self.source_accum.push('\n');
 
         // Multi-line construct still open
-        if self.brace_depth > 0 { return ReplResult::NeedMore; }
+        if self.brace_depth > 0 {
+            return ReplResult::NeedMore;
+        }
 
         // Complete construct - drain accumulator and execute
         let source = std::mem::take(&mut self.source_accum);
@@ -86,7 +88,8 @@ impl ReplSession {
             if let Statement::Entity(e) = stmt {
                 for f in &e.fields {
                     if let Field::Derived(df) = f {
-                        self.evaluator.register_derived(&e.name, &df.name, df.expr.clone());
+                        self.evaluator
+                            .register_derived(&e.name, &df.name, df.expr.clone());
                     }
                 }
             }

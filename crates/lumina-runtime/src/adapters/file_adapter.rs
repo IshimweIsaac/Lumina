@@ -1,9 +1,9 @@
 use crate::adapter::LuminaAdapter;
 use crate::value::Value;
-use std::sync::mpsc::{Receiver, channel};
-use std::path::{Path, PathBuf};
-use notify::{Watcher, RecursiveMode, EventKind};
+use notify::{EventKind, RecursiveMode, Watcher};
 use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc::{channel, Receiver};
 
 pub struct FileWatchAdapter {
     entity: String,
@@ -16,52 +16,61 @@ impl FileWatchAdapter {
     pub fn new(entity: impl Into<String>, path: PathBuf) -> Result<Self, notify::Error> {
         let entity = entity.into();
         let (tx, rx) = channel();
-        
+
         // Setup file watcher
         let watch_path = path.clone();
-        let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-            if let Ok(event) = res {
-                // If the file was modified
-                if matches!(event.kind, EventKind::Modify(_)) {
-                    if let Ok(content) = fs::read_to_string(&watch_path) {
-                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                            if let serde_json::Value::Object(map) = json {
-                                let instance = map.get("id")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string())
-                                    .unwrap_or_else(|| "default".to_string());
+        let mut watcher =
+            notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+                if let Ok(event) = res {
+                    // If the file was modified
+                    if matches!(event.kind, EventKind::Modify(_)) {
+                        if let Ok(content) = fs::read_to_string(&watch_path) {
+                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                                if let serde_json::Value::Object(map) = json {
+                                    let instance = map
+                                        .get("id")
+                                        .and_then(|v| v.as_str())
+                                        .map(|s| s.to_string())
+                                        .unwrap_or_else(|| "default".to_string());
 
-                                for (key, val) in map {
-                                    if key == "id" { continue; }
-                                    let typed_val = match val {
-                                        serde_json::Value::Number(n) => n.as_f64().map(Value::Number),
-                                        serde_json::Value::String(s) => Some(Value::Text(s)),
-                                        serde_json::Value::Bool(b)   => Some(Value::Bool(b)),
-                                        _ => None,
-                                    };
-                                    if let Some(v) = typed_val {
-                                        let _ = tx.send((instance.clone(), key, v)); // Ignore drop errors here
+                                    for (key, val) in map {
+                                        if key == "id" {
+                                            continue;
+                                        }
+                                        let typed_val = match val {
+                                            serde_json::Value::Number(n) => {
+                                                n.as_f64().map(Value::Number)
+                                            }
+                                            serde_json::Value::String(s) => Some(Value::Text(s)),
+                                            serde_json::Value::Bool(b) => Some(Value::Bool(b)),
+                                            _ => None,
+                                        };
+                                        if let Some(v) = typed_val {
+                                            let _ = tx.send((instance.clone(), key, v));
+                                            // Ignore drop errors here
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
-        })?;
-        
+            })?;
+
         watcher.watch(Path::new(&path), RecursiveMode::NonRecursive)?;
 
-        Ok(Self { 
-            entity, 
+        Ok(Self {
+            entity,
             rx: std::sync::Mutex::new(rx),
-            _watcher: watcher 
+            _watcher: watcher,
         })
     }
 }
 
 impl LuminaAdapter for FileWatchAdapter {
-    fn entity_name(&self) -> &str { &self.entity }
+    fn entity_name(&self) -> &str {
+        &self.entity
+    }
     fn poll(&mut self) -> Option<(String, String, Value)> {
         self.rx.lock().ok()?.try_recv().ok()
     }

@@ -1,7 +1,7 @@
-use rustc_hash::FxHashMap;
-use std::time::Instant;
 use parking_lot::RwLock;
-use serde::{Serialize, Deserialize};
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
+use std::time::Instant;
 
 /// Types of gossip messages exchanged between nodes
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -9,19 +9,36 @@ pub enum GossipMessageKind {
     /// Leader heartbeat with current term
     Heartbeat { term: u64, leader_id: String },
     /// State synchronization payload (node_id → field → value bytes)
-    StateSync { node_id: String, state: FxHashMap<String, Vec<u8>> },
+    StateSync {
+        node_id: String,
+        state: FxHashMap<String, Vec<u8>>,
+    },
     /// Election vote request
     VoteRequest { candidate_id: String, term: u64 },
     /// Election vote response
-    VoteResponse { voter_id: String, term: u64, granted: bool },
+    VoteResponse {
+        voter_id: String,
+        term: u64,
+        granted: bool,
+    },
     /// Node announcing itself to the cluster
     Join { node_id: String },
     /// Orchestration: Request that a workload moves to another node
-    WorkloadMove { target_node: String, workload: Vec<String> },
+    WorkloadMove {
+        target_node: String,
+        workload: Vec<String>,
+    },
     /// Orchestration: Actual transfer of instance data
-    WorkloadHandoff { target_node: String, instances: Vec<(String, String, Vec<u8>)> }, // (name, entity, data)
+    WorkloadHandoff {
+        target_node: String,
+        instances: Vec<(String, String, Vec<u8>)>,
+    }, // (name, entity, data)
     /// Orchestration: Deploy a new workload
-    WorkloadDeploy { target_node: String, spec_id: String, instances: Vec<(String, String, Vec<u8>)> },
+    WorkloadDeploy {
+        target_node: String,
+        spec_id: String,
+        instances: Vec<(String, String, Vec<u8>)>,
+    },
 }
 
 /// A gossip message with sender metadata
@@ -77,11 +94,14 @@ impl GossipLayer {
     /// Register a peer node in the gossip layer
     pub fn add_peer(&self, peer_id: String) {
         let now = Instant::now();
-        self.peers.write().insert(peer_id.clone(), PeerInfo {
-            peer_id,
-            health: PeerHealth::Alive,
-            last_seen: now,
-        });
+        self.peers.write().insert(
+            peer_id.clone(),
+            PeerInfo {
+                peer_id,
+                health: PeerHealth::Alive,
+                last_seen: now,
+            },
+        );
     }
 
     /// Record that we heard from a peer (resets health timer)
@@ -144,7 +164,9 @@ impl GossipLayer {
 
     /// Count of alive peers
     pub fn alive_peer_count(&self) -> usize {
-        self.peers.read().values()
+        self.peers
+            .read()
+            .values()
             .filter(|p| p.health == PeerHealth::Alive)
             .count()
     }

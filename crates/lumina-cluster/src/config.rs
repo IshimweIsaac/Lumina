@@ -1,5 +1,5 @@
-use std::time::Duration;
 use lumina_parser::ast::ClusterDecl;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Default)]
 pub struct ClusterConfig {

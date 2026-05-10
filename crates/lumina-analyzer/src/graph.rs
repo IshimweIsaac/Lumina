@@ -5,16 +5,16 @@ pub type NodeId = u32;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FieldNode {
     pub entity: String,
-    pub field:  String,
+    pub field: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct DependencyGraph {
-    pub node_ids:     HashMap<FieldNode, NodeId>,
-    pub nodes:        Vec<FieldNode>,
-    pub dependents:   Vec<Vec<NodeId>>,
+    pub node_ids: HashMap<FieldNode, NodeId>,
+    pub nodes: Vec<FieldNode>,
+    pub dependents: Vec<Vec<NodeId>>,
     pub dependencies: Vec<Vec<NodeId>>,
-    pub topo_order:   Vec<NodeId>,
+    pub topo_order: Vec<NodeId>,
 }
 
 impl DependencyGraph {
@@ -53,10 +53,12 @@ impl DependencyGraph {
     }
 
     pub fn get_node(&self, entity: &str, field: &str) -> Option<NodeId> {
-        self.node_ids.get(&FieldNode {
-            entity: entity.to_string(),
-            field: field.to_string(),
-        }).copied()
+        self.node_ids
+            .get(&FieldNode {
+                entity: entity.to_string(),
+                field: field.to_string(),
+            })
+            .copied()
     }
 
     pub fn compute_topo_order(&mut self) -> Result<(), CycleError> {
@@ -119,7 +121,12 @@ impl DependencyGraph {
         }
 
         // Sort by precomputed topo order
-        let topo_map: HashMap<NodeId, usize> = self.topo_order.iter().enumerate().map(|(i, &id)| (id, i)).collect();
+        let topo_map: HashMap<NodeId, usize> = self
+            .topo_order
+            .iter()
+            .enumerate()
+            .map(|(i, &id)| (id, i))
+            .collect();
         result.sort_by_key(|id| topo_map.get(id).unwrap_or(&usize::MAX));
         result
     }

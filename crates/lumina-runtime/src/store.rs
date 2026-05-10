@@ -1,28 +1,34 @@
-use rustc_hash::{FxHashMap, FxHashSet};
 use crate::value::Value;
-use serde::{Serialize, Deserialize};
+use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateSlot {
-    pub current:  Value,
+    pub current: Value,
     pub previous: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instance {
-    pub entity_name:  String,
-    pub slots:        Vec<StateSlot>,
+    pub entity_name: String,
+    pub slots: Vec<StateSlot>,
     /// v2.0: Monotonically increasing version for state mesh conflict resolution
-    pub version:      u64,
+    pub version: u64,
     /// v2.0: The peer ID that last mutated this instance (None if local)
-    pub source_node:  Option<String>,
+    pub source_node: Option<String>,
 }
 
 impl Instance {
     pub fn new(entity_name: impl Into<String>, field_count: usize) -> Self {
         Self {
             entity_name: entity_name.into(),
-            slots: vec![StateSlot { current: Value::Unknown, previous: Value::Unknown }; field_count],
+            slots: vec![
+                StateSlot {
+                    current: Value::Unknown,
+                    previous: Value::Unknown
+                };
+                field_count
+            ],
             version: 1,
             source_node: None,
         }
@@ -44,12 +50,24 @@ impl Instance {
         self.slots.get(idx).map(|s| &s.previous)
     }
 
-    pub fn iter_fields<'a>(&'a self, names: &'a [String]) -> impl Iterator<Item = (&'a String, &'a Value)> {
-        names.iter().zip(self.slots.iter()).map(|(name, slot)| (name, &slot.current))
+    pub fn iter_fields<'a>(
+        &'a self,
+        names: &'a [String],
+    ) -> impl Iterator<Item = (&'a String, &'a Value)> {
+        names
+            .iter()
+            .zip(self.slots.iter())
+            .map(|(name, slot)| (name, &slot.current))
     }
 
-    pub fn iter_prev_fields<'a>(&'a self, names: &'a [String]) -> impl Iterator<Item = (&'a String, &'a Value)> {
-        names.iter().zip(self.slots.iter()).map(|(name, slot)| (name, &slot.previous))
+    pub fn iter_prev_fields<'a>(
+        &'a self,
+        names: &'a [String],
+    ) -> impl Iterator<Item = (&'a String, &'a Value)> {
+        names
+            .iter()
+            .zip(self.slots.iter())
+            .map(|(name, slot)| (name, &slot.previous))
     }
 
     pub fn commit(&mut self) {
@@ -65,7 +83,9 @@ pub struct EntityStore {
 }
 
 impl EntityStore {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn insert(&mut self, name: impl Into<String>, instance: Instance) {
         self.instances.insert(name.into(), instance);
@@ -95,20 +115,24 @@ impl EntityStore {
         &'a self,
         entity_name: &'a str,
     ) -> impl Iterator<Item = (&'a String, &'a Instance)> {
-        self.instances.iter().filter(move |(_, i)| i.entity_name == entity_name)
+        self.instances
+            .iter()
+            .filter(move |(_, i)| i.entity_name == entity_name)
     }
 
     /// Find the first instance of a given entity type.
     /// Used by adapter polling to map entity names to instance names.
     pub fn find_instance_of(&self, entity_name: &str) -> Option<String> {
-        self.instances.iter()
+        self.instances
+            .iter()
             .find(|(_, i)| i.entity_name == entity_name)
             .map(|(n, _)| n.clone())
     }
 
     /// Find all instances of a given entity type.
     pub fn all_instances_of(&self, entity_name: &str) -> Vec<String> {
-        self.instances.iter()
+        self.instances
+            .iter()
             .filter(|(_, i)| i.entity_name == entity_name)
             .map(|(n, _)| n.clone())
             .collect()

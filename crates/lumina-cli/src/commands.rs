@@ -37,19 +37,23 @@ fn clear_cmd(s: &mut ReplSession) -> String {
 }
 
 fn load_cmd(s: &mut ReplSession, path: &str) -> String {
-    if path.is_empty() { return "Usage: :load <file.lum>".into(); }
+    if path.is_empty() {
+        return "Usage: :load <file.lum>".into();
+    }
     match fs::read_to_string(path) {
         Err(e) => format!("Cannot read {}: {}", path, e),
         Ok(src) => match s.feed(&src) {
             super::repl::ReplResult::Ok(_) => format!("Loaded {}", path),
             super::repl::ReplResult::Error(e) => e,
             super::repl::ReplResult::NeedMore => "Incomplete construct in file.".into(),
-        }
+        },
     }
 }
 
 fn save_cmd(s: &ReplSession, path: &str) -> String {
-    if path.is_empty() { return "Usage: :save <file.lum>".into(); }
+    if path.is_empty() {
+        return "Usage: :save <file.lum>".into();
+    }
     match fs::write(path, &s.full_history) {
         Ok(()) => format!("Saved session to {}", path),
         Err(e) => format!("Cannot write {}: {}", path, e),
@@ -63,5 +67,6 @@ fn help_cmd() -> String {
     :save <file> - save session source to file\n\
     :clear - reset the session\n\
     :help - show this list\n\
-    :quit - exit the REPL".into()
+    :quit - exit the REPL"
+        .into()
 }

@@ -1,5 +1,5 @@
 use lumina_lexer::token::Span;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // ── Top-level program ──────────────────────────────────────────────────────
@@ -13,7 +13,11 @@ pub struct Program {
 impl Program {
     pub fn imports(&self) -> impl Iterator<Item = &ImportDecl> {
         self.statements.iter().filter_map(|s| {
-            if let Statement::Import(i) = s { Some(i) } else { None }
+            if let Statement::Import(i) = s {
+                Some(i)
+            } else {
+                None
+            }
         })
     }
 }
@@ -37,18 +41,18 @@ pub enum Statement {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FnDecl {
-    pub name:    String,
-    pub params:  Vec<FnParam>,
+    pub name: String,
+    pub params: Vec<FnParam>,
     pub returns: LuminaType,
-    pub body:    Expr,
-    pub span:    Span,
+    pub body: Expr,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FnParam {
-    pub name:  String,
+    pub name: String,
     pub type_: LuminaType,
-    pub span:  Span,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,9 +67,9 @@ pub struct ImportDecl {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginImportDecl {
-    pub path:  String,
+    pub path: String,
     pub alias: String,
-    pub span:  Span,
+    pub span: Span,
 }
 
 // ── Provider declaration (v1.9) ────────────────────────────────────────
@@ -139,8 +143,8 @@ pub struct DerivedField {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FieldMetadata {
-    pub doc:     Option<String>,
-    pub range:   Option<(f64, f64)>,
+    pub doc: Option<String>,
+    pub range: Option<(f64, f64)>,
     pub affects: Vec<String>,
 }
 
@@ -162,15 +166,15 @@ pub enum LuminaType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExternalEntityDecl {
-    pub name:          String,
-    pub fields:        Vec<Field>,
-    pub sync_path:     String,
+    pub name: String,
+    pub fields: Vec<Field>,
+    pub sync_path: String,
     pub sync_strategy: SyncStrategy,
-    pub sync_fields:   Vec<String>,
+    pub sync_fields: Vec<String>,
     pub poll_interval: Option<Duration>,
-    pub sync_timeout:  Option<Duration>,
-    pub fallible:      bool,
-    pub span:          Span,
+    pub sync_timeout: Option<Duration>,
+    pub fallible: bool,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -184,9 +188,9 @@ pub enum SyncStrategy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LetStmt {
-    pub name:  String,
+    pub name: String,
     pub value: LetValue,
-    pub span:  Span,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -206,18 +210,18 @@ pub struct EntityInit {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuleDecl {
-    pub name:     String,
-    pub param:    Option<RuleParam>,
-    pub trigger:  RuleTrigger,
-    pub actions:  Vec<Action>,
+    pub name: String,
+    pub param: Option<RuleParam>,
+    pub trigger: RuleTrigger,
+    pub actions: Vec<Action>,
     pub cooldown: Option<Duration>,
     pub on_clear: Option<Vec<Action>>,
-    pub span:     Span,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuleParam {
-    pub name:   String,
+    pub name: String,
     pub entity: String,
 }
 
@@ -231,26 +235,26 @@ pub enum RuleTrigger {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Condition {
-    pub expr:         Expr,
-    pub becomes:      Option<Expr>,
+    pub expr: Expr,
+    pub becomes: Option<Expr>,
     pub for_duration: Option<Duration>,
-    pub frequency:    Option<Frequency>,
+    pub frequency: Option<Frequency>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FleetCondition {
-    pub entity:       String,
-    pub field:        String,
-    pub becomes:      Expr,
+    pub entity: String,
+    pub field: String,
+    pub becomes: Expr,
     pub for_duration: Option<Duration>,
-    pub frequency:    Option<Frequency>,
+    pub frequency: Option<Frequency>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Frequency {
-    pub count:  u32,
+    pub count: u32,
     pub within: Duration,
-    pub span:   Span,
+    pub span: Span,
 }
 
 // ── Duration (for temporal rules) ─────────────────────────────────────────
@@ -258,7 +262,7 @@ pub struct Frequency {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Duration {
     pub value: f64,
-    pub unit:  TimeUnit,
+    pub unit: TimeUnit,
 }
 
 impl Duration {
@@ -266,8 +270,8 @@ impl Duration {
         match self.unit {
             TimeUnit::Seconds => self.value,
             TimeUnit::Minutes => self.value * 60.0,
-            TimeUnit::Hours   => self.value * 3600.0,
-            TimeUnit::Days    => self.value * 86400.0,
+            TimeUnit::Hours => self.value * 3600.0,
+            TimeUnit::Days => self.value * 86400.0,
         }
     }
 
@@ -289,9 +293,18 @@ pub enum TimeUnit {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Action {
     Show(Expr),
-    Update { target: FieldPath, value: Expr },
-    Write { target: FieldPath, value: Expr },
-    Create { entity: String, fields: Vec<(String, Expr)> },
+    Update {
+        target: FieldPath,
+        value: Expr,
+    },
+    Write {
+        target: FieldPath,
+        value: Expr,
+    },
+    Create {
+        entity: String,
+        fields: Vec<(String, Expr)>,
+    },
     Delete(String),
     Alert(AlertAction),
 }
@@ -299,19 +312,19 @@ pub enum Action {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertAction {
     pub severity: Expr,
-    pub message:  Expr,
-    pub source:   Option<Expr>,
-    pub code:     Option<Expr>,
-    pub payload:  Vec<(String, Expr)>,
-    pub span:     Span,
+    pub message: Expr,
+    pub source: Option<Expr>,
+    pub code: Option<Expr>,
+    pub payload: Vec<(String, Expr)>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldPath {
-    pub instance:  String,
-    pub field:     String,
+    pub instance: String,
+    pub field: String,
     pub sub_field: Option<String>,
-    pub span:      Span,
+    pub span: Span,
 }
 
 // ── Expressions ────────────────────────────────────────────────────────────
@@ -323,26 +336,26 @@ pub enum Expr {
     Bool(bool),
     Ident(String),
     FieldAccess {
-        obj:   Box<Expr>,
+        obj: Box<Expr>,
         field: String,
-        span:  Span,
+        span: Span,
     },
     Binary {
-        op:    BinOp,
-        left:  Box<Expr>,
+        op: BinOp,
+        left: Box<Expr>,
         right: Box<Expr>,
-        span:  Span,
+        span: Span,
     },
     Unary {
-        op:      UnOp,
+        op: UnOp,
         operand: Box<Expr>,
-        span:    Span,
+        span: Span,
     },
     If {
-        cond:  Box<Expr>,
+        cond: Box<Expr>,
         then_: Box<Expr>,
         else_: Box<Expr>,
-        span:  Span,
+        span: Span,
     },
     InterpolatedString(Vec<StringSegment>),
     Call {
@@ -352,14 +365,14 @@ pub enum Expr {
     },
     ListLiteral(Vec<Expr>),
     Index {
-        list:  Box<Expr>,
+        list: Box<Expr>,
         index: Box<Expr>,
-        span:  Span,
+        span: Span,
     },
     Duration(Duration),
     Prev {
         field: String,
-        span:  Span,
+        span: Span,
     },
     /// v2.0: Access cluster state — `cluster.{node_id}.{field}` or `cluster.all.{field}`
     ClusterAccess {
@@ -393,9 +406,19 @@ pub enum StringSegment {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BinOp {
-    Add, Sub, Mul, Div, Mod,
-    Eq, Ne, Gt, Lt, Ge, Le,
-    And, Or,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Eq,
+    Ne,
+    Gt,
+    Lt,
+    Ge,
+    Le,
+    And,
+    Or,
 }
 
 impl fmt::Display for BinOp {
@@ -439,11 +462,11 @@ impl fmt::Display for UnOp {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggregateDecl {
-    pub name:   String,
-    pub over:   String,
+    pub name: String,
+    pub over: String,
     pub fields: Vec<AggregateField>,
-    pub scope:  AggregateScope,
-    pub span:   Span,
+    pub scope: AggregateScope,
+    pub span: Span,
 }
 
 /// v2.0: Scope for aggregate computation

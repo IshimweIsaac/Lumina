@@ -1,21 +1,24 @@
 use crate::store::EntityStore;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snapshot {
-    pub version:   u64,
-    pub store:     EntityStore,
+    pub version: u64,
+    pub store: EntityStore,
 }
 
 #[derive(Debug)]
 pub struct SnapshotStack {
     snapshots: Vec<Snapshot>,
-    version:   u64,
+    version: u64,
 }
 
 impl SnapshotStack {
     pub fn new() -> Self {
-        Self { snapshots: vec![], version: 0 }
+        Self {
+            snapshots: vec![],
+            version: 0,
+        }
     }
 
     /// Take a snapshot of the current store state
@@ -23,7 +26,7 @@ impl SnapshotStack {
         self.version += 1;
         Snapshot {
             version: self.version,
-            store:   store.clone(),
+            store: store.clone(),
         }
     }
 
@@ -46,18 +49,18 @@ impl SnapshotStack {
 /// The result of a propagation cycle
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PropResult {
-    pub success:      bool,
+    pub success: bool,
     pub events_fired: Vec<FiredEvent>,
-    pub version:      u64,
+    pub version: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FiredEvent {
-    pub rule:     String,
+    pub rule: String,
     pub instance: String,
     pub severity: String,
-    pub message:  String,
-    pub ts:       f64,
+    pub message: String,
+    pub ts: f64,
 }
 
 /// Returned when a propagation cycle is rolled back
@@ -68,12 +71,12 @@ pub struct RollbackResult {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Diagnostic {
-    pub version:          u64,
-    pub rolled_back:      bool,
-    pub error_code:       String,
-    pub message:          String,
-    pub suggested_fix:    String,
-    pub affected_rules:   Vec<String>,
+    pub version: u64,
+    pub rolled_back: bool,
+    pub error_code: String,
+    pub message: String,
+    pub suggested_fix: String,
+    pub affected_rules: Vec<String>,
 }
 
 impl Diagnostic {

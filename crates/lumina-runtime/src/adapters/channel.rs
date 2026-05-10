@@ -1,6 +1,9 @@
 use crate::adapter::LuminaAdapter;
 use crate::value::Value;
-use std::sync::{mpsc::{Receiver, Sender}, Mutex};
+use std::sync::{
+    mpsc::{Receiver, Sender},
+    Mutex,
+};
 
 /// An adapter backed by Rust `mpsc` channels.
 /// Receives values from a `Receiver` and optionally sends write-backs
@@ -17,12 +20,18 @@ impl ChannelAdapter {
         rx: Receiver<(String, String, Value)>,
         tx: Option<Sender<(String, Value)>>,
     ) -> Self {
-        Self { entity: entity.into(), rx: Mutex::new(rx), tx }
+        Self {
+            entity: entity.into(),
+            rx: Mutex::new(rx),
+            tx,
+        }
     }
 }
 
 impl LuminaAdapter for ChannelAdapter {
-    fn entity_name(&self) -> &str { &self.entity }
+    fn entity_name(&self) -> &str {
+        &self.entity
+    }
 
     fn poll(&mut self) -> Option<(String, String, Value)> {
         self.rx.lock().ok()?.try_recv().ok()
@@ -34,4 +43,3 @@ impl LuminaAdapter for ChannelAdapter {
         }
     }
 }
-

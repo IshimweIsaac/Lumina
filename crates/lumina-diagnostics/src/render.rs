@@ -11,20 +11,22 @@ impl DiagnosticRenderer {
         out.push_str(&format!("error[{}]: {}\n", d.code, d.message));
 
         // Location: --> file.lum:4:3
-        out.push_str(&format!(" --> {}:{}:{}\n", 
-            d.location.file, d.location.line, d.location.col));
+        out.push_str(&format!(
+            " --> {}:{}:{}\n",
+            d.location.file, d.location.line, d.location.col
+        ));
 
         // Gutter: build padding to align line numbers
         let gutter = d.location.line.to_string();
         let pad = " ".repeat(gutter.len());
-        
+
         out.push_str(&format!("{} |\n", pad));
         out.push_str(&format!("{} | {}\n", gutter, d.source_line));
 
         // Caret: spaces + carets under the error token
         let spaces = " ".repeat((d.location.col.saturating_sub(1)) as usize);
         let carets = "^".repeat(d.location.len.max(1) as usize);
-        
+
         out.push_str(&format!("{} | {}{}\n", pad, spaces, carets));
         out.push_str(&format!("{} |\n", pad));
 
@@ -38,7 +40,8 @@ impl DiagnosticRenderer {
 
     /// Render multiple diagnostics, separated by blank lines.
     pub fn render_all(diags: &[Diagnostic]) -> String {
-        diags.iter()
+        diags
+            .iter()
             .map(Self::render)
             .collect::<Vec<_>>()
             .join("\n")

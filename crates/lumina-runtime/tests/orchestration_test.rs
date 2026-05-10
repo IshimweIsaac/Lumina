@@ -1,10 +1,10 @@
+use lumina_analyzer::analyze;
+use lumina_cluster::{ClusterConfig, ClusterNode};
+use lumina_parser::parse;
+use lumina_runtime::engine::Evaluator;
+use lumina_runtime::value::Value;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use lumina_runtime::engine::Evaluator;
-use lumina_analyzer::analyze;
-use lumina_parser::parse;
-use lumina_cluster::{ClusterNode, ClusterConfig};
-use lumina_runtime::value::Value;
 
 #[tokio::test]
 async fn test_workload_migration() {
@@ -44,9 +44,16 @@ async fn test_workload_migration() {
     node1.initialize();
     let arc_node1 = Arc::new(Mutex::new(node1));
     ev1.cluster_node = Some(Arc::clone(&arc_node1));
-    
+
     // Create t1 on node1
-    ev1.exec_statement(&program.statements.iter().find(|s| matches!(s, lumina_parser::ast::Statement::Let(_))).unwrap()).unwrap();
+    ev1.exec_statement(
+        &program
+            .statements
+            .iter()
+            .find(|s| matches!(s, lumina_parser::ast::Statement::Let(_)))
+            .unwrap(),
+    )
+    .unwrap();
 
     // Node 2 Setup
     let mut ev2 = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), vec![]);
@@ -89,11 +96,20 @@ async fn test_workload_migration() {
     }
 
     // Verify t1 moved to node2
-    assert!(ev1.store.get("t1").is_none(), "t1 should be gone from node1");
-    assert!(ev2.store.get("t1").is_some(), "t1 should be present on node2");
-    
+    assert!(
+        ev1.store.get("t1").is_none(),
+        "t1 should be gone from node1"
+    );
+    assert!(
+        ev2.store.get("t1").is_some(),
+        "t1 should be present on node2"
+    );
+
     let t1_node2 = ev2.store.get("t1").unwrap();
-    assert_eq!(ev2.get_instance_field(t1_node2, "status").unwrap(), Value::Text("pending".into()));
-    
+    assert_eq!(
+        ev2.get_instance_field(t1_node2, "status").unwrap(),
+        Value::Text("pending".into())
+    );
+
     println!("SUCCESS: Workload migrated across nodes.");
 }

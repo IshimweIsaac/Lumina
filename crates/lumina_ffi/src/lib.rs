@@ -1,26 +1,26 @@
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
-use std::collections::HashMap;
-use std::cell::RefCell;
-use lumina_parser::parse;
-use lumina_parser::ast::*;
 use lumina_analyzer::analyze;
+use lumina_parser::ast::*;
+use lumina_parser::parse;
 use lumina_runtime::engine::Evaluator;
 use lumina_runtime::value::Value;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 thread_local! {
     static LAST_CREATE_ERROR: RefCell<Option<String>> = RefCell::new(None);
 }
 
 /// # Memory Safety and Ownership Rules
-/// 
+///
 /// The FFI boundary frequently returns strings as raw C-style pointers (`*mut c_char`).
 /// These strings are allocated on the Rust heap using `CString::into_raw()` to allow
 /// them to cross the FFI boundary safely.
-/// 
-/// **CRITICAL**: The caller takes full ownership of these pointers. To prevent memory 
-/// leaks, the caller MUST explicitly free every returned non-null string pointer by 
-/// passing it back to `lumina_free_string`. Do not use `free()` from the C standard 
+///
+/// **CRITICAL**: The caller takes full ownership of these pointers. To prevent memory
+/// leaks, the caller MUST explicitly free every returned non-null string pointer by
+/// passing it back to `lumina_free_string`. Do not use `free()` from the C standard
 /// library, as the Rust allocator must handle the deallocation.
 
 /// Opaque runtime handle — the caller never sees internals
@@ -51,7 +51,7 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
     }
     let mut ev = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), rules);
     ev.derived_exprs = derived;
-    
+
     // B1 Fix: Process all statements to ensure parity.
     for stmt in &analyzed.program.statements {
         match stmt {
@@ -62,7 +62,8 @@ fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
                 // Add derived fields
                 for f in &e.fields {
                     if let Field::Derived(df) = f {
-                        ev.derived_exprs.insert((e.name.clone(), df.name.clone()), df.expr.clone());
+                        ev.derived_exprs
+                            .insert((e.name.clone(), df.name.clone()), df.expr.clone());
                     }
                 }
             }
@@ -92,7 +93,9 @@ fn json_to_value(jv: &serde_json::Value) -> Option<Value> {
 
 #[no_mangle]
 pub extern "C" fn lumina_create(source: *const c_char) -> *mut LuminaRuntime {
-    if source.is_null() { return std::ptr::null_mut(); }
+    if source.is_null() {
+        return std::ptr::null_mut();
+    }
 
     let src = unsafe { CStr::from_ptr(source) };
     let src = match src.to_str() {
@@ -114,7 +117,8 @@ pub extern "C" fn lumina_create(source: *const c_char) -> *mut LuminaRuntime {
     let analyzed = match analyze(program, src, "<FFI>", false) {
         Ok(a) => a,
         Err(errors) => {
-            let msg = errors.iter()
+            let msg = errors
+                .iter()
                 .map(|e| format!("[{}] {}", e.code, e.message))
                 .collect::<Vec<_>>()
                 .join("\n");
@@ -142,18 +146,20 @@ pub extern "C" fn lumina_create(source: *const c_char) -> *mut LuminaRuntime {
         return std::ptr::null_mut();
     }
 
-    Box::into_raw(Box::new(LuminaRuntime { evaluator, last_error: None }))
+    Box::into_raw(Box::new(LuminaRuntime {
+        evaluator,
+        last_error: None,
+    }))
 }
 
 #[no_mangle]
 pub extern "C" fn lumina_apply_event(
-    runtime:       *mut LuminaRuntime,
+    runtime: *mut LuminaRuntime,
     instance_name: *const c_char,
-    field_name:    *const c_char,
-    value_json:    *const c_char,
+    field_name: *const c_char,
+    value_json: *const c_char,
 ) -> *mut c_char {
-    if runtime.is_null() || instance_name.is_null()
-        || field_name.is_null() || value_json.is_null()
+    if runtime.is_null() || instance_name.is_null() || field_name.is_null() || value_json.is_null()
     {
         return std::ptr::null_mut();
     }
@@ -194,7 +200,9 @@ pub extern "C" fn lumina_apply_event(
 
 #[no_mangle]
 pub extern "C" fn lumina_export_state(runtime: *const LuminaRuntime) -> *mut c_char {
-    if runtime.is_null() { return std::ptr::null_mut(); }
+    if runtime.is_null() {
+        return std::ptr::null_mut();
+    }
     let rt = unsafe { &*runtime };
     let state = rt.evaluator.export_state();
     to_c_string(&serde_json::to_string_pretty(&state).unwrap_or_default())
@@ -202,13 +210,16 @@ pub extern "C" fn lumina_export_state(runtime: *const LuminaRuntime) -> *mut c_c
 
 #[no_mangle]
 pub extern "C" fn lumina_tick(runtime: *mut LuminaRuntime) -> *mut c_char {
-    if runtime.is_null() { return std::ptr::null_mut(); }
+    if runtime.is_null() {
+        return std::ptr::null_mut();
+    }
     let rt = unsafe { &mut *runtime };
     match rt.evaluator.tick() {
         Ok(events) => {
-            let arr: Vec<serde_json::Value> = events.iter().map(|e| {
-                serde_json::json!({"rule": e.rule, "instance": e.instance})
-            }).collect();
+            let arr: Vec<serde_json::Value> = events
+                .iter()
+                .map(|e| serde_json::json!({"rule": e.rule, "instance": e.instance}))
+                .collect();
             to_c_string(&serde_json::to_string(&arr).unwrap_or_default())
         }
         Err(rollback) => {
@@ -221,7 +232,9 @@ pub extern "C" fn lumina_tick(runtime: *mut LuminaRuntime) -> *mut c_char {
 
 #[no_mangle]
 pub extern "C" fn lumina_get_messages(runtime: *mut LuminaRuntime) -> *mut c_char {
-    if runtime.is_null() { return std::ptr::null_mut(); }
+    if runtime.is_null() {
+        return std::ptr::null_mut();
+    }
     let rt = unsafe { &mut *runtime };
     let messages: Vec<String> = rt.evaluator.get_output().to_vec();
     rt.evaluator.clear_output();
@@ -232,11 +245,9 @@ pub extern "C" fn lumina_get_messages(runtime: *mut LuminaRuntime) -> *mut c_cha
 pub extern "C" fn lumina_last_error(runtime: *const LuminaRuntime) -> *mut c_char {
     if runtime.is_null() {
         // Check thread-local for creation errors
-        return LAST_CREATE_ERROR.with(|cell| {
-            match cell.borrow().as_ref() {
-                Some(msg) => to_c_string(msg),
-                None => to_c_string(""),
-            }
+        return LAST_CREATE_ERROR.with(|cell| match cell.borrow().as_ref() {
+            Some(msg) => to_c_string(msg),
+            None => to_c_string(""),
         });
     }
     let rt = unsafe { &*runtime };
@@ -249,14 +260,18 @@ pub extern "C" fn lumina_last_error(runtime: *const LuminaRuntime) -> *mut c_cha
 #[no_mangle]
 pub extern "C" fn lumina_free_string(s: *mut c_char) {
     if !s.is_null() {
-        unsafe { drop(CString::from_raw(s)); }
+        unsafe {
+            drop(CString::from_raw(s));
+        }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn lumina_destroy(runtime: *mut LuminaRuntime) {
     if !runtime.is_null() {
-        unsafe { drop(Box::from_raw(runtime)); }
+        unsafe {
+            drop(Box::from_raw(runtime));
+        }
     }
 }
 
@@ -273,7 +288,8 @@ mod tests {
             "  isHot := temp > 30\n",
             "}\n",
             "let Sensor = Sensor { temp: 25 }\n",
-        )).unwrap()
+        ))
+        .unwrap()
     }
 
     #[test]
@@ -284,7 +300,9 @@ mod tests {
 
         let state_ptr = lumina_export_state(rt);
         assert!(!state_ptr.is_null());
-        let state = unsafe { CStr::from_ptr(state_ptr) }.to_string_lossy().to_string();
+        let state = unsafe { CStr::from_ptr(state_ptr) }
+            .to_string_lossy()
+            .to_string();
         assert!(state.contains("Sensor"));
         assert!(state.contains("temp"));
 
@@ -304,13 +322,17 @@ mod tests {
 
         let result_ptr = lumina_apply_event(rt, inst.as_ptr(), field.as_ptr(), val.as_ptr());
         assert!(!result_ptr.is_null());
-        let result = unsafe { CStr::from_ptr(result_ptr) }.to_string_lossy().to_string();
+        let result = unsafe { CStr::from_ptr(result_ptr) }
+            .to_string_lossy()
+            .to_string();
         assert!(result.contains("success"));
         assert!(!result.starts_with("ERROR:"));
 
         // Check state reflects the update
         let state_ptr = lumina_export_state(rt);
-        let state = unsafe { CStr::from_ptr(state_ptr) }.to_string_lossy().to_string();
+        let state = unsafe { CStr::from_ptr(state_ptr) }
+            .to_string_lossy()
+            .to_string();
         assert!(state.contains("true")); // isHot should be true now
 
         lumina_free_string(result_ptr);
@@ -330,8 +352,13 @@ mod tests {
 
         let result_ptr = lumina_apply_event(rt, inst.as_ptr(), field.as_ptr(), val.as_ptr());
         assert!(!result_ptr.is_null());
-        let result = unsafe { CStr::from_ptr(result_ptr) }.to_string_lossy().to_string();
-        assert!(result.starts_with("ERROR:"), "expected ERROR, got: {result}");
+        let result = unsafe { CStr::from_ptr(result_ptr) }
+            .to_string_lossy()
+            .to_string();
+        assert!(
+            result.starts_with("ERROR:"),
+            "expected ERROR, got: {result}"
+        );
 
         lumina_free_string(result_ptr);
         lumina_destroy(rt);
@@ -345,7 +372,9 @@ mod tests {
 
         let err_ptr = lumina_last_error(std::ptr::null());
         assert!(!err_ptr.is_null());
-        let err = unsafe { CStr::from_ptr(err_ptr) }.to_string_lossy().to_string();
+        let err = unsafe { CStr::from_ptr(err_ptr) }
+            .to_string_lossy()
+            .to_string();
         assert!(!err.is_empty());
 
         lumina_free_string(err_ptr);
@@ -361,6 +390,7 @@ mod tests {
             std::ptr::null(),
             std::ptr::null(),
             std::ptr::null(),
-        ).is_null());
+        )
+        .is_null());
     }
 }

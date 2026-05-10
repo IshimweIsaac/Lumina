@@ -10,7 +10,12 @@ pub struct SourceLocation {
 
 impl SourceLocation {
     pub fn new(file: impl Into<String>, line: u32, col: u32, len: u32) -> Self {
-        Self { file: file.into(), line, col, len: len.max(1) }
+        Self {
+            file: file.into(),
+            line,
+            col,
+            len: len.max(1),
+        }
     }
 
     /// Build from a Span (which carries line + col from the lexer).

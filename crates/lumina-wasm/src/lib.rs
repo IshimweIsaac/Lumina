@@ -1,10 +1,10 @@
-use wasm_bindgen::prelude::*;
-use std::collections::HashMap;
-use lumina_parser::parse;
-use lumina_parser::ast::*;
 use lumina_analyzer::analyze;
-use lumina_runtime::engine::Evaluator;
 use lumina_diagnostics::{Diagnostic, DiagnosticRenderer, SourceLocation};
+use lumina_parser::ast::*;
+use lumina_parser::parse;
+use lumina_runtime::engine::Evaluator;
+use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
 pub fn init() {
@@ -30,16 +30,23 @@ impl LuminaRuntime {
                     e.to_string(),
                     SourceLocation::new("<WASM>", 1, 1, 1),
                     "",
-                    Some("Check your syntax — maybe you missed a brace or a semicolon?".to_string())
+                    Some(
+                        "Check your syntax — maybe you missed a brace or a semicolon?".to_string(),
+                    ),
                 );
-                return Err(JsValue::from_str(&serde_json::to_string(&vec![diag]).unwrap_or_else(|e| format!("[\"Internal Error during parsing: {}\"]", e))));
+                return Err(JsValue::from_str(
+                    &serde_json::to_string(&vec![diag])
+                        .unwrap_or_else(|e| format!("[\"Internal Error during parsing: {}\"]", e)),
+                ));
             }
         };
 
-        let analyzed = analyze(program, source, "<WASM>", false)
-            .map_err(|errors| {
-                JsValue::from_str(&serde_json::to_string(&errors).unwrap_or_else(|e| format!("[\"Internal Error during analysis: {}\"]", e)))
-            })?;
+        let analyzed = analyze(program, source, "<WASM>", false).map_err(|errors| {
+            JsValue::from_str(
+                &serde_json::to_string(&errors)
+                    .unwrap_or_else(|e| format!("[\"Internal Error during analysis: {}\"]", e)),
+            )
+        })?;
 
         let mut rules = Vec::new();
         let mut derived = HashMap::new();
@@ -60,15 +67,18 @@ impl LuminaRuntime {
         let mut evaluator = Evaluator::new(analyzed.schema, analyzed.graph, rules);
         evaluator.now = now;
         evaluator.derived_exprs = derived;
-        
+
         for stmt in &analyzed.program.statements {
             match stmt {
                 Statement::ExternalEntity(e) => {
-                    let adapter = lumina_runtime::adapters::static_adapter::StaticAdapter::new(&e.name);
+                    let adapter =
+                        lumina_runtime::adapters::static_adapter::StaticAdapter::new(&e.name);
                     evaluator.register_adapter(Box::new(adapter));
                     for f in &e.fields {
                         if let Field::Derived(df) = f {
-                            evaluator.derived_exprs.insert((e.name.clone(), df.name.clone()), df.expr.clone());
+                            evaluator
+                                .derived_exprs
+                                .insert((e.name.clone(), df.name.clone()), df.expr.clone());
                         }
                     }
                 }
@@ -85,22 +95,23 @@ impl LuminaRuntime {
         let mut pending_alerts = Vec::new();
 
         for stmt in &analyzed.program.statements {
-            let evts = evaluator.exec_statement(stmt)
-                .map_err(|e| JsValue::from_str(&format!(
-                    "Runtime error [{}]: {}", e.code(), e.message()
-                )))?;
+            let evts = evaluator.exec_statement(stmt).map_err(|e| {
+                JsValue::from_str(&format!("Runtime error [{}]: {}", e.code(), e.message()))
+            })?;
             pending_alerts.extend(evts);
         }
         evaluator.is_initializing = false;
 
         // Final recalculation to pick up initial steady-state alerts
-        let initial_evts = evaluator.recalculate_all_rules()
-            .map_err(|e| JsValue::from_str(&format!(
-                "Runtime error [{}]: {}", e.code(), e.message()
-            )))?;
+        let initial_evts = evaluator.recalculate_all_rules().map_err(|e| {
+            JsValue::from_str(&format!("Runtime error [{}]: {}", e.code(), e.message()))
+        })?;
         pending_alerts.extend(initial_evts);
 
-        Ok(LuminaRuntime { evaluator, pending_alerts })
+        Ok(LuminaRuntime {
+            evaluator,
+            pending_alerts,
+        })
     }
 
     #[wasm_bindgen]
@@ -116,48 +127,61 @@ impl LuminaRuntime {
 
         let value = match json_val {
             serde_json::Value::Number(n) => lumina_runtime::Value::Number(
-                n.as_f64().ok_or_else(|| JsValue::from_str("Invalid number"))?
+                n.as_f64()
+                    .ok_or_else(|| JsValue::from_str("Invalid number"))?,
             ),
             serde_json::Value::String(s) => lumina_runtime::Value::Text(s),
-            serde_json::Value::Bool(b)   => lumina_runtime::Value::Bool(b),
+            serde_json::Value::Bool(b) => lumina_runtime::Value::Bool(b),
             serde_json::Value::Array(arr) => {
-                let items: Result<Vec<_>, _> = arr.into_iter().map(|v| match v {
-                    serde_json::Value::Number(n) => Ok(lumina_runtime::Value::Number(
-                        n.as_f64().ok_or_else(|| JsValue::from_str("Invalid number in list"))?
-                    )),
-                    serde_json::Value::String(s) => Ok(lumina_runtime::Value::Text(s)),
-                    serde_json::Value::Bool(b) => Ok(lumina_runtime::Value::Bool(b)),
-                    _ => Err(JsValue::from_str("Unsupported value type in list")),
-                }).collect();
+                let items: Result<Vec<_>, _> = arr
+                    .into_iter()
+                    .map(|v| match v {
+                        serde_json::Value::Number(n) => Ok(lumina_runtime::Value::Number(
+                            n.as_f64()
+                                .ok_or_else(|| JsValue::from_str("Invalid number in list"))?,
+                        )),
+                        serde_json::Value::String(s) => Ok(lumina_runtime::Value::Text(s)),
+                        serde_json::Value::Bool(b) => Ok(lumina_runtime::Value::Bool(b)),
+                        _ => Err(JsValue::from_str("Unsupported value type in list")),
+                    })
+                    .collect();
                 lumina_runtime::Value::List(items?)
             }
             _ => return Err(JsValue::from_str("Unsupported value type")),
         };
 
         match self.evaluator.apply_event(instance_name, field_name, value) {
-            Ok(result) => Ok(serde_json::to_string(&result).unwrap_or_else(|e| format!("\"Serialization error: {}\"", e))),
+            Ok(result) => Ok(serde_json::to_string(&result)
+                .unwrap_or_else(|e| format!("\"Serialization error: {}\"", e))),
             Err(rollback) => Err(JsValue::from_str(
-                &serde_json::to_string(&rollback.diagnostic).unwrap_or_else(|e| format!("\"Rollback serialization error: {}\"", e))
+                &serde_json::to_string(&rollback.diagnostic)
+                    .unwrap_or_else(|e| format!("\"Rollback serialization error: {}\"", e)),
             )),
         }
     }
 
     #[wasm_bindgen]
     pub fn export_state(&self) -> String {
-        serde_json::to_string_pretty(&self.evaluator.export_state()).unwrap_or_else(|e| format!("\"State export error: {}\"", e))
+        serde_json::to_string_pretty(&self.evaluator.export_state())
+            .unwrap_or_else(|e| format!("\"State export error: {}\"", e))
     }
 
     #[wasm_bindgen]
     pub fn tick(&mut self) -> String {
         self.evaluator.now = js_sys::Date::now();
         let mut all_events = std::mem::take(&mut self.pending_alerts);
-        
+
         match self.evaluator.tick() {
             Ok(events) => {
                 all_events.extend(events);
-                serde_json::to_string(&all_events).unwrap_or_else(|e| format!("\"Tick error: {}\"", e))
+                serde_json::to_string(&all_events)
+                    .unwrap_or_else(|e| format!("\"Tick error: {}\"", e))
             }
-            Err(rb) => format!("ERROR:{}", serde_json::to_string(&rb.diagnostic).unwrap_or_else(|e| format!("\"Rollback error: {}\"", e))),
+            Err(rb) => format!(
+                "ERROR:{}",
+                serde_json::to_string(&rb.diagnostic)
+                    .unwrap_or_else(|e| format!("\"Rollback error: {}\"", e))
+            ),
         }
     }
 
@@ -177,14 +201,16 @@ impl LuminaRuntime {
                     e.to_string(),
                     SourceLocation::new("<WASM>", 1, 1, 1),
                     "",
-                    Some("Check your syntax rules.".to_string())
+                    Some("Check your syntax rules.".to_string()),
                 );
-                serde_json::to_string(&vec![diag]).unwrap_or_else(|e| format!("[\"Check parse error: {}\"]", e))
-            },
-            Ok(program) => match analyze(program, source, "<WASM>", false) {
-                Err(errors) => serde_json::to_string(&errors).unwrap_or_else(|e| format!("[\"Check analysis error: {}\"]", e)),
-                Ok(_) => "[]".to_string(),
+                serde_json::to_string(&vec![diag])
+                    .unwrap_or_else(|e| format!("[\"Check parse error: {}\"]", e))
             }
+            Ok(program) => match analyze(program, source, "<WASM>", false) {
+                Err(errors) => serde_json::to_string(&errors)
+                    .unwrap_or_else(|e| format!("[\"Check analysis error: {}\"]", e)),
+                Ok(_) => "[]".to_string(),
+            },
         }
     }
 }

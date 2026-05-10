@@ -1,5 +1,5 @@
+use lumina_parser::ast::{Field, Program, RuleTrigger, Statement};
 use tower_lsp::lsp_types::*;
-use lumina_parser::ast::{Program, Statement, Field, RuleTrigger};
 
 pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
     for stmt in &prog.statements {
@@ -14,7 +14,10 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
             // Hover on entity name itself
             let el = entity_span.line.saturating_sub(1);
             let ec = entity_span.col.saturating_sub(1);
-            if pos.line == el && pos.character >= ec && pos.character <= ec + entity_name.len() as u32 {
+            if pos.line == el
+                && pos.character >= ec
+                && pos.character <= ec + entity_name.len() as u32
+            {
                 let is_ext = matches!(stmt, Statement::ExternalEntity(_));
                 let field_count = fields.len();
                 let label = if is_ext { "external entity" } else { "entity" };
@@ -25,15 +28,9 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
 
             for f in fields {
                 let (name, span, doc, range) = match f {
-                    Field::Stored(sf) => (
-                        &sf.name, &sf.span, &sf.metadata.doc, sf.metadata.range,
-                    ),
-                    Field::Derived(df) => (
-                        &df.name, &df.span, &df.metadata.doc, df.metadata.range,
-                    ),
-                    Field::Ref(rf) => (
-                        &rf.name, &rf.span, &None, None,
-                    ),
+                    Field::Stored(sf) => (&sf.name, &sf.span, &sf.metadata.doc, sf.metadata.range),
+                    Field::Derived(df) => (&df.name, &df.span, &df.metadata.doc, df.metadata.range),
+                    Field::Ref(rf) => (&rf.name, &rf.span, &None, None),
                 };
 
                 let type_label = match f {
@@ -48,8 +45,12 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
 
                 if pos.line == l && pos.character >= c && pos.character <= c + field_len {
                     let mut lines = vec![format!("**{}**: {}", name, type_label)];
-                    if let Some(d) = doc { lines.push(d.clone()); }
-                    if let Some((lo, hi)) = range { lines.push(format!("Range: {} to {}", lo, hi)); }
+                    if let Some(d) = doc {
+                        lines.push(d.clone());
+                    }
+                    if let Some((lo, hi)) = range {
+                        lines.push(format!("Range: {} to {}", lo, hi));
+                    }
                     return Some(make_hover(lines.join("\n\n")));
                 }
             }
@@ -66,11 +67,15 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
                     RuleTrigger::All(fc) => format!("when all {}.{}", fc.entity, fc.field),
                     RuleTrigger::Every(dur) => format!("every {} {:?}", dur.value, dur.unit),
                 };
-                let param_desc = r.param.as_ref()
+                let param_desc = r
+                    .param
+                    .as_ref()
                     .map(|p| format!("for ({}: {})", p.name, p.entity))
                     .unwrap_or_default();
                 let action_count = r.actions.len();
-                let cooldown_desc = r.cooldown.as_ref()
+                let cooldown_desc = r
+                    .cooldown
+                    .as_ref()
                     .map(|cd| format!(" | cooldown: {} {:?}", cd.value, cd.unit))
                     .unwrap_or_default();
                 return Some(make_hover(format!(
@@ -84,12 +89,16 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
         if let Statement::Fn(f) = stmt {
             let fl = f.span.line.saturating_sub(1);
             if pos.line == fl {
-                let params: Vec<String> = f.params.iter()
+                let params: Vec<String> = f
+                    .params
+                    .iter()
                     .map(|p| format!("{}: {:?}", p.name, p.type_))
                     .collect();
                 return Some(make_hover(format!(
                     "**fn** `{}`({}) → {:?}",
-                    f.name, params.join(", "), f.returns
+                    f.name,
+                    params.join(", "),
+                    f.returns
                 )));
             }
         }
@@ -104,9 +113,7 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
                     }
                     lumina_parser::ast::LetValue::Expr(_) => "expression".to_string(),
                 };
-                return Some(make_hover(format!(
-                    "**let** `{}` = {}", l.name, val_desc
-                )));
+                return Some(make_hover(format!("**let** `{}` = {}", l.name, val_desc)));
             }
         }
 
@@ -114,23 +121,31 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
         if let Statement::Aggregate(a) = stmt {
             let al = a.span.line.saturating_sub(1);
             if pos.line == al {
-                let field_list: Vec<String> = a.fields.iter()
+                let field_list: Vec<String> = a
+                    .fields
+                    .iter()
                     .map(|f| format!("{}: {:?}", f.name, f.expr))
                     .collect();
                 return Some(make_hover(format!(
                     "**aggregate** `{}` over `{}`\n\nFields:\n- {}",
-                    a.name, a.over, field_list.join("\n- ")
+                    a.name,
+                    a.over,
+                    field_list.join("\n- ")
                 )));
             }
         }
-        
+
         // ── Cluster hover ──────────────────────────────────────────
         if let Statement::Cluster(c) = stmt {
             let cl = c.span.line.saturating_sub(1);
             if pos.line == cl {
                 return Some(make_hover(format!(
                     "**cluster node** `{}`\n\nPeers: {}\nQuorum: {}\nElection Timeout: {} {:?}",
-                    c.node_id, c.peers.len(), c.quorum, c.election_timeout.value, c.election_timeout.unit
+                    c.node_id,
+                    c.peers.len(),
+                    c.quorum,
+                    c.election_timeout.value,
+                    c.election_timeout.unit
                 )));
             }
         }

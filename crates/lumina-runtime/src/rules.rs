@@ -1,7 +1,7 @@
-use lumina_parser::ast::*;
 use crate::engine::Evaluator;
 use crate::value::Value;
 use crate::RuntimeError;
+use lumina_parser::ast::*;
 
 pub fn condition_is_met(
     evaluator: &Evaluator,
@@ -26,7 +26,8 @@ pub fn condition_is_met(
             if check_transition {
                 if let Some(prev_store) = &evaluator.prev_store {
                     // Evaluate the same expression against the previous state
-                    let prev_val = eval_expr_with_store(evaluator, &condition.expr, instance_name, prev_store);
+                    let prev_val =
+                        eval_expr_with_store(evaluator, &condition.expr, instance_name, prev_store);
                     if let Ok(prev) = prev_val {
                         // If the previous value already matched the target, this is NOT a transition
                         if prev == target {
@@ -80,7 +81,12 @@ fn eval_expr_with_store(
             // Fallback: use the current evaluator
             evaluator.eval_expr(expr, Some(instance_name))
         }
-        Expr::Binary { op, left, right, span: _ } => {
+        Expr::Binary {
+            op,
+            left,
+            right,
+            span: _,
+        } => {
             let l = eval_expr_with_store(evaluator, left, instance_name, prev_store)?;
             let r = eval_expr_with_store(evaluator, right, instance_name, prev_store)?;
             // Re-evaluate the binary operation with previous values

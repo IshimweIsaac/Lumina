@@ -1,58 +1,102 @@
-pub mod value;
-pub mod store;
-pub mod snapshot;
-pub mod engine;
-pub mod rules;
-pub mod timers;
 pub mod adapter;
 pub mod adapters;
-pub mod fleet;
 pub mod aggregate;
+pub mod engine;
+pub mod fleet;
 pub mod lsl;
+pub mod rules;
+pub mod snapshot;
+pub mod store;
+pub mod timers;
+pub mod value;
 
-pub use value::Value;
-pub use store::{Instance, EntityStore};
-pub use snapshot::{Snapshot, SnapshotStack, PropResult, FiredEvent, RollbackResult, Diagnostic};
 pub use adapter::LuminaAdapter;
 pub use engine::Evaluator;
 pub use lsl::LslRegistry;
+pub use snapshot::{Diagnostic, FiredEvent, PropResult, RollbackResult, Snapshot, SnapshotStack};
+pub use store::{EntityStore, Instance};
+pub use value::Value;
 
 #[derive(Debug)]
 pub enum RuntimeError {
-    R001 { instance: String },
+    R001 {
+        instance: String,
+    },
     R002,
-    R003 { depth: usize },
-    R004 { index: usize, len: usize },
-    R005 { instance: String, field: String },
-    R006 { field: String, value: f64, min: f64, max: f64 },
-    R007 { entity: String, reason: String },
-    R008 { rule: String },
-    R009 { field: String },
+    R003 {
+        depth: usize,
+    },
+    R004 {
+        index: usize,
+        len: usize,
+    },
+    R005 {
+        instance: String,
+        field: String,
+    },
+    R006 {
+        field: String,
+        value: f64,
+        min: f64,
+        max: f64,
+    },
+    R007 {
+        entity: String,
+        reason: String,
+    },
+    R008 {
+        rule: String,
+    },
+    R009 {
+        field: String,
+    },
     /// v1.9: Security violation — write blocked by auth context
-    R010 { rule: String, reason: String },
+    R010 {
+        rule: String,
+        reason: String,
+    },
     /// v2.0: Quorum lost — cluster cannot commit writes
-    R011 { reason: String },
+    R011 {
+        reason: String,
+    },
     /// v2.0: Node isolated — operating in read-only mode
-    R012 { reason: String },
+    R012 {
+        reason: String,
+    },
     /// v2.0: WAL replication lag exceeds threshold
-    R013 { reason: String },
+    R013 {
+        reason: String,
+    },
     /// v2.0: Cross-node entity reference unresolvable
-    R014 { node: String, entity: String },
+    R014 {
+        node: String,
+        entity: String,
+    },
     /// v2.0: Orchestration write target unreachable
-    R015 { target: String },
+    R015 {
+        target: String,
+    },
     /// v2.0: Cluster aggregate computation timeout
-    R016 { reason: String },
+    R016 {
+        reason: String,
+    },
     /// v2.0: Migration target has insufficient capacity
-    R017 { target: String, reason: String },
+    R017 {
+        target: String,
+        reason: String,
+    },
     /// v2.0: Type mismatch during operation
-    R018 { expected: String, found: String },
+    R018 {
+        expected: String,
+        found: String,
+    },
 }
 
 impl RuntimeError {
     pub fn code(&self) -> &'static str {
         match self {
             RuntimeError::R001 { .. } => "R001",
-            RuntimeError::R002        => "R002",
+            RuntimeError::R002 => "R002",
             RuntimeError::R003 { .. } => "R003",
             RuntimeError::R004 { .. } => "R004",
             RuntimeError::R005 { .. } => "R005",

@@ -3,17 +3,17 @@ use serde::Serialize;
 pub mod location;
 pub mod render;
 
-pub use location::{SourceLocation, extract_line};
+pub use location::{extract_line, SourceLocation};
 pub use render::DiagnosticRenderer;
 
 /// A fully-resolved compiler or runtime diagnostic.
 /// Every error in v1.8.0 produces one of these.
 #[derive(Debug, Clone, Serialize)]
 pub struct Diagnostic {
-    pub code: String, // "L003", "R006", etc.
+    pub code: String,    // "L003", "R006", etc.
     pub message: String, // short human message
     pub location: SourceLocation,
-    pub source_line: String, // raw text of the offending line
+    pub source_line: String,  // raw text of the offending line
     pub help: Option<String>, // optional "help: ..." suggestion
 }
 
@@ -25,12 +25,12 @@ impl Diagnostic {
         source_line: impl Into<String>,
         help: Option<String>,
     ) -> Self {
-        Self { 
-            code: code.into(), 
+        Self {
+            code: code.into(),
             message: message.into(),
-            location, 
-            source_line: source_line.into(), 
-            help 
+            location,
+            source_line: source_line.into(),
+            help,
         }
     }
 }

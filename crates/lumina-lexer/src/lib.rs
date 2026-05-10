@@ -85,10 +85,7 @@ fn lex_raw(source: &str) -> Result<Vec<SpannedToken>, LexError> {
             }
             Err(()) => {
                 return Err(LexError {
-                    message: format!(
-                        "Unexpected character '{}'",
-                        &source[span.start..span.end]
-                    ),
+                    message: format!("Unexpected character '{}'", &source[span.start..span.end]),
                     line: token_start_line,
                     col: token_start_col,
                 });
@@ -125,20 +122,25 @@ fn expand_interpolations(tokens: Vec<SpannedToken>) -> Vec<SpannedToken> {
 fn split_interpolated(s: &str, base_span: Span) -> Vec<SpannedToken> {
     let mut result = Vec::new();
     // Shorthand to create a SpannedToken with the same span as the parent string literal
-    let spanned = |token| SpannedToken { token, span: base_span };
+    let spanned = |token| SpannedToken {
+        token,
+        span: base_span,
+    };
 
     result.push(spanned(Token::InterpStringStart));
-    
+
     let mut chars = s.chars().peekable();
     let mut literal = String::new();
-    
+
     while let Some(ch) = chars.next() {
         match ch {
             '{' if chars.peek() == Some(&'{') => {
-                chars.next(); literal.push('{'); // {{ -> {
+                chars.next();
+                literal.push('{'); // {{ -> {
             }
             '}' if chars.peek() == Some(&'}') => {
-                chars.next(); literal.push('}'); // }} -> }
+                chars.next();
+                literal.push('}'); // }} -> }
             }
             '{' => {
                 if !literal.is_empty() {
@@ -146,19 +148,23 @@ fn split_interpolated(s: &str, base_span: Span) -> Vec<SpannedToken> {
                     literal.clear();
                 }
                 result.push(spanned(Token::InterpExprStart));
-                
+
                 // Collect until matching }
                 let mut expr_src = String::new();
                 let mut depth = 1;
                 while let Some(ch2) = chars.next() {
-                    if ch2 == '{' { depth += 1; }
-                    if ch2 == '}' { 
-                        depth -= 1; 
-                        if depth == 0 { break; } 
+                    if ch2 == '{' {
+                        depth += 1;
+                    }
+                    if ch2 == '}' {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
                     }
                     expr_src.push(ch2);
                 }
-                
+
                 // Re-tokenize the expression inside {}
                 if let Ok(inner) = lex_raw(&expr_src) {
                     // Note: In a production compiler, we would offset these spans
@@ -170,11 +176,11 @@ fn split_interpolated(s: &str, base_span: Span) -> Vec<SpannedToken> {
             c => literal.push(c),
         }
     }
-    
+
     if !literal.is_empty() {
         result.push(spanned(Token::InterpPart(literal)));
     }
-    
+
     result.push(spanned(Token::InterpStringEnd));
     result
 }
