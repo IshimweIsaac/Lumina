@@ -2,6 +2,7 @@ pub mod adapter;
 pub mod adapters;
 pub mod aggregate;
 pub mod engine;
+pub mod factory;
 pub mod fleet;
 pub mod lsl;
 pub mod rules;
@@ -85,11 +86,14 @@ pub enum RuntimeError {
         target: String,
         reason: String,
     },
-    /// v2.0: Type mismatch during operation
+    /// v2.0: Type mismatch in binary/unary operation (replaces silent coercion)
     R018 {
-        expected: String,
-        found: String,
+        op: String,
+        left: String,
+        right: String,
     },
+    /// v2.0: Snapshot stack corrupted during rollback
+    R019,
 }
 
 impl RuntimeError {
@@ -112,30 +116,48 @@ impl RuntimeError {
             RuntimeError::R015 { .. } => "L064",
             RuntimeError::R016 { .. } => "L065",
             RuntimeError::R017 { .. } => "L066",
-            RuntimeError::R018 { .. } => "L067",
+            RuntimeError::R018 { .. } => "R018",
+            RuntimeError::R019 => "R019",
         }
     }
 
     pub fn message(&self) -> String {
         match self {
-            RuntimeError::R001 { instance }   => format!("Access to deleted instance: '{instance}'"),
-            RuntimeError::R002                => "Division by zero".to_string(),
-            RuntimeError::R003 { depth }      => format!("Circular Dependency Detected: Rule re-entrancy limit exceeded ({depth})"),
-            RuntimeError::R004 { index, len } => format!("List index out of bounds: {index} of {len}"),
+            RuntimeError::R001 { instance } => format!("Access to deleted instance: '{instance}'"),
+            RuntimeError::R002 => "Division by zero".to_string(),
+            RuntimeError::R003 { depth } => format!(
+                "Circular Dependency Detected: Rule re-entrancy limit exceeded ({depth})"
+            ),
+            RuntimeError::R004 { index, len } => {
+                format!("List index out of bounds: {index} of {len}")
+            }
             RuntimeError::R005 { instance, field } => format!("Null field access: '{instance}.{field}'"),
-            RuntimeError::R006 { field, value, min, max } => format!("@range violation: {field} = {value}, expected {min}–{max}"),
-            RuntimeError::R007 { entity, reason }  => format!("External entity sync failed: {entity} ({reason})"),
-            RuntimeError::R008 { rule }            => format!("Timer conflict: rule '{rule}' already has a pending timer"),
-            RuntimeError::R009 { field }             => format!("Cannot update derived field '{field}' — it is computed automatically"),
-            RuntimeError::R010 { rule, reason }    => format!("Security violation in rule '{rule}': {reason}. Write action blocked by auth context."),
-            RuntimeError::R011 { reason }          => format!("Quorum lost — cluster cannot commit writes: {reason}"),
-            RuntimeError::R012 { reason }          => format!("Node isolated — operating in read-only mode: {reason}"),
-            RuntimeError::R013 { reason }          => format!("WAL replication lag exceeds threshold: {reason}"),
-            RuntimeError::R014 { node, entity }    => format!("Cross-node entity reference unresolvable: {node}.{entity}"),
-            RuntimeError::R015 { target }          => format!("Orchestration write target unreachable: {target}"),
-            RuntimeError::R016 { reason }          => format!("Cluster aggregate computation timeout: {reason}"),
-            RuntimeError::R017 { target, reason }  => format!("Migration target '{target}' has insufficient capacity: {reason}"),
-            RuntimeError::R018 { expected, found } => format!("Type mismatch: expected {expected}, found {found}"),
+            RuntimeError::R006 {
+                field,
+                value,
+                min,
+                max,
+            } => format!("@range violation: {field} = {value}, expected {min}–{max}"),
+            RuntimeError::R007 { entity, reason } => {
+                format!("External entity sync failed: {entity} ({reason})")
+            }
+            RuntimeError::R008 { rule } => {
+                format!("Timer conflict: rule '{rule}' already has a pending timer")
+            }
+            RuntimeError::R009 { field } => {
+                format!("Cannot update derived field '{field}' — it is computed automatically")
+            }
+            RuntimeError::R010 { rule, reason } => format!("Security violation in rule '{rule}': {reason}. Write action blocked by auth context."),
+            RuntimeError::R011 { reason } => format!("Quorum lost — cluster cannot commit writes: {reason}"),
+            RuntimeError::R012 { reason } => format!("Node isolated — operating in read-only mode: {reason}"),
+            RuntimeError::R013 { reason } => format!("WAL replication lag exceeds threshold: {reason}"),
+            RuntimeError::R014 { node, entity } => format!("Cross-node entity reference unresolvable: {node}.{entity}"),
+            RuntimeError::R015 { target } => format!("Orchestration write target unreachable: {target}"),
+            RuntimeError::R016 { reason } => format!("Cluster aggregate computation timeout: {reason}"),
+            RuntimeError::R017 { target, reason } => format!("Migration target '{target}' has insufficient capacity: {reason}"),
+            RuntimeError::R018 { op, left, right } => format!("Type mismatch: cannot apply '{op}' to {left} and {right}"),
+            RuntimeError::R019 => "Internal error: snapshot stack corrupted during rollback. This is a bug.".to_string(),
         }
     }
 }
+

@@ -15,6 +15,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+
 pub const MAX_DEPTH: usize = 100;
 
 pub struct Evaluator {
@@ -101,39 +102,7 @@ impl Evaluator {
     /// Creates an empty evaluator with no entities, rules, or instances.
     /// Used by the REPL - statements are added one at a time via exec_statement().
     pub fn new_empty() -> Self {
-        Self {
-            schema: Schema::new(),
-            graph: DependencyGraph::new(),
-            rules: Vec::new(),
-            store: EntityStore::new(),
-            snapshots: SnapshotStack::new(),
-            env: FxHashMap::default(),
-            instances: FxHashMap::default(),
-            derived_exprs: FxHashMap::default(),
-            functions: FxHashMap::default(),
-            timers: TimerHeap::new(),
-            adapters: Vec::new(),
-            prev_store: None,
-            fleet_state: FleetState::new(),
-            prev_fleet_any: FxHashMap::default(),
-            prev_fleet_all: FxHashMap::default(),
-            depth: 0,
-            fired_this_cycle: FxHashSet::default(),
-            output: Vec::new(),
-            prev_rule_conditions: FxHashMap::default(),
-            cooldown_map: FxHashMap::default(),
-            rule_active: FxHashMap::default(),
-            frequency_events: FxHashMap::default(),
-            agg_store: AggregateStore::new(),
-            cluster_state: FxHashMap::default(),
-            cluster_config: None,
-            now: 0.0,
-            rule_param_alias: None,
-            is_initializing: false,
-            reverse_refs: FxHashMap::default(),
-            dirty_instances: FxHashSet::default(),
-            cluster_node: None,
-        }
+        Self::default()
     }
 
     /// describe all declared entities as a human-readable string.
@@ -158,6 +127,7 @@ impl Evaluator {
             }
         }
     }
+
 
     /// Describe all declared entities as a human-readable string.
     /// Used by :schema REPL command.
@@ -399,17 +369,11 @@ impl Evaluator {
                 match op {
                     UnOp::Neg => match v {
                         Value::Number(n) => Ok(Value::Number(-n)),
-                        _ => Err(RuntimeError::R018 {
-                            expected: "Number".into(),
-                            found: v.type_name().into(),
-                        }),
+                        other => Err(RuntimeError::R018 { op: "negate".into(), left: other.type_name().into(), right: "N/A".into() }),
                     },
                     UnOp::Not => match v {
                         Value::Bool(b) => Ok(Value::Bool(!b)),
-                        _ => Err(RuntimeError::R018 {
-                            expected: "Boolean".into(),
-                            found: v.type_name().into(),
-                        }),
+                        other => Err(RuntimeError::R018 { op: "not".into(), left: other.type_name().into(), right: "N/A".into() }),
                     },
                 }
             }
@@ -694,86 +658,52 @@ impl Evaluator {
 
     fn apply_binop(&self, op: &BinOp, l: Value, r: Value) -> Result<Value, RuntimeError> {
         match op {
-            BinOp::Add => match (l, r) {
+            BinOp::Add => match (&l, &r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                (Value::Text(a), Value::Text(b)) => Ok(Value::Text(format!("{}{}", a, b))),
+                _ => Err(RuntimeError::R018 { op: "+".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Sub => match (l, r) {
+            BinOp::Sub => match (&l, &r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a - b)),
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                _ => Err(RuntimeError::R018 { op: "-".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Mul => match (l, r) {
+            BinOp::Mul => match (&l, &r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a * b)),
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                _ => Err(RuntimeError::R018 { op: "*".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Div => match (l, r) {
+            BinOp::Div => match (&l, &r) {
                 (Value::Number(a), Value::Number(b)) => {
-                    if b == 0.0 {
-                        Err(RuntimeError::R002)
-                    } else {
-                        Ok(Value::Number(a / b))
-                    }
+                    if *b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a / b)) }
                 }
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                _ => Err(RuntimeError::R018 { op: "/".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Mod => match (l, r) {
+            BinOp::Mod => match (&l, &r) {
                 (Value::Number(a), Value::Number(b)) => {
-                    if b == 0.0 {
-                        Err(RuntimeError::R002)
-                    } else {
-                        Ok(Value::Number(a % b))
-                    }
+                    if *b == 0.0 { Err(RuntimeError::R002) } else { Ok(Value::Number(a % b)) }
                 }
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                _ => Err(RuntimeError::R018 { op: "%".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
             BinOp::Eq => Ok(Value::Bool(l == r)),
             BinOp::Ne => Ok(Value::Bool(l != r)),
-            BinOp::Gt => match (l, r) {
+            BinOp::Gt  => match (&l, &r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a > b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a > b)),
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number or Duration".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                _ => Err(RuntimeError::R018 { op: ">".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Lt => match (l, r) {
+            BinOp::Lt  => match (&l, &r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a < b)),
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number or Duration".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                _ => Err(RuntimeError::R018 { op: "<".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Ge => match (l, r) {
+            BinOp::Ge  => match (&l, &r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a >= b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a >= b)),
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number or Duration".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                _ => Err(RuntimeError::R018 { op: ">=".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::Le => match (l, r) {
+            BinOp::Le  => match (&l, &r) { 
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a <= b)),
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a <= b)),
-                (l, r) => Err(RuntimeError::R018 {
-                    expected: "Number or Duration".into(),
-                    found: format!("{}, {}", l.type_name(), r.type_name()),
-                }),
+                _ => Err(RuntimeError::R018 { op: "<=".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
             BinOp::And | BinOp::Or => unreachable!(),
         }
@@ -1396,8 +1326,9 @@ impl Evaluator {
 
         // Propagate derived fields
         if let Err(e) = self.propagate_derived(instance_name, &entity_name) {
-            let snap = self.snapshots.pop().unwrap();
-            self.store = snap.store;
+            if let Some(snap) = self.snapshots.pop() {
+                self.store = snap.store;
+            }
             self.depth -= 1;
             return Err(e);
         }
@@ -1411,13 +1342,16 @@ impl Evaluator {
             .unwrap_or_default();
 
         for (ref_inst_name, ref_entity_name) in &referencing_instances {
-            if let Err(e) = self.propagate_derived(ref_inst_name, ref_entity_name) {
-                let snap = self.snapshots.pop().unwrap();
-                self.store = snap.store;
+
+            if let Err(e) = self.propagate_derived(&ref_inst_name, &ref_entity_name) {
+                if let Some(snap) = self.snapshots.pop() {
+                    self.store = snap.store;
+                }
                 self.depth -= 1;
                 return Err(e);
             }
         }
+
 
         self.agg_store
             .recompute(&self.store, &self.schema, Some(&self.cluster_state));
@@ -2040,9 +1974,11 @@ impl Evaluator {
         match self.eval_expr(expr, ctx)? {
             Value::List(l) => Ok(l),
             v => Err(RuntimeError::R018 {
-                expected: "List".into(),
-                found: v.type_name().into(),
+                op: "list expected".into(),
+                left: v.type_name().into(),
+                right: "List".into(),
             }),
+
         }
     }
 
@@ -2051,9 +1987,11 @@ impl Evaluator {
         list.into_iter()
             .map(|v| {
                 v.as_number().ok_or_else(|| RuntimeError::R018 {
-                    expected: "Number".into(),
-                    found: v.type_name().into(),
+                    op: "number expected".into(),
+                    left: v.type_name().into(),
+                    right: "Number".into(),
                 })
+
             })
             .collect()
     }
@@ -2173,6 +2111,47 @@ impl Evaluator {
         Ok(())
     }
 }
+
+// ── Default ────────────────────────────────────────────────────────────────
+
+impl Default for Evaluator {
+    fn default() -> Self {
+        Self {
+            schema: Schema::new(),
+            graph: DependencyGraph::new(),
+            rules: Vec::new(),
+            store: EntityStore::new(),
+            snapshots: SnapshotStack::new(),
+            env: FxHashMap::default(),
+            instances: FxHashMap::default(),
+            derived_exprs: FxHashMap::default(),
+            functions: FxHashMap::default(),
+            timers: TimerHeap::new(),
+            adapters: Vec::new(),
+            prev_store: None,
+            fleet_state: FleetState::new(),
+            prev_fleet_any: FxHashMap::default(),
+            prev_fleet_all: FxHashMap::default(),
+            depth: 0,
+            fired_this_cycle: FxHashSet::default(),
+            output: Vec::new(),
+            prev_rule_conditions: FxHashMap::default(),
+            cooldown_map: FxHashMap::default(),
+            rule_active: FxHashMap::default(),
+            frequency_events: FxHashMap::default(),
+            agg_store: AggregateStore::new(),
+            cluster_state: FxHashMap::default(),
+            cluster_config: None,
+            now: 0.0,
+            rule_param_alias: None,
+            is_initializing: false,
+            reverse_refs: FxHashMap::default(),
+            dirty_instances: FxHashSet::default(),
+            cluster_node: None,
+        }
+    }
+}
+
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 

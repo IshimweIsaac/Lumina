@@ -1,0 +1,16 @@
+# Lumina — Clippy Configuration
+# Enforces code quality lints across the workspace.
+
+# Deny these lints — they indicate real bugs or serious code smells
+warn-on-all = true
+
+[lints]
+# Prevent silent panics in production paths
+unwrap_used = "warn"
+expect_used = "warn"
+# Prevent dead code accumulation
+dead_code = "warn"
+unused_imports = "warn"
+# Performance
+unnecessary_to_owned = "warn"
+clone_on_ref_ptr = "warn"

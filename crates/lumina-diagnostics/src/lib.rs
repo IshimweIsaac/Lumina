@@ -7,7 +7,7 @@ pub use location::{extract_line, SourceLocation};
 pub use render::DiagnosticRenderer;
 
 /// A fully-resolved compiler or runtime diagnostic.
-/// Every error in v1.8.0 produces one of these.
+/// Every error in v2.0.0 produces one of these.
 #[derive(Debug, Clone, Serialize)]
 pub struct Diagnostic {
     pub code: String,    // "L003", "R006", etc.

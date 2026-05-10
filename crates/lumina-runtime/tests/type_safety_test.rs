@@ -18,9 +18,10 @@ fn test_strict_math_error() {
     let res = ev.eval_expr(&expr, None);
 
     match res {
-        Err(RuntimeError::R018 { expected, found }) => {
-            assert_eq!(expected, "Number");
-            assert!(found.contains("Text"));
+        Err(RuntimeError::R018 { op, left, right }) => {
+            assert_eq!(op, "+");
+            assert_eq!(left, "Number");
+            assert_eq!(right, "Text");
             println!("SUCCESS: Caught expected math type mismatch.");
         }
         other => panic!("Expected R018, got {:?}", other),
@@ -41,9 +42,10 @@ fn test_strict_unary_error() {
     let res = ev.eval_expr(&expr, None);
 
     match res {
-        Err(RuntimeError::R018 { expected, found }) => {
-            assert_eq!(expected, "Boolean");
-            assert!(found.contains("Number"));
+        Err(RuntimeError::R018 { op, left, right }) => {
+            assert_eq!(op, "not");
+            assert_eq!(left, "Number");
+            assert_eq!(right, "N/A");
             println!("SUCCESS: Caught expected unary type mismatch.");
         }
         other => panic!("Expected R018, got {:?}", other),
@@ -64,9 +66,10 @@ fn test_strict_list_error() {
     let res = ev.eval_expr(&expr, None);
 
     match res {
-        Err(RuntimeError::R018 { expected, found }) => {
-            assert_eq!(expected, "List");
-            assert!(found.contains("Number"));
+        Err(RuntimeError::R018 { op, left, right }) => {
+            assert_eq!(op, "list expected");
+            assert_eq!(left, "Number");
+            assert_eq!(right, "List");
             println!("SUCCESS: Caught expected list helper type mismatch.");
         }
         other => panic!("Expected R018, got {:?}", other),

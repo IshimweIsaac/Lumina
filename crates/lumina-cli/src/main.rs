@@ -1,21 +1,24 @@
-use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
+
 mod commands;
 mod formatter;
 mod repl;
+
 
 use lumina_analyzer::analyze;
 use lumina_diagnostics::DiagnosticRenderer;
 use lumina_parser::ast::*;
 use lumina_parser::parse;
+use lumina_runtime::engine::Evaluator;
+
 #[cfg(all(not(target_arch = "wasm32"), not(windows)))]
 use lumina_runtime::adapters::mqtt_adapter::MqttAdapter;
 use lumina_runtime::adapters::static_adapter::StaticAdapter;
 #[cfg(not(target_arch = "wasm32"))]
 use lumina_runtime::adapters::{file_adapter::FileWatchAdapter, http_adapter::HttpPollAdapter};
-use lumina_runtime::engine::Evaluator;
+
 
 mod loader;
 use crate::loader::ModuleLoader;
@@ -450,11 +453,12 @@ fn build_evaluator(
     analyzed: &lumina_analyzer::AnalyzedProgram,
     target_node_id: Option<&str>,
 ) -> Evaluator {
-    let mut rules = Vec::new();
-    let mut derived = HashMap::new();
-    let mut adapters: Vec<Box<dyn lumina_runtime::adapter::LuminaAdapter>> = Vec::new();
+    // Use the centralized factory for the core evaluator setup
+    let mut ev = lumina_runtime::factory::build_evaluator(analyzed);
+
     let mut cluster_decl = None;
 
+    // CLI-specific: attach real network adapters and handle cluster setup
     for stmt in &analyzed.program.statements {
         match stmt {
             Statement::Cluster(c) => {
@@ -466,20 +470,8 @@ fn build_evaluator(
                     cluster_decl = Some(c.clone());
                 }
             }
-            Statement::Rule(r) => rules.push(r.clone()),
-            Statement::Entity(e) => {
-                for f in &e.fields {
-                    if let Field::Derived(df) = f {
-                        derived.insert((e.name.clone(), df.name.clone()), df.expr.clone());
-                    }
-                }
-            }
             Statement::ExternalEntity(e) => {
-                // ... (existing adapter code)
-                // Initialize adapters based on sync_path
-                if e.sync_path.starts_with("static://") {
-                    adapters.push(Box::new(StaticAdapter::new(&e.name)));
-                }
+                // Initialize real network adapters based on sync_path
                 #[cfg(all(not(target_arch = "wasm32"), not(windows)))]
                 {
                     if e.sync_path.starts_with("mqtt://") {
@@ -490,7 +482,7 @@ fn build_evaluator(
                             "lumina/in",
                             "lumina/out",
                         ) {
-                            adapters.push(Box::new(a));
+                            ev.adapters.push(Box::new(a));
                         }
                     }
                 }
@@ -505,7 +497,7 @@ fn build_evaluator(
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     if e.sync_path.starts_with("http://") || e.sync_path.starts_with("https://") {
-                        adapters.push(Box::new(HttpPollAdapter::new(
+                        ev.adapters.push(Box::new(HttpPollAdapter::new(
                             &e.name,
                             e.sync_path.clone(),
                             e.poll_interval
@@ -518,23 +510,14 @@ fn build_evaluator(
                         if let Ok(a) =
                             FileWatchAdapter::new(&e.name, std::path::PathBuf::from(path_str))
                         {
-                            adapters.push(Box::new(a));
+                            ev.adapters.push(Box::new(a));
                         }
-                    }
-                }
-
-                for f in &e.fields {
-                    if let Field::Derived(df) = f {
-                        derived.insert((e.name.clone(), df.name.clone()), df.expr.clone());
                     }
                 }
             }
             _ => {}
         }
     }
-    let mut ev = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), rules);
-    ev.derived_exprs = derived;
-    ev.adapters = adapters;
 
     if let Some(decl) = cluster_decl {
         let config = lumina_cluster::ClusterConfig::from_decl(&decl);
@@ -545,6 +528,7 @@ fn build_evaluator(
 
     ev
 }
+
 
 fn cmd_run(args: &[String]) {
     let (path, source) = read_file(args);

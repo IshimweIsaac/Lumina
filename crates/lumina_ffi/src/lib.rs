@@ -4,9 +4,9 @@ use lumina_parser::parse;
 use lumina_runtime::engine::Evaluator;
 use lumina_runtime::value::Value;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+
 
 thread_local! {
     static LAST_CREATE_ERROR: RefCell<Option<String>> = RefCell::new(None);
@@ -34,51 +34,9 @@ fn to_c_string(s: &str) -> *mut c_char {
 }
 
 fn build_evaluator(analyzed: &lumina_analyzer::AnalyzedProgram) -> Evaluator {
-    let mut rules = Vec::new();
-    let mut derived = HashMap::new();
-    for stmt in &analyzed.program.statements {
-        match stmt {
-            Statement::Rule(r) => rules.push(r.clone()),
-            Statement::Entity(e) => {
-                for f in &e.fields {
-                    if let Field::Derived(df) = f {
-                        derived.insert((e.name.clone(), df.name.clone()), df.expr.clone());
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    let mut ev = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), rules);
-    ev.derived_exprs = derived;
-
-    // B1 Fix: Process all statements to ensure parity.
-    for stmt in &analyzed.program.statements {
-        match stmt {
-            Statement::ExternalEntity(e) => {
-                // Register a static adapter stub so write-backs don't drop
-                let adapter = lumina_runtime::adapters::static_adapter::StaticAdapter::new(&e.name);
-                ev.register_adapter(Box::new(adapter));
-                // Add derived fields
-                for f in &e.fields {
-                    if let Field::Derived(df) = f {
-                        ev.derived_exprs
-                            .insert((e.name.clone(), df.name.clone()), df.expr.clone());
-                    }
-                }
-            }
-            Statement::Fn(f) => {
-                ev.functions.insert(f.name.clone(), f.clone());
-            }
-            Statement::Aggregate(a) => {
-                ev.agg_store.register(a.clone());
-            }
-            _ => {}
-        }
-    }
-    // Initialization will be completed via recalculate_all_rules by the caller.
-    ev
+    lumina_runtime::factory::build_evaluator(analyzed)
 }
+
 
 fn json_to_value(jv: &serde_json::Value) -> Option<Value> {
     match jv {
