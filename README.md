@@ -1,142 +1,121 @@
 # Lumina
+**The Sovereignty of Infrastructure**
 
-> **A declarative, reactive language for infrastructure orchestration.**
+Lumina is a **Distributed Reactive Language (DRL)** designed to turn infrastructure into a living, self-healing system. Instead of writing complex event handlers, you **describe what is true**, and Lumina's reactive engine ensures the physical world matches your declaration.
 
-Lumina turns your infrastructure into a **living, reactive system**. Define entities, declare rules, and let the engine handle the rest from real-time monitoring to cross-cluster workload migration.
-
-[![Build](https://github.com/IshimweIsaac/Lumina/actions/workflows/rust.yml/badge.svg)](https://github.com/IshimweIsaac/Lumina/actions)
+[![Build Status](https://github.com/IshimweIsaac/Lumina/actions/workflows/rust.yml/badge.svg)](https://github.com/IshimweIsaac/Lumina/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Lumina-v2.0.0-green.svg)](CHANGELOG.md)
 
 ---
 
-## 1. Version History
+## The Philosophy: "Describe What is True"
 
-Lumina has evolved from a simple reactive engine into a **Sovereign Infrastructure Language**.
+Traditional infrastructure management is **imperative**: "If X happens, do Y, then check Z." This leads to race conditions and "split-brain" states.
 
-#### **v1.9: The Metal Release (Latest Stable)**
-*   **Lumina Standard Library (LSL)**: Pre-defined entity schemas for datacenter, network, Kubernetes, and power infrastructure — composed, not inherited.
-*   **Native Southbound Protocols**: Agentless hardware polling via `provider` blocks (Redfish, SNMP v3, Modbus TCP).
-*   **Declarative Security**: Security as a structural truth in the DAG. Write operations are blocked when auth context evaluates false (`L039`).
-*   **`env()` Built-in**: Secure environment variable access, returning `Secret` values.
-*   **Query Interface (`lumina query`)**: Interrogate the truth store from the CLI.
-*   **Provider Management (`lumina provider`)**: Install and manage southbound protocol adapters.
-
-#### **v1.8: The Ecosystem & Experience Release**
-*   **Plugin System (`import plugin`)**: Dynamically load external adapters and components.
-*   **Secret Management (`Secret`)**: Secure handling of credentials, preventing accidental leakage.
-*   **Distributed State Consistency**: Introduces `timeout`, `fallible`, and `unknown` states to handle unreliable infrastructure.
-*   **Opinionated Formatter (`lumina fmt`)**: Standardized canonical formatting for all Lumina source files.
-*   **Zero-Configuration Installer**: Native `.deb`, `.exe`, and Homebrew support with automated `lumina setup`.
-*   **"Teaching" Diagnostics**: Rewritten compiler errors that provide mentoring and actionable hints.
-
-#### **v1.6: The Infrastructure Release**
-*   **Entity Relationships (`ref`)**: Structural truth declaration—one entity can reference another.
-*   **Structural Traversal**: Traverse relationships in rules and derived fields.
-*   **Multi-Condition Triggers (`and`)**: Fire rules only when compound truths are met.
-*   **Write Capabilities (`write`)**: Send commands back to the physical world.
-*   **Frequency Conditions**: Detect flapping with `N times within <duration>` triggers.
-*   **Temporal Truth**: Native `Timestamp` type with `.age` accessor and `now()` function.
-
-#### **v1.5: The Fleet Release**
-*   **Fleet-Level Triggers**: Support for `any` and `all` conditions across entity instances.
-*   **Reactive Aggregates**: `aggregate` blocks for `avg`, `sum`, `count` across device fleets.
-*   **Structured Alerting**: Native `alert` actions with severity levels and `on clear` recovery logic.
-*   **Rule Cooldowns**: Silence periods to prevent alert storms.
-*   **Historical State**: The `prev()` keyword for transition-based logic.
-
-#### **v1.4: The Developer Experience Release**
-*   **Enhanced Diagnostics**: Rust-style error messages with source context and carets.
-*   **Stateful REPL**: Persistent evaluator state across interactive sessions.
-*   **Pure Functions (`fn`)**: Stateless logic encapsulation.
-*   **Modules (`import`)**: Multi-file program support.
-*   **Collections**: First-class list types (`type[]`) and indexing.
-
-#### **v1.3: The Core Engine Release**
-*   **Reactive Core**: The basic topological propagation engine.
-*   **FFI & WASM**: Native C ABI and WebAssembly compilation targets.
-*   **CLI**: Initial `run`, `check`, and `repl` commands.
+Lumina is **declarative-reactive**. You define the *state* you want, and the engine maintains it through a Directed Acyclic Graph (DAG). If a sensor temperature rises, every dependent field, aggregate, and rule re-evaluates instantly and atomically across the entire cluster.
 
 ---
 
-## 2. Documentation
+## Lumina in 30 Seconds
 
-*   **[Lumina Complete Guide](./docs/Lumina_Complete_Guide.md)**: The technical bible of the Lumina language.
-*   **[Language Specification](./docs/SPEC.md)**: EBNF grammar and syntax reference.
-*   **[Architecture Overview](./docs/ARCHITECTURE.md)**: Deep dive into the reactive engine, adapters, and the write-back cycle.
-
----
-
-## 3. Architecture and Execution Model
-
-The Lumina compiler and runtime pipeline is implemented in Rust. Every program flows through this pipeline:
-
-1.  **`lumina-lexer`**: High-throughput DFA tokenizer.
-2.  **`lumina-parser`**: Hybrid recursive-descent and Pratt parser.
-3.  **`lumina-analyzer`**: Static type safety, ref-integrity, and cycle detection.
-4.  **`lumina-runtime`**: The reactive Snapshot VM. Handles temporal scheduling and external adapter synchronization.
-5.  **`lumina-cluster`**: Distributed state mesh, gossip protocol, and leader election.
-6.  **`lumina-lsp`**: Multi-protocol language server providing real-time IDE feedback.
-
----
-
-## 4. Language Specification (v2.0 Example)
-
-```lua
--- Cluster-aware infrastructure monitoring
-cluster {
-  node_id: "node-1"
-  peers: ["node-2", "node-3"]
-  quorum: 2
-  election_timeout: 1.5 s
+```lumina
+-- Define a self-healing server rack
+entity Server {
+    cpu_temp: Number
+    is_online: Boolean
+    is_hot := cpu_temp > 80
 }
 
-entity Workload {
-  cpu: Number
-  zone: String
-  isHot := cpu > 80
+aggregate RackStats over Server {
+    avg_temp := avg(cpu_temp)
+    critical_count := count(is_hot)
 }
 
-aggregate NodeStats over Workload {
-  total_cpu := sum(cpu)
-  avg_cpu   := avg(cpu)
+rule "Emergency Cooling"
+when RackStats.critical_count > 2 {
+    alert severity: "critical", message: "Fleet overheating: {RackStats.avg_temp}C"
 }
-
-rule "NodeOverloaded"
-when NodeStats.total_cpu > 100 {
-  show "Node CPU is {NodeStats.total_cpu}% — rebalancing"
+on clear {
+    show "Thermal levels stabilized."
 }
 ```
 
 ---
 
-## 5. Compilation and Usage
+## Core Pillars
 
-### Prerequisites
-* Rust Toolchain (`rustc` >= 1.70.0)
-* Cargo Build Manager
+### ⚡ Distributed Reactivity
+A high-performance reactive engine written in Rust. Every state change is a transaction—updates either propagate fully through the graph or roll back entirely.
 
-### 5.1 Command Line Interface (CLI)
+### 🌐 Sovereign Clustering
+Native cluster networking with UDP gossip, leader election, and state mesh synchronization. No external database or message broker required.
+
+### 🔌 Universal Embedding
+Lumina runs everywhere. Embed it in C, Python, Go, or Node.js via the **C-FFI**, or run it in the browser at native speed via **WebAssembly**.
+
+### 🛠️ Developer Experience
+- **Human-Centric Diagnostics**: Error messages that don't just report bugs—they teach the language.
+- **LSP Support**: Full IDE integration for VS Code, VSCodium, Cursor, and Neovim.
+- **Stateful REPL**: Experiment with reactive logic in real-time.
+
+---
+
+## Quick Start
+
+### 1. Install Lumina
+
+**Linux / macOS**
 ```bash
-# Build the CLI
-cargo build --release -p lumina-cli
-
-# Execute a Lumina program
-cargo run -p lumina-cli -- run main.lum
+curl -fsSL https://lumina-lang.web.app/install.sh | sh && . ~/.lumina/env
 ```
 
-### 5.2 Foreign Function Interface (FFI)
+**Windows (PowerShell)**
+```powershell
+iwr https://lumina-lang.web.app/install.ps1 -useb | iex
+```
+
+### 2. Run Your First Program
+Create `hello.lum`:
+```lumina
+entity World {
+    status: Text
+}
+let w = World { status: "Quiet" }
+rule "Greet" when World.status becomes "Loud" { show "Hello, Lumina!" }
+update w.status = "Loud"
+```
+
+Execute it:
 ```bash
-# Build the shared library (.so / .dll / .dylib)
-cargo build --release -p lumina-ffi
+lumina run hello.lum
 ```
 
 ---
 
-## 6. Development & Testing
-Run the full regression suite to verify v2.0 compliance:
-```bash
-cargo test --workspace
-```
+## Project Structure
+
+- **[`crates/`](./crates/)**: The core engine (Lexer, Parser, Analyzer, Runtime).
+- **[`docs/knowledge/`](./docs/knowledge/)**: High-fidelity AI training suite and deep-dives.
+- **[`examples/`](./examples/)**: Runnable architectures for IoT, Infrastructure, and Security.
+- **[`extensions/`](./extensions/)**: VS Code language support.
+- **[`website/`](./website/)**: The interactive WASM playground.
+
+---
+
+## Documentation
+
+- **[Mental Model](./docs/knowledge/01-mental-model.md)**: Transitioning from procedural to reactive thinking.
+- **[Syntax Reference](./docs/knowledge/02-syntax-reference.md)**: Exhaustive guide to the Lumina grammar.
+- **[Patterns Cookbook](./docs/knowledge/06-patterns-cookbook.md)**: 14 complete, runnable infrastructure patterns.
+- **[FFI & Embedding](./docs/knowledge/08-advanced-features.md)**: Using Lumina from other languages.
+
+---
+
+## Contributing
+
+We welcome contributions to the core engine and the LSL standard library. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for architecture guidelines.
 
 ## License
-This software is distributed under the MIT License. Reference [`LICENSE`](LICENSE) for details.
+
+Lumina is open-source software licensed under the [MIT License](LICENSE).
