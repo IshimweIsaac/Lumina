@@ -38,6 +38,22 @@ async fn main() {
         Some("setup") => cmd_setup(),
         Some("uninstall") => cmd_uninstall(),
         Some("cluster") => cmd_cluster(&args),
+        Some("get") => {
+            if args.get(2) == Some(&"documentation".to_string()) {
+                let content = include_str!("master_knowledge.md");
+                match fs::write("master_knowledge.md", content) {
+                    Ok(_) => println!("Successfully created 'master_knowledge.md' in the current directory. Your AI can now ingest it."),
+                    Err(e) => {
+                        eprintln!("Error creating documentation file: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+                return;
+            }
+            eprintln!("Unknown command: Lumina get {}", args.get(2).unwrap_or(&"".to_string()));
+            std::process::exit(1);
+        }
+
         Some("version") | Some("--version") | Some("-v") => {
             println!("Lumina v2.0.0: The Cluster Release");
             std::process::exit(0);
@@ -46,19 +62,21 @@ async fn main() {
             eprintln!("Lumina v2.0.0: The Cluster Release");
             eprintln!();
             eprintln!("Usage:");
-            eprintln!("  lumina run <file.lum>     Run a Lumina program");
-            eprintln!("  lumina check <file.lum>   Type-check without running");
-            eprintln!("  lumina fmt <file.lum>     Format source code");
-            eprintln!("  lumina query <expr>       Query the truth store");
-            eprintln!("  lumina provider <cmd>     Manage providers");
-            eprintln!("  lumina cluster <cmd>      Cluster management (start, status, join)");
-            eprintln!("  lumina repl               Start interactive REPL");
-            eprintln!("  lumina setup              Automated IDE & environment setup");
-            eprintln!("  lumina uninstall          Remove Lumina from your system");
+            eprintln!("  lumina run <file.lum>       Run a Lumina program");
+            eprintln!("  lumina check <file.lum>     Type-check without running");
+            eprintln!("  lumina get documentation    Output master documentation for AI agents");
+            eprintln!("  lumina fmt <file.lum>       Format source code");
+            eprintln!("  lumina query <expr>         Query the truth store");
+            eprintln!("  lumina provider <cmd>       Manage providers");
+            eprintln!("  lumina cluster <cmd>        Cluster management (start, status, join)");
+            eprintln!("  lumina repl                 Start interactive REPL");
+            eprintln!("  lumina setup                Automated IDE & environment setup");
+            eprintln!("  lumina uninstall            Remove Lumina from your system");
             std::process::exit(1);
         }
     }
 }
+
 
 fn cmd_cluster(args: &[String]) {
     match args.get(2).map(|s| s.as_str()) {

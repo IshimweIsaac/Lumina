@@ -1,0 +1,22 @@
+-- Lumina Reactive Loop
+-- This program demonstrates a self-resetting loop.
+
+entity LoopNode {
+    iteration: Number
+}
+
+let n = LoopNode { iteration: 0 }
+
+-- Trigger every 1 second
+rule Heartbeat
+every 2s {
+    update n.iteration = n.iteration + 1
+    show ">>> Current Iteration: {n.iteration}"
+}
+
+-- Reset logic
+rule ResetLoop
+when n.iteration >= 10 {
+    show "--- Milestone: 10 reached. Resetting loop... ---"
+    update n.iteration = 0
+}

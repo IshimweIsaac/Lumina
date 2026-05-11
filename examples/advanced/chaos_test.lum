@@ -1,0 +1,33 @@
+-- Chaos Test (Final Syntax Fix)
+entity Node {
+    @range 0 to 500 value: Number
+}
+entity Vault {
+    @range 0 to 1000 balance: Number
+}
+aggregate GlobalStress over Node {
+    total := sum(value)
+}
+rule "Self-Trigger" for (n: Node)
+when Node.value becomes 100 {
+    update Node.value = 100
+}
+rule "Transactional Integrity" for (v: Vault)
+when Vault.balance becomes 500 {
+    update Vault.balance = 2000
+}
+let N1 = Node { value: 0 }
+let N2 = Node { value: 0 }
+let MyVault = Vault { balance: 100 }
+
+show "--- TEST 1: Recursion (MAX_DEPTH) ---"
+update N1.value = 100
+
+show "--- TEST 2: Rollback (Atomic Transaction) ---"
+show "Balance before: {MyVault.balance}"
+update MyVault.balance = 500
+show "Balance after failure (should be 100): {MyVault.balance}"
+
+show "--- TEST 3: Aggregate Pressure ---"
+update N2.value = 300
+show "Total Nodes Value: {GlobalStress.total}"
