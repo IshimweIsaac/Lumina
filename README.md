@@ -1,7 +1,7 @@
 # Lumina
 **The Sovereignty of Infrastructure**
 
-Lumina is a **Distributed Reactive Language (DRL)** designed to turn infrastructure into a living, self-healing system. Instead of writing complex event handlers, you **describe what is true**, and Lumina's reactive engine ensures the physical world matches your declaration.
+Lumina is a **Distributed Reactive Language (DRL)** for high-availability infrastructure orchestration. It replaces fragile, event-driven scripts with a deterministic state-resolution engine. By defining infrastructure logic as a **Directed Acyclic Graph (DAG)** of dependencies, Lumina automatically propagates state changes and executes side-effects without the need for manual event-handling boilerplate.
 
 [![Build Status](https://github.com/IshimweIsaac/Lumina/actions/workflows/rust.yml/badge.svg)](https://github.com/IshimweIsaac/Lumina/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
