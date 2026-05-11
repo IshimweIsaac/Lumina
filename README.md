@@ -3,7 +3,7 @@
 
 Lumina is a **Distributed Reactive Language (DRL)** for high-availability infrastructure orchestration. It replaces fragile, event-driven scripts with a deterministic state-resolution engine. By defining infrastructure logic as a **Directed Acyclic Graph (DAG)** of dependencies, Lumina automatically propagates state changes and executes side-effects without the need for manual event-handling boilerplate.
 
-[![Build Status](https://github.com/IshimweIsaac/Lumina/actions/workflows/rust.yml/badge.svg)](https://github.com/IshimweIsaac/Lumina/actions)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/Lumina-v2.0.0-green.svg)](CHANGELOG.md)
 
