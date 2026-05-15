@@ -1,0 +1,30 @@
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+Running Lumina [Ctrl+C to stop]...
+[DEBUG-ENGINE] Tick started at t=0
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=0.53486
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=197.187921
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=704.236754
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=1223.682281
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=1836.039611
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=2329.457513
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=2852.777305
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=3437.486111
+[DEBUG-ENGINE] Reached Global Pass Checkpoint
+[DEBUG-ENGINE] Starting evaluate_rules for 'global' with 7 rules
+[DEBUG-ENGINE] Tick started at t=4025.7559479999995

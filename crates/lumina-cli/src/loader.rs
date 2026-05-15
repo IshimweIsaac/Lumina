@@ -55,7 +55,7 @@ impl ModuleLoader {
         let dir = path.parent().unwrap_or(Path::new("."));
         for import in program.imports() {
             // v1.9: Skip LSL namespace imports — they are virtual, not file-based
-            if import.namespace.is_some() {
+            if import.namespace.is_some() || import.path.starts_with("LSL::") {
                 continue;
             }
             let dep_path = dir.join(&import.path);
@@ -81,7 +81,7 @@ impl ModuleLoader {
                     // Skip file-based import statements (already resolved),
                     // but keep LSL namespace imports for the engine
                     match stmt {
-                        Statement::Import(i) if i.namespace.is_none() => continue,
+                        Statement::Import(i) if i.namespace.is_none() && !i.path.starts_with("LSL::") => continue,
                         _ => stmts.push(stmt.clone()),
                     }
                 }

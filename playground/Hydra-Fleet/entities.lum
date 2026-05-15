@@ -1,0 +1,6 @@
+import "LSL::docker::Container"
+
+entity TrafficSensor {
+  load: Number
+  active_workers: Number
+}

@@ -20,6 +20,7 @@ This directory is the **single source of truth** for writing, debugging, and arc
 | Use clusters, FFI, external entities, secrets| [08-advanced-features.md](08-advanced-features.md)            |
 | Check if something is supported or broken    | [09-known-limitations.md](09-known-limitations.md)            |
 | Architect a full project from scratch        | [10-project-templates.md](10-project-templates.md)            |
+| Install, update, or use the CLI              | [11-cli-reference.md](11-cli-reference.md)                    |
 
 ---
 
@@ -31,18 +32,36 @@ Lumina is a **Distributed Reactive Language (DRL)** for agentless infrastructure
 
 Lumina source files use the `.lum` extension. Comments start with `--`.
 
-## Running Lumina
+## CLI Quick Start
 
 ```bash
+# Install Lumina
+curl -fsSL https://lumina-lang.web.app/install.sh | sh && . ~/.lumina/env
+
 # Run a file
 lumina run myfile.lum
+
+# Type-check without running
+lumina check myfile.lum
+
+# Format source code
+lumina fmt myfile.lum
 
 # Start the interactive REPL
 lumina repl
 
-# Run with live temporal triggers (every/for timers tick in real-time)
-lumina run --live myfile.lum
+# Update to the latest version
+lumina update
+
+# Check if an update is available
+lumina update --check
 ```
+
+See [11-cli-reference.md](11-cli-reference.md) for the full command reference.
+
+
+---
+
 # Lumina Mental Model: Think in Truth, Not in Steps
 
 ## The Core Idea
@@ -175,6 +194,10 @@ This means: **Lumina state is either fully consistent or unchanged.** There is n
 - **Not a scripting language**: You don't write procedures. You declare truth.
 - **Not eventually consistent**: State changes are atomic. Derived fields are always up-to-date after a tick.
 - **Not a database**: Entities are in-memory reactive objects, not persisted rows.
+
+
+---
+
 # Lumina Syntax Reference (v2.0-GOLD)
 
 This is the exhaustive syntax reference for every Lumina construct. Every example here is valid, runnable code.
@@ -336,6 +359,18 @@ when Server.is_overheating becomes true {
 }
 ```
 
+### Level-Triggered Rule (whenever)
+
+While `when` triggers only on the exact moment a condition becomes true (edge-triggered), `whenever` fires repeatedly every engine tick as long as the condition remains true (level-triggered).
+
+```lumina
+rule "Constant Heat Warning"
+whenever (Server.cpu_temp > 90) {
+    show "WARNING: Server is STILL too hot!"
+}
+```
+*Note: The engine natively supports auto-deduplication to prevent log spam, but `whenever` is best used for continuous state reconciliation.*
+
 ### Temporal Rule (every)
 
 Fires repeatedly on a fixed interval:
@@ -493,6 +528,23 @@ create Server {
 
 ```lumina
 delete server1
+```
+
+### Infrastructure Actions (v2.1)
+
+Lumina v2.1 introduces native actions for external infrastructure lifecycle management via Adapters (like Docker, Kubernetes).
+
+```lumina
+-- Provision a new external resource based on its entity definition
+provision worker_2
+
+-- Tear down an existing external resource
+terminate worker_2
+-- (destroy is an alias for terminate)
+destroy worker_2
+
+-- Manually trigger a drift-detection poll for a specific Entity type
+reconcile Service
 ```
 
 ---
@@ -742,6 +794,10 @@ let instance1 = MyEntity { ... }
 show "--- Running simulation ---"
 update instance1.field = value
 ```
+
+
+---
+
 # Lumina Type System
 
 This document covers every type in Lumina, what operations work on each, and how types interact.
@@ -932,6 +988,10 @@ When an external entity is registered, its stored fields get these defaults:
 7. Logical AND: `and`
 8. Logical OR: `or`
 9. Transition: `becomes`
+
+
+---
+
 # Lumina Built-in Functions Reference
 
 Every built-in function available in the Lumina runtime, with signatures, examples, and edge cases.
@@ -1141,6 +1201,10 @@ Function constraints:
 - Cannot access entity fields directly (L015)
 - Cannot have duplicate names (L011)
 - Return type must match body expression type (L014)
+
+
+---
+
 # Lumina Rules & Triggers Deep Dive
 
 Rules are the hardest part of Lumina to get right. This document covers every trigger type, how edge detection works, and the most common mistakes.
@@ -1471,6 +1535,10 @@ when Server.cpu_temp > 80 {
     show "Hot!"
 }
 ```
+
+
+---
+
 # Lumina Patterns Cookbook
 
 Complete, runnable Lumina programs. Each program demonstrates a real pattern.
@@ -1795,6 +1863,35 @@ entity Sensor {
     safe_reading := clamp(raw_reading, -40, 150)
     severity := severity_label(raw_reading)
 }
+```
+
+---
+
+## Pattern 9: Functions as Constructors (Boilerplate Reduction)
+
+Because Lumina strictly requires all stored fields to be initialized when creating an entity (to prevent undefined state crashes), large schemas like `LSL::docker::Container` can lead to boilerplate when you only care about a few fields. Use functions to create "constructors" that provide safe default values:
+
+```lumina
+import "LSL::docker::Container"
+
+// A helper function that handles all the boilerplate for you
+fn create_worker(worker_name: Text) -> Container {
+  return Container {
+    name: worker_name,
+    image: "nginx:alpine",
+    port: 0,
+    target_port: 80,
+    env_vars: "NONE",
+    status: "unknown",
+    verified: false,
+    tier: "app"
+  }
+}
+
+// Now you can just use the fields you care about!
+let worker_1 = create_worker("hydra-app-01")
+let worker_2 = create_worker("hydra-app-02")
+```
 
 let s = Sensor { raw_reading: 95 }
 show "Raw: {s.raw_reading}"
@@ -2012,6 +2109,10 @@ when System.isOverheating becomes false {
     alert severity: "info", message: "Temperature stabilized."
 }
 ```
+
+
+---
+
 # Lumina Error Encyclopedia
 
 Every error code in Lumina with the BAD code that causes it, what the error message says, and the FIXED code.
@@ -2496,6 +2597,10 @@ Internal error: snapshot stack corrupted during rollback. This is a bug.
 ```
 
 This is an engine bug. If you encounter it, report it.
+
+
+---
+
 # Lumina Advanced Features
 
 Cluster networking, external entities, FFI integration, and secrets.
@@ -2796,6 +2901,10 @@ import "LSL::power::Generator"
 ```
 
 Using an unknown namespace raises L054.
+
+
+---
+
 # Lumina Known Limitations (v2.0-GOLD)
 
 This document lists what does NOT work, what is partially implemented, and what will cause AI hallucinations if assumed to exist. **Read this before generating code.**
@@ -2989,6 +3098,10 @@ Fields always have a value. External entity fields default to `Unknown` until da
 - **Theoretical limit**: FxHashMap allows 100K+ entities, but aggregates recompute fully
 - **WASM performance**: ~90% of native speed
 - **Timer resolution**: Millisecond-level (not microsecond)
+
+
+---
+
 # Lumina Project Templates
 
 Full project architectures for common use cases. Use these as starting points for real projects.
@@ -3459,3 +3572,337 @@ show "=== RECOVERY ==="
 -- restore to normal
 -- verify on clear fired
 ```
+
+
+---
+
+# Lumina CLI Reference
+
+Every command available in the `lumina` binary, with usage, flags, and examples.
+
+---
+
+## Installation
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://lumina-lang.web.app/install.sh | sh && . ~/.lumina/env
+```
+
+### Windows (PowerShell)
+
+```powershell
+iwr https://lumina-lang.web.app/install.ps1 -useb | iex
+```
+
+### Homebrew (macOS)
+
+```bash
+brew tap IshimweIsaac/lumina
+brew install lumina
+```
+
+### Verify Installation
+
+```bash
+lumina --version
+```
+
+---
+
+## Commands
+
+### `lumina run <file.lum>`
+
+Execute a Lumina program.
+
+```bash
+lumina run myfile.lum
+```
+
+**Flags:**
+- `--node-id <id>` — Override the cluster node ID (for multi-node testing)
+
+The program runs sequentially through all statements. If `every` or `for` timers are present, the engine enters live mode and ticks in real-time until interrupted with `Ctrl+C`.
+
+---
+
+### `lumina check <file.lum>`
+
+Type-check and analyze a program without running it.
+
+```bash
+lumina check myfile.lum
+```
+
+Output: `✓ myfile.lum — no errors found` on success, or detailed diagnostics on failure.
+
+Use this for CI pipelines and pre-commit hooks.
+
+---
+
+### `lumina fmt <file.lum>`
+
+Format a Lumina source file in-place using the canonical style.
+
+```bash
+lumina fmt myfile.lum
+```
+
+Output: `✓ myfile.lum — formatted`
+
+---
+
+### `lumina repl`
+
+Start an interactive Read-Eval-Print Loop.
+
+```bash
+lumina repl
+```
+
+Type Lumina expressions and statements interactively. Multi-line input is supported with brace-depth tracking. Type `:help` to see inspector commands.
+
+---
+
+### `lumina update`
+
+Update Lumina to the latest version. This replaces both `lumina` and `lumina-lsp` binaries in-place.
+
+```bash
+lumina update
+```
+
+**Flags:**
+- `--check` — Only check if an update is available, don't download
+- `--force` — Re-download and reinstall even if already on the latest version (useful for repairing corrupted installs)
+
+**How it works:**
+1. Queries the GitHub Releases API for the latest version tag
+2. Compares against the currently installed version
+3. Downloads the correct platform-specific binaries (with SHA256 verification)
+4. Atomically replaces the running binaries
+
+**Examples:**
+
+```bash
+# Check if there's a new version
+lumina update --check
+
+# Update to the latest version
+lumina update
+
+# Force-reinstall the current version
+lumina update --force
+```
+
+**Notes:**
+- Requires `curl` to be available on your system
+- On Windows, the current binary is renamed to `.old` before replacement (standard self-update pattern)
+- On macOS, the quarantine flag is automatically removed
+
+---
+
+### `lumina setup`
+
+Automated IDE and environment setup. Detects installed editors and installs the Lumina extension.
+
+```bash
+lumina setup
+```
+
+This command runs automatically during installation. It scans for:
+- **VS Code-compatible editors**: VS Code, VSCodium, Cursor, Windsurf, Positron, Code Insiders, Code OSS
+- **Neovim**: Auto-generates a zero-config LSP plugin at `~/.config/nvim/plugin/lumina.lua`
+
+The extension provides syntax highlighting, live diagnostics, go-to-definition, and find-all-references via the built-in `lumina-lsp` language server.
+
+---
+
+### `lumina uninstall`
+
+Remove Lumina from your system.
+
+```bash
+lumina uninstall
+```
+
+This command:
+1. Uninstalls the VS Code extension from all detected editors
+2. Removes the `~/.lumina` directory (binaries and environment)
+3. Cleans PATH entries from shell profiles (`.bashrc`, `.zshrc`, `.profile`, etc.)
+
+---
+
+### `lumina get documentation`
+
+Output the master knowledge atlas to the current directory for AI-assisted development.
+
+```bash
+lumina get documentation
+```
+
+Creates `master_knowledge.md` in the current working directory. This file contains the full Lumina technical reference — designed to be ingested by AI coding assistants for context-aware code generation.
+
+---
+
+### `lumina query <expression>`
+
+Evaluate a standalone Lumina expression.
+
+```bash
+lumina query "1 + 2 + 3"
+```
+
+Useful for quick calculations and testing expressions without creating a full `.lum` file.
+
+---
+
+### `lumina provider <command>`
+
+Manage external data providers.
+
+```bash
+lumina provider list          # List installed providers
+lumina provider install <name>   # Install a provider (registry coming soon)
+```
+
+Built-in protocol support: `redfish`, `snmp`, `modbus`.
+
+---
+
+### `lumina cluster <command>`
+
+Cluster management for distributed Lumina nodes.
+
+```bash
+lumina cluster start <spec.lum> [node_id]   # Start a cluster node
+lumina cluster status                        # Show cluster status
+lumina cluster join <address>                # Join an existing cluster
+```
+
+See [08-advanced-features.md](08-advanced-features.md) for cluster configuration details.
+
+---
+
+### `lumina --version`
+
+Print the version string.
+
+```bash
+lumina --version
+# Output: Lumina v2.0.0: The Cluster Release
+```
+
+Also available as `lumina version` and `lumina -v`.
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LUMINA_HOME` | `~/.lumina` | Root directory for Lumina installation |
+| `LUMINA_SKIP_CHECKSUM` | `0` | Set to `1` to skip SHA256 verification during install |
+
+---
+
+## File Locations
+
+| Path | Contents |
+|------|----------|
+| `~/.lumina/bin/lumina` | CLI binary |
+| `~/.lumina/bin/lumina-lsp` | Language server binary |
+| `~/.lumina/env` | Shell environment file (sourced by your shell profile) |
+
+
+---
+
+# Infrastructure Patterns (v2.1)
+
+With the introduction of external adapters and the `provision`/`terminate` actions in v2.1, Lumina can now manage real-world infrastructure lifecycles autonomously.
+
+## The Hydra Fleet Pattern (Auto-Scaling & Self-Healing)
+
+The "Hydra Fleet" is a robust architectural pattern for building autonomous infrastructure that scales up during traffic peaks, scales down to save costs, and heals itself if nodes fail.
+
+### Step 1: Define the Infrastructure Entities
+
+```lumina
+resource entity Service {
+  name: String
+  image: String
+  status: String
+  verified: Boolean
+  tier: String
+}
+
+entity TrafficSensor {
+  load: Number
+  active_workers: Number
+}
+```
+
+### Step 2: Establish the Initial State (Genesis)
+
+```lumina
+let database = Service { name: "hydra-db", status: "unknown", verified: false, tier: "db" }
+let worker_1 = Service { name: "hydra-app-01", status: "unknown", verified: false, tier: "app" }
+let worker_2 = Service { name: "hydra-app-02", status: "unknown", verified: false, tier: "app" }
+
+let cluster_monitor = TrafficSensor { load: 10, active_workers: 1 }
+
+rule "Genesis" when (database.status == "unknown") {
+  update database.status = "starting"
+  update worker_1.status = "starting"
+  provision database
+  provision worker_1
+}
+```
+
+### Step 3: Implement Self-Healing
+
+The Self-Healing law ensures core services remain online. We use the `whenever` trigger to continuously enforce this state, while intentionally ignoring dynamic nodes (like `worker_2`) that are managed by the auto-scaler.
+
+```lumina
+rule "Self-Healing" for (s: Service)
+whenever (s.status == "stopped" and s.name != "hydra-app-02") {
+  show "HEALING: {s.name} went down! Re-initializing..."
+  update s.status = "running"
+  provision s
+}
+```
+
+### Step 4: Implement Auto-Scaling
+
+The scaling rules use the level-triggered `whenever` block to detect traffic states and scale the dynamic workers accordingly.
+
+```lumina
+rule "Scale Up" cooldown 30s
+whenever (cluster_monitor.load > 80 and worker_2.status != "running") {
+  show "MONITOR: High Load detected. Provisioning worker_2..."
+  update worker_2.status = "running"
+  update cluster_monitor.active_workers = 2
+  provision worker_2
+}
+
+rule "Scale Down" cooldown 30s
+whenever (cluster_monitor.load < 30 and worker_2.status == "running") {
+  show "MONITOR: Low Load detected. Terminating worker_2..."
+  update worker_2.status = "stopped"
+  update cluster_monitor.active_workers = 1
+  terminate worker_2
+}
+```
+
+### Step 5: Global Reconciliation
+
+Finally, keep the engine synchronized with reality by polling the external adapter (e.g., Docker) periodically.
+
+```lumina
+global rule "Fleet Sync" every 5s {
+  reconcile Service
+}
+```
+

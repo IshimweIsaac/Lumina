@@ -33,13 +33,19 @@ impl LuminaAdapter for ChannelAdapter {
         &self.entity
     }
 
-    fn poll(&mut self) -> Option<(String, String, Value)> {
-        self.rx.lock().ok()?.try_recv().ok()
+    fn poll(&mut self) -> Vec<(String, String, Value)> {
+        let mut updates = vec![];
+        if let Ok(rx) = self.rx.lock() {
+            while let Ok(update) = rx.try_recv() {
+                updates.push(update);
+            }
+        }
+        updates
     }
 
-    fn on_write(&mut self, f: &str, v: &Value) {
+    fn on_write(&mut self, _instance: &str, field: &str, value: &Value) {
         if let Some(tx) = &self.tx {
-            let _ = tx.send((f.to_string(), v.clone()));
+            let _ = tx.send((field.to_string(), value.clone()));
         }
     }
 }

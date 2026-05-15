@@ -143,6 +143,26 @@ pub enum Token {
     #[token("region")]
     KwRegion,
 
+    // ── v2.1 Keywords ────────────────────────────────────────
+    #[token("whenever")]
+    KwWhenever,
+    #[token("ensure")]
+    KwEnsure,
+    #[token("global")]
+    KwGlobal,
+    #[token("resource")]
+    KwResource,
+    #[token("provision")]
+    KwProvision,
+    #[token("reconcile")]
+    KwReconcile,
+    #[token("trace")]
+    KwTrace,
+    #[token("terminate")]
+    KwTerminate,
+    #[token("destroy")]
+    KwDestroy,
+
     // ── Operators & punctuation ────────────────────────────
     #[token("::")]
     ColonColon,
@@ -290,6 +310,15 @@ impl Token {
             Token::KwDeploy => "keyword 'deploy'".to_string(),
             Token::KwBindAddr => "keyword 'bind_addr'".to_string(),
             Token::KwRegion => "keyword 'region'".to_string(),
+            Token::KwWhenever => "keyword 'whenever'".to_string(),
+            Token::KwEnsure => "keyword 'ensure'".to_string(),
+            Token::KwGlobal => "keyword 'global'".to_string(),
+            Token::KwResource => "keyword 'resource'".to_string(),
+            Token::KwProvision => "keyword 'provision'".to_string(),
+            Token::KwReconcile => "keyword 'reconcile'".to_string(),
+            Token::KwTrace => "keyword 'trace'".to_string(),
+            Token::KwTerminate => "keyword 'terminate'".to_string(),
+            Token::KwDestroy => "keyword 'destroy'".to_string(),
             Token::ColonColon => "'::'".to_string(),
 
             Token::ColonEq => "':='".to_string(),

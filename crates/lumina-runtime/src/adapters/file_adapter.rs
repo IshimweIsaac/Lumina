@@ -71,10 +71,16 @@ impl LuminaAdapter for FileWatchAdapter {
     fn entity_name(&self) -> &str {
         &self.entity
     }
-    fn poll(&mut self) -> Option<(String, String, Value)> {
-        self.rx.lock().ok()?.try_recv().ok()
+    fn poll(&mut self) -> Vec<(String, String, Value)> {
+        let mut updates = vec![];
+        if let Ok(rx) = self.rx.lock() {
+            while let Ok(update) = rx.try_recv() {
+                updates.push(update);
+            }
+        }
+        updates
     }
-    fn on_write(&mut self, _field: &str, _value: &Value) {
+    fn on_write(&mut self, _instance: &str, _field: &str, _value: &Value) {
         // Not currently propagating writes back to the file system.
     }
 }

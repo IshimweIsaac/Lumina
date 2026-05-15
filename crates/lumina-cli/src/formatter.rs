@@ -41,7 +41,25 @@ fn format_statement(stmt: &Statement) -> String {
         Statement::PluginImport(p) => format!("import plugin \"{}\" as {}", p.path, p.alias),
         Statement::Provider(p) => format_provider(p),
         Statement::Cluster(c) => format_cluster(c),
+        Statement::ResourceEntity(e) => format_resource_entity(e),
     }
+}
+
+fn format_resource_entity(e: &ResourceEntityDecl) -> String {
+    let mut out = format!("resource entity {} provider \"{}\" {{\n", e.name, e.provider);
+    for field in &e.fields {
+        out.push_str(&format_field(field));
+        out.push('\n');
+    }
+    if !e.desired_state.is_empty() {
+        out.push_str(&format!("{}ensure {{\n", INDENT));
+        for (name, expr) in &e.desired_state {
+            out.push_str(&format!("{}{}{}: {},\n", INDENT, INDENT, name, format_expr(expr)));
+        }
+        out.push_str(&format!("{}}}\n", INDENT));
+    }
+    out.push('}');
+    out
 }
 
 fn format_entity(e: &EntityDecl) -> String {
@@ -155,7 +173,8 @@ fn format_let(l: &LetStmt) -> String {
 }
 
 fn format_rule(r: &RuleDecl) -> String {
-    let mut out = format!("rule {}", r.name);
+    let global_prefix = if r.is_global { "global " } else { "" };
+    let mut out = format!("{}rule {}", global_prefix, r.name);
     if let Some(param) = &r.param {
         out.push_str(&format!(" for ({}: {})", param.name, param.entity));
     }
@@ -174,6 +193,15 @@ fn format_rule(r: &RuleDecl) -> String {
         }
         RuleTrigger::Any(fc) => out.push_str(&format!("when any {}", format_fleet_condition(fc))),
         RuleTrigger::All(fc) => out.push_str(&format!("when all {}", format_fleet_condition(fc))),
+        RuleTrigger::Whenever(conds) => {
+            for (i, cond) in conds.iter().enumerate() {
+                if i == 0 {
+                    out.push_str(&format!("whenever {}", format_condition(cond)));
+                } else {
+                    out.push_str(&format!("\nand {}", format_condition(cond)));
+                }
+            }
+        }
         RuleTrigger::Every(d) => out.push_str(&format!("every {}", format_duration(d))),
     }
 
@@ -288,6 +316,23 @@ fn format_action(action: &Action) -> String {
                 parts.push(format!("{}: {}", k, format_expr(v)));
             }
             format!("alert {}", parts.join(", "))
+        }
+        Action::Provision { target, .. } => format!("provision {}", target),
+        Action::Destroy { target, .. } => format!("destroy {}", target),
+        Action::Reconcile { target, .. } => format!("reconcile {}", target),
+        Action::Trace(expr) => format!("trace {}", format_expr(expr)),
+        Action::For {
+            param,
+            entity,
+            actions,
+            ..
+        } => {
+            let mut out = format!("for ({}: {}) {{\n", param, entity);
+            for action in actions {
+                out.push_str(&format!("{}{}  \n", INDENT, format_action(action)));
+            }
+            out.push_str("}");
+            out
         }
     }
 }

@@ -20,6 +20,7 @@ This directory is the **single source of truth** for writing, debugging, and arc
 | Use clusters, FFI, external entities, secrets| [08-advanced-features.md](08-advanced-features.md)            |
 | Check if something is supported or broken    | [09-known-limitations.md](09-known-limitations.md)            |
 | Architect a full project from scratch        | [10-project-templates.md](10-project-templates.md)            |
+| Install, update, or use the CLI              | [11-cli-reference.md](11-cli-reference.md)                    |
 
 ---
 
@@ -31,18 +32,36 @@ Lumina is a **Distributed Reactive Language (DRL)** for agentless infrastructure
 
 Lumina source files use the `.lum` extension. Comments start with `--`.
 
-## Running Lumina
+## CLI Quick Start
 
 ```bash
+# Install Lumina
+curl -fsSL https://lumina-lang.web.app/install.sh | sh && . ~/.lumina/env
+
 # Run a file
 lumina run myfile.lum
+
+# Type-check without running
+lumina check myfile.lum
+
+# Format source code
+lumina fmt myfile.lum
 
 # Start the interactive REPL
 lumina repl
 
-# Run with live temporal triggers (every/for timers tick in real-time)
-lumina run --live myfile.lum
+# Update to the latest version
+lumina update
+
+# Check if an update is available
+lumina update --check
 ```
+
+See [11-cli-reference.md](11-cli-reference.md) for the full command reference.
+
+
+---
+
 # Lumina Mental Model: Think in Truth, Not in Steps
 
 ## The Core Idea
@@ -175,6 +194,10 @@ This means: **Lumina state is either fully consistent or unchanged.** There is n
 - **Not a scripting language**: You don't write procedures. You declare truth.
 - **Not eventually consistent**: State changes are atomic. Derived fields are always up-to-date after a tick.
 - **Not a database**: Entities are in-memory reactive objects, not persisted rows.
+
+
+---
+
 # Lumina Syntax Reference (v2.0-GOLD)
 
 This is the exhaustive syntax reference for every Lumina construct. Every example here is valid, runnable code.
@@ -230,6 +253,23 @@ entity Server {
 
 - `@doc "description"` — Documentation annotation
 - `@range min to max` — Runtime constraint. Violating it causes R006 rollback.
+
+### Resource Entity (v2.1)
+
+Resource entities represent infrastructure that Lumina manages. They support desired state reconciliation.
+
+```lumina
+resource entity DockerContainer {
+    name: Text
+    image: Text
+    status: Text
+
+    -- Desired state: Lumina will reconcile to these values
+    desired {
+        status: "running"
+    }
+}
+```
 
 ### Entity with References (ref)
 
@@ -319,6 +359,30 @@ when Server.is_overheating becomes true {
 ```
 
 **Important**: Inside a rule with `for (s: Server)`, both `s.cpu_temp` and `Server.cpu_temp` resolve to the same thing — the current instance being evaluated.
+
+### Level-Triggered Rule (whenever) (v2.1)
+
+Unlike `when`, which only fires on **transitions** (edge-triggered), `whenever` fires as long as the condition is met (level-triggered). It is primarily used for continuous reconciliation.
+
+```lumina
+rule "Keep Running" for (c: DockerContainer)
+whenever c.status != "running" {
+    provision c
+}
+```
+
+### Global Rules (global) (v2.1)
+
+Rules that reference an entity type without a `for` clause are called **broadcast rules**. To prevent accidental mass-actions, Lumina v2.1 requires the `global` keyword for these rules.
+
+```lumina
+global rule "Fleet Shutdown"
+when any Server.is_critical becomes true {
+    evacuate "Server"
+}
+```
+
+If `global` is missing on a broadcast rule, the compiler will raise error L067.
 
 ### Rule with Named String
 
@@ -494,6 +558,19 @@ create Server {
 ```lumina
 delete server1
 ```
+
+### Infrastructure Actions (v2.1)
+
+Used with resource entities to manage external infrastructure lifecycle.
+
+```lumina
+provision my_container    -- Create/start the resource
+destroy my_container      -- Stop/remove the resource
+reconcile my_container    -- Force a check of desired vs actual state
+trace "Debug message"     -- Log a trace event (requires --trace flag)
+```
+
+**Note**: `trace` output only appears if the engine is run with the `--trace` flag.
 
 ---
 
@@ -742,6 +819,10 @@ let instance1 = MyEntity { ... }
 show "--- Running simulation ---"
 update instance1.field = value
 ```
+
+
+---
+
 # Lumina Type System
 
 This document covers every type in Lumina, what operations work on each, and how types interact.
@@ -932,6 +1013,10 @@ When an external entity is registered, its stored fields get these defaults:
 7. Logical AND: `and`
 8. Logical OR: `or`
 9. Transition: `becomes`
+
+
+---
+
 # Lumina Built-in Functions Reference
 
 Every built-in function available in the Lumina runtime, with signatures, examples, and edge cases.
@@ -1141,6 +1226,10 @@ Function constraints:
 - Cannot access entity fields directly (L015)
 - Cannot have duplicate names (L011)
 - Return type must match body expression type (L014)
+
+
+---
+
 # Lumina Rules & Triggers Deep Dive
 
 Rules are the hardest part of Lumina to get right. This document covers every trigger type, how edge detection works, and the most common mistakes.
@@ -1471,6 +1560,10 @@ when Server.cpu_temp > 80 {
     show "Hot!"
 }
 ```
+
+
+---
+
 # Lumina Patterns Cookbook
 
 Complete, runnable Lumina programs. Each program demonstrates a real pattern.
@@ -2012,6 +2105,10 @@ when System.isOverheating becomes false {
     alert severity: "info", message: "Temperature stabilized."
 }
 ```
+
+
+---
+
 # Lumina Error Encyclopedia
 
 Every error code in Lumina with the BAD code that causes it, what the error message says, and the FIXED code.
@@ -2356,6 +2453,30 @@ let c = Config { key: env("API_KEY") }
 
 ---
 
+---
+
+### L067: Implicit Broadcast (v2.1)
+
+**What happened**: You wrote a rule that references an entity type (broadcasting to the whole fleet) but didn't use the `global` keyword.
+
+```lumina
+-- ❌ BAD: Implicit broadcast
+rule "Mass Update"
+when Server.temp > 80 {    -- L067: Use 'global' keyword
+    show "Hot!"
+}
+```
+
+```lumina
+-- ✅ FIX: Add 'global' to confirm intent
+global rule "Mass Update"
+when Server.temp > 80 {
+    show "Hot!"
+}
+```
+
+---
+
 ## Runtime Errors (R-Codes) — Caught During Execution
 
 These errors occur while the program is running. They trigger **atomic rollback** — the state reverts to before the failed operation.
@@ -2456,6 +2577,30 @@ update s.cpu_temp = 200    -- R006: 200 outside 0-150
 ### R009: Cannot Update Derived Field
 
 ```
+Cannot update derived field 'field' — it is computed automatically
+```
+
+---
+
+### R020: Provisioning Failed (v2.1)
+
+**Cause**: An infrastructure provider failed to create or start a resource.
+
+```
+R020: Provisioning failed for resource 'my_container': Connection refused
+```
+
+---
+
+### R021: Reconcile Drift Detected (v2.1)
+
+**Cause**: The actual state of a resource deviates from the desired state, and Lumina is in read-only mode or cannot automatically fix it.
+
+```
+R021: Drift detected for resource 'my_container': expected 'running', found 'stopped'
+```
+
+```
 Cannot update derived field 'is_hot' — it is computed automatically
 ```
 
@@ -2496,6 +2641,10 @@ Internal error: snapshot stack corrupted during rollback. This is a bug.
 ```
 
 This is an engine bug. If you encounter it, report it.
+
+
+---
+
 # Lumina Advanced Features
 
 Cluster networking, external entities, FFI integration, and secrets.
@@ -2796,6 +2945,10 @@ import "LSL::power::Generator"
 ```
 
 Using an unknown namespace raises L054.
+
+
+---
+
 # Lumina Known Limitations (v2.0-GOLD)
 
 This document lists what does NOT work, what is partially implemented, and what will cause AI hallucinations if assumed to exist. **Read this before generating code.**
@@ -2989,6 +3142,10 @@ Fields always have a value. External entity fields default to `Unknown` until da
 - **Theoretical limit**: FxHashMap allows 100K+ entities, but aggregates recompute fully
 - **WASM performance**: ~90% of native speed
 - **Timer resolution**: Millisecond-level (not microsecond)
+
+
+---
+
 # Lumina Project Templates
 
 Full project architectures for common use cases. Use these as starting points for real projects.
@@ -3459,3 +3616,250 @@ show "=== RECOVERY ==="
 -- restore to normal
 -- verify on clear fired
 ```
+
+
+---
+
+# Lumina CLI Reference
+
+Every command available in the `lumina` binary, with usage, flags, and examples.
+
+---
+
+## Installation
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://lumina-lang.web.app/install.sh | sh && . ~/.lumina/env
+```
+
+### Windows (PowerShell)
+
+```powershell
+iwr https://lumina-lang.web.app/install.ps1 -useb | iex
+```
+
+### Homebrew (macOS)
+
+```bash
+brew tap IshimweIsaac/lumina
+brew install lumina
+```
+
+### Verify Installation
+
+```bash
+lumina --version
+```
+
+---
+
+## Commands
+
+### `lumina run <file.lum>`
+
+Execute a Lumina program.
+
+```bash
+lumina run myfile.lum
+```
+
+**Flags:**
+- `--node-id <id>` — Override the cluster node ID (for multi-node testing)
+
+The program runs sequentially through all statements. If `every` or `for` timers are present, the engine enters live mode and ticks in real-time until interrupted with `Ctrl+C`.
+
+---
+
+### `lumina check <file.lum>`
+
+Type-check and analyze a program without running it.
+
+```bash
+lumina check myfile.lum
+```
+
+Output: `✓ myfile.lum — no errors found` on success, or detailed diagnostics on failure.
+
+Use this for CI pipelines and pre-commit hooks.
+
+---
+
+### `lumina fmt <file.lum>`
+
+Format a Lumina source file in-place using the canonical style.
+
+```bash
+lumina fmt myfile.lum
+```
+
+Output: `✓ myfile.lum — formatted`
+
+---
+
+### `lumina repl`
+
+Start an interactive Read-Eval-Print Loop.
+
+```bash
+lumina repl
+```
+
+Type Lumina expressions and statements interactively. Multi-line input is supported with brace-depth tracking. Type `:help` to see inspector commands.
+
+---
+
+### `lumina update`
+
+Update Lumina to the latest version. This replaces both `lumina` and `lumina-lsp` binaries in-place.
+
+```bash
+lumina update
+```
+
+**Flags:**
+- `--check` — Only check if an update is available, don't download
+- `--force` — Re-download and reinstall even if already on the latest version (useful for repairing corrupted installs)
+
+**How it works:**
+1. Queries the GitHub Releases API for the latest version tag
+2. Compares against the currently installed version
+3. Downloads the correct platform-specific binaries (with SHA256 verification)
+4. Atomically replaces the running binaries
+
+**Examples:**
+
+```bash
+# Check if there's a new version
+lumina update --check
+
+# Update to the latest version
+lumina update
+
+# Force-reinstall the current version
+lumina update --force
+```
+
+**Notes:**
+- Requires `curl` to be available on your system
+- On Windows, the current binary is renamed to `.old` before replacement (standard self-update pattern)
+- On macOS, the quarantine flag is automatically removed
+
+---
+
+### `lumina setup`
+
+Automated IDE and environment setup. Detects installed editors and installs the Lumina extension.
+
+```bash
+lumina setup
+```
+
+This command runs automatically during installation. It scans for:
+- **VS Code-compatible editors**: VS Code, VSCodium, Cursor, Windsurf, Positron, Code Insiders, Code OSS
+- **Neovim**: Auto-generates a zero-config LSP plugin at `~/.config/nvim/plugin/lumina.lua`
+
+The extension provides syntax highlighting, live diagnostics, go-to-definition, and find-all-references via the built-in `lumina-lsp` language server.
+
+---
+
+### `lumina uninstall`
+
+Remove Lumina from your system.
+
+```bash
+lumina uninstall
+```
+
+This command:
+1. Uninstalls the VS Code extension from all detected editors
+2. Removes the `~/.lumina` directory (binaries and environment)
+3. Cleans PATH entries from shell profiles (`.bashrc`, `.zshrc`, `.profile`, etc.)
+
+---
+
+### `lumina get documentation`
+
+Output the master knowledge atlas to the current directory for AI-assisted development.
+
+```bash
+lumina get documentation
+```
+
+Creates `master_knowledge.md` in the current working directory. This file contains the full Lumina technical reference — designed to be ingested by AI coding assistants for context-aware code generation.
+
+---
+
+### `lumina query <expression>`
+
+Evaluate a standalone Lumina expression.
+
+```bash
+lumina query "1 + 2 + 3"
+```
+
+Useful for quick calculations and testing expressions without creating a full `.lum` file.
+
+---
+
+### `lumina provider <command>`
+
+Manage external data providers.
+
+```bash
+lumina provider list          # List installed providers
+lumina provider install <name>   # Install a provider (registry coming soon)
+```
+
+Built-in protocol support: `redfish`, `snmp`, `modbus`.
+
+---
+
+### `lumina cluster <command>`
+
+Cluster management for distributed Lumina nodes.
+
+```bash
+lumina cluster start <spec.lum> [node_id]   # Start a cluster node
+lumina cluster status                        # Show cluster status
+lumina cluster join <address>                # Join an existing cluster
+```
+
+See [08-advanced-features.md](08-advanced-features.md) for cluster configuration details.
+
+---
+
+### `lumina --version`
+
+Print the version string.
+
+```bash
+lumina --version
+# Output: Lumina v2.0.0: The Cluster Release
+```
+
+Also available as `lumina version` and `lumina -v`.
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LUMINA_HOME` | `~/.lumina` | Root directory for Lumina installation |
+| `LUMINA_SKIP_CHECKSUM` | `0` | Set to `1` to skip SHA256 verification during install |
+
+---
+
+## File Locations
+
+| Path | Contents |
+|------|----------|
+| `~/.lumina/bin/lumina` | CLI binary |
+| `~/.lumina/bin/lumina-lsp` | Language server binary |
+| `~/.lumina/env` | Shell environment file (sourced by your shell profile) |
+
+
+---
+

@@ -7,6 +7,7 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
         let fields_info = match stmt {
             Statement::Entity(e) => Some((&e.name, &e.fields, e.span)),
             Statement::ExternalEntity(e) => Some((&e.name, &e.fields, e.span)),
+            Statement::ResourceEntity(e) => Some((&e.name, &e.fields, e.span)),
             _ => None,
         };
 
@@ -18,7 +19,7 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
                 && pos.character >= ec
                 && pos.character <= ec + entity_name.len() as u32
             {
-                let is_ext = matches!(stmt, Statement::ExternalEntity(_));
+                let is_ext = matches!(stmt, Statement::ExternalEntity(_) | Statement::ResourceEntity(_));
                 let field_count = fields.len();
                 let label = if is_ext { "external entity" } else { "entity" };
                 return Some(make_hover(format!(
@@ -63,6 +64,7 @@ pub fn hover_at(prog: &Program, src: &str, pos: Position) -> Option<Hover> {
             if pos.line == rl {
                 let trigger_desc = match &r.trigger {
                     RuleTrigger::When(conds) => format!("when ({} condition(s))", conds.len()),
+                    RuleTrigger::Whenever(conds) => format!("whenever ({} condition(s))", conds.len()),
                     RuleTrigger::Any(fc) => format!("when any {}.{}", fc.entity, fc.field),
                     RuleTrigger::All(fc) => format!("when all {}.{}", fc.entity, fc.field),
                     RuleTrigger::Every(dur) => format!("every {} {:?}", dur.value, dur.unit),

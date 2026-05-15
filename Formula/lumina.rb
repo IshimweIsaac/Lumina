@@ -1,7 +1,7 @@
 class Lumina < Formula
   desc "Declarative reactive language for IoT and infrastructure monitoring"
   homepage "https://lumina-lang.web.app"
-  version "1.8.0"
+  version "2.0.0"
 
   on_macos do
     if Hardware::CPU.arm?

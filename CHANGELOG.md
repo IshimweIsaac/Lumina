@@ -3,6 +3,16 @@ This document tracks the completion of the final stages of Lumina, transforming 
 > [!IMPORTANT]
 > Starting with v2.0, Lumina transitions into a **Sovereign Cluster Runtime**, enabling distributed state resolution across decentralized nodes.
 
+## Phase 11: v2.1 "The Architect Release" [PLANNING]
+- **Reactive Provisioning**: Introduction of `resource entity` (e.g., `AWS::EC2`, `Docker::Container`) for direct infrastructure management.
+- **Level-Triggered Rules**: Added `whenever` and `ensure` keywords to fix "Transition Blindness" and enable continuous state enforcement.
+- **Standard Sensory Library (SSL)**: Native Rust-based sensors for `Http`, `Ping`, `File`, and `Process` to eliminate Python bridge overhead.
+- **Explicit Broadcast Safety**: Mandatory `global` keyword for fleet-wide rules to prevent the "Broadcast Footgun."
+- **Provisioning Actions**: Native `provision`, `destroy`, and `reconcile` actions for resource lifecycle management.
+- **Robust Runtime**: Implemented **Snapshot Iterators** to resolve `R001` crashes and **Sync Storm Throttling** for DAG stability.
+- **Vibe-Flexible Parser**: Decoupled keyword ordering for `cooldown`, `every`, and `for` modifiers.
+- **Observability**: New `trace` action for real-time rule evaluation debugging.
+
 ## Phase 10: v2.0 "The Cluster Release" [COMPLETED]
 - **Clustering Engine**: Implementation of `lumina cluster` for distributed node management.
 - **Gossip Protocol**: Real-world UDP socket transport (`UdpTransport`) for decentralized node discovery, peer health monitoring, and message routing.

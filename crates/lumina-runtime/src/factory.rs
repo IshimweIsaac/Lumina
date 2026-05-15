@@ -60,6 +60,32 @@ pub fn build_evaluator(analyzed: &AnalyzedProgram) -> Evaluator {
             Statement::Aggregate(a) => {
                 ev.agg_store.register(a.clone());
             }
+            Statement::ResourceEntity(e) => {
+                if e.provider == "docker" {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    ev.register_adapter(Box::new(crate::adapters::docker_adapter::DockerAdapter::new(&e.name)));
+                    
+                    #[cfg(target_arch = "wasm32")]
+                    ev.register_adapter(Box::new(StaticAdapter::new(&e.name)));
+                } else {
+                    ev.register_adapter(Box::new(StaticAdapter::new(&e.name)));
+                }
+                // Add derived fields from resource entities
+                for f in &e.fields {
+                    if let Field::Derived(df) = f {
+                        ev.derived_exprs.insert((e.name.clone(), df.name.clone()), df.expr.clone());
+                    }
+                }
+            }
+            Statement::Import(decl) => {
+                if decl.path == "LSL::docker::Container" {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    ev.register_adapter(Box::new(crate::adapters::docker_adapter::DockerAdapter::new("Container")));
+                    
+                    #[cfg(target_arch = "wasm32")]
+                    ev.register_adapter(Box::new(StaticAdapter::new("Container")));
+                }
+            }
             _ => {}
         }
     }

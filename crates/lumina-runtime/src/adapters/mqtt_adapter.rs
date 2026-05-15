@@ -85,12 +85,18 @@ impl LuminaAdapter for MqttAdapter {
     fn entity_name(&self) -> &str {
         &self.entity
     }
-    fn poll(&mut self) -> Option<(String, String, Value)> {
-        self.parsed_rx.lock().ok()?.try_recv().ok()
+    fn poll(&mut self) -> Vec<(String, String, Value)> {
+        let mut updates = vec![];
+        if let Ok(rx) = self.parsed_rx.lock() {
+            while let Ok(update) = rx.try_recv() {
+                updates.push(update);
+            }
+        }
+        updates
     }
 
     // Broadcast updates natively through the network buffer
-    fn on_write(&mut self, field: &str, value: &Value) {
+    fn on_write(&mut self, instance: &str, field: &str, value: &Value) {
         let v_json = match value {
             Value::Number(n) => serde_json::json!(*n),
             Value::Text(s) => serde_json::json!(s),
@@ -98,8 +104,9 @@ impl LuminaAdapter for MqttAdapter {
             _ => return, // Ignore unsupported
         };
 
-        // Output format: { "field": "value" }
+        // Output format: { "id": "instance", "field": "value" }
         let payload = serde_json::json!({
+            "id": instance,
             field: v_json
         });
 

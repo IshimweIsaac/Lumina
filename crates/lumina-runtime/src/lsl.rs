@@ -20,8 +20,9 @@ impl LslRegistry {
         };
         registry.register_datacenter();
         registry.register_network();
-        registry.register_k8s();
+
         registry.register_power();
+        registry.register_docker();
         registry
     }
 
@@ -449,163 +450,6 @@ impl LslRegistry {
         );
     }
 
-    // ── Kubernetes schemas ─────────────────────────────────
-
-    fn register_k8s(&mut self) {
-        let span = Span {
-            start: 0,
-            end: 0,
-            line: 0,
-            col: 0,
-        };
-        let meta = FieldMetadata {
-            doc: None,
-            range: None,
-            affects: vec![],
-        };
-
-        // LSL::k8s::Pod
-        self.schemas.insert(
-            "LSL::k8s::Pod".into(),
-            EntityDecl {
-                name: "Pod".into(),
-                fields: vec![
-                    Field::Stored(StoredField {
-                        name: "name".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "namespace".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "cpu_millicores".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "memory_mb".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "restart_count".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "status".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                ],
-                span,
-            },
-        );
-
-        // LSL::k8s::Node
-        self.schemas.insert(
-            "LSL::k8s::Node".into(),
-            EntityDecl {
-                name: "Node".into(),
-                fields: vec![
-                    Field::Stored(StoredField {
-                        name: "name".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "cpu_capacity".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "memory_capacity_gb".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "pod_count".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "cpu_percent".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "status".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                ],
-                span,
-            },
-        );
-
-        // LSL::k8s::Deployment
-        self.schemas.insert(
-            "LSL::k8s::Deployment".into(),
-            EntityDecl {
-                name: "Deployment".into(),
-                fields: vec![
-                    Field::Stored(StoredField {
-                        name: "name".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "namespace".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "replicas".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "available_replicas".into(),
-                        ty: LuminaType::Number,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "image".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                    Field::Stored(StoredField {
-                        name: "status".into(),
-                        ty: LuminaType::Text,
-                        metadata: meta.clone(),
-                        span,
-                    }),
-                ],
-                span,
-            },
-        );
-    }
-
     // ── Power schemas ──────────────────────────────────────
 
     fn register_power(&mut self) {
@@ -716,6 +560,81 @@ impl LslRegistry {
                     }),
                     Field::Stored(StoredField {
                         name: "status".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                ],
+                span,
+            },
+        );
+    }
+
+    // ── Docker schemas ──────────────────────────────────────
+
+    fn register_docker(&mut self) {
+        let span = Span {
+            start: 0,
+            end: 0,
+            line: 0,
+            col: 0,
+        };
+        let meta = FieldMetadata {
+            doc: None,
+            range: None,
+            affects: vec![],
+        };
+
+        // LSL::docker::Container
+        self.schemas.insert(
+            "LSL::docker::Container".into(),
+            EntityDecl {
+                name: "Container".into(),
+                fields: vec![
+                    Field::Stored(StoredField {
+                        name: "name".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "image".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "port".into(),
+                        ty: LuminaType::Number,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "target_port".into(),
+                        ty: LuminaType::Number,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "env_vars".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "status".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "verified".into(),
+                        ty: LuminaType::Boolean,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "tier".into(),
                         ty: LuminaType::Text,
                         metadata: meta.clone(),
                         span,

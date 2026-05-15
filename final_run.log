@@ -1,0 +1,48 @@
+Running Lumina [Ctrl+C to stop]...
+AUDIT: hydra-app-02 verified in app tier.
+AUDIT: hydra-app-01 verified in app tier.
+AUDIT: hydra-lb verified in lb tier.
+AUDIT: hydra-db verified in db tier.
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+SENSOR: Traffic is rising... Current Load: 35%
+[36m[INFO] Traffic Simulator: Timer callback for 'Traffic Simulator'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+SENSOR: Traffic is rising... Current Load: 60%
+[36m[INFO] Traffic Simulator: Timer callback for 'Traffic Simulator'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+SENSOR: Traffic is rising... Current Load: 85%
+[36m[INFO] Traffic Simulator: Timer callback for 'Traffic Simulator'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+SENSOR: Traffic is rising... Current Load: 110%
+[36m[INFO] Traffic Simulator: Timer callback for 'Traffic Simulator'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+SENSOR: Traffic is rising... Current Load: 135%
+[36m[INFO] Traffic Simulator: Timer callback for 'Traffic Simulator'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m
+[RECONCILE] Checking drift for resource: Service
+[36m[INFO] : Resource reconciled[0m
+[36m[INFO] Fleet Sync: Timer callback for 'Fleet Sync'[0m

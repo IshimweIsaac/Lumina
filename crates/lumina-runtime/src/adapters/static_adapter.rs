@@ -27,9 +27,9 @@ impl LuminaAdapter for StaticAdapter {
         &self.entity
     }
 
-    fn poll(&mut self) -> Option<(String, String, Value)> {
-        self.queue.pop_front()
+    fn poll(&mut self) -> Vec<(String, String, Value)> {
+        self.queue.drain(..).collect()
     }
 
-    fn on_write(&mut self, _: &str, _: &Value) {}
+    fn on_write(&mut self, _instance: &str, _field: &str, _value: &Value) {}
 }

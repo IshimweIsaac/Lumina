@@ -85,7 +85,15 @@ impl Analyzer {
                     }
                 }
                 Statement::Import(decl) => {
-                    if let Some(ref ns) = decl.namespace {
+                    let path = if decl.path.starts_with("LSL::") {
+                        Some(decl.path.clone())
+                    } else if let Some(ref ns) = decl.namespace {
+                        Some(ns.join("::"))
+                    } else {
+                        None
+                    };
+
+                    if let Some(path) = path {
                         // v1.9: LSL namespace import — validate the path statically
                         let known_namespaces = [
                             "LSL::datacenter::Server",
@@ -95,23 +103,46 @@ impl Analyzer {
                             "LSL::network::Switch",
                             "LSL::network::Router",
                             "LSL::network::Firewall",
-                            "LSL::k8s::Pod",
-                            "LSL::k8s::Node",
-                            "LSL::k8s::Deployment",
                             "LSL::power::UPS",
                             "LSL::power::Generator",
+                            "LSL::docker::Container",
                         ];
-                        if !known_namespaces.contains(&decl.path.as_str()) {
+                        if !known_namespaces.contains(&path.as_str()) {
                             self.errors.push(AnalyzerError {
                                 code: "L054",
                                 message: format!(
-                                    "Unknown LSL schema '{}'. Available: datacenter, network, k8s, power.",
-                                    decl.path
+                                    "Unknown LSL schema '{}'. Available: datacenter, network, k8s, power, docker.",
+                                    path
                                 ),
                                 span: decl.span,
                             });
+                        } else if path == "LSL::docker::Container" {
+                            let entity_name = "Container".to_string();
+                            
+                            // v2.1: Pre-register the entity and mark it as external so it can be provisioned/reconciled
+                            let mut schema_ent = crate::types::EntitySchema {
+                                name: entity_name.clone(),
+                                fields: std::collections::HashMap::new(),
+                                field_indices: std::collections::HashMap::new(),
+                                field_names: Vec::new(),
+                                is_external: true, // IMPORTANT: Allows provision/destroy/reconcile
+                                sync_path: String::new(),
+                                sync_strategy: crate::types::SyncStrategy::Realtime,
+                                sync_on: None,
+                                poll_interval: None,
+                            };
+                            self.schema.entities.insert(entity_name.clone(), schema_ent);
+
+                            self.schema.register_field(&entity_name, "name", &LuminaType::Text);
+                            self.schema.register_field(&entity_name, "image", &LuminaType::Text);
+                            self.schema.register_field(&entity_name, "port", &LuminaType::Number);
+                            self.schema.register_field(&entity_name, "target_port", &LuminaType::Number);
+                            self.schema.register_field(&entity_name, "env_vars", &LuminaType::Text);
+                            self.schema.register_field(&entity_name, "status", &LuminaType::Text);
+                            self.schema.register_field(&entity_name, "verified", &LuminaType::Boolean);
+                            self.schema.register_field(&entity_name, "tier", &LuminaType::Text);
                         }
-                    } else if !self.allow_imports {
+                    } else if !self.allow_imports && !decl.path.starts_with("LSL::") {
                         self.errors.push(AnalyzerError {
                             code: "L018",
                             message: "import is not supported in single-file (WASM) mode"
@@ -211,9 +242,81 @@ impl Analyzer {
                         });
                     }
                 }
+                Statement::ResourceEntity(decl) => {
+                    // v2.1: Register resource entity
+                    self.register_resource_entity(decl);
+                }
                 _ => {}
             }
         }
+    }
+
+    fn register_resource_entity(&mut self, decl: &ResourceEntityDecl) {
+        if self.schema.entities.contains_key(&decl.name) {
+            self.errors.push(AnalyzerError {
+                code: "L005",
+                message: format!("Duplicate entity name: {}", decl.name),
+                span: decl.span,
+            });
+            return;
+        }
+
+        let mut fields = HashMap::new();
+        for field in &decl.fields {
+            let (name, schema_field) = match field {
+                Field::Stored(f) => (
+                    f.name.clone(),
+                    FieldSchema {
+                        name: f.name.clone(),
+                        ty: f.ty.clone(),
+                        is_derived: false,
+                        metadata: f.metadata.clone(),
+                    },
+                ),
+                Field::Derived(f) => (
+                    f.name.clone(),
+                    FieldSchema {
+                        name: f.name.clone(),
+                        ty: LuminaType::Number,
+                        is_derived: true,
+                        metadata: f.metadata.clone(),
+                    },
+                ),
+                Field::Ref(r) => (
+                    r.name.clone(),
+                    FieldSchema {
+                        name: r.name.clone(),
+                        ty: LuminaType::Entity(r.target_entity.clone()),
+                        is_derived: false,
+                        metadata: FieldMetadata::default(),
+                    },
+                ),
+            };
+            fields.insert(name, schema_field);
+        }
+
+        let mut field_names: Vec<String> = fields.keys().cloned().collect();
+        field_names.sort();
+        let field_indices: HashMap<String, usize> = field_names
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.clone(), i))
+            .collect();
+
+        self.schema.entities.insert(
+            decl.name.clone(),
+            EntitySchema {
+                name: decl.name.clone(),
+                fields,
+                field_indices,
+                field_names,
+                is_external: true, // Resource entities are always external
+                sync_path: String::new(),
+                sync_strategy: SyncStrategy::Realtime,
+                sync_on: None,
+                poll_interval: None,
+            },
+        );
     }
 
     fn register_entity(&mut self, decl: &EntityDecl, is_external: bool) {
@@ -409,6 +512,27 @@ impl Analyzer {
                 Statement::ExternalEntity(decl) => {
                     self.typecheck_entity_fields(&decl.name, &decl.fields)?;
                 }
+                Statement::ResourceEntity(decl) => {
+                    self.typecheck_entity_fields(&decl.name, &decl.fields)?;
+                    // v2.1: Type check desired state expressions
+                    for (field_name, expr) in &decl.desired_state {
+                        let field_schema = self.schema.get_field(&decl.name, field_name).ok_or_else(|| {
+                            vec![AnalyzerError {
+                                code: "L010",
+                                message: format!("Unknown field '{}' in desired state", field_name),
+                                span: decl.span,
+                            }]
+                        })?;
+                        let ty = self.infer_type(expr, Some(&decl.name), None).map_err(|e| vec![e])?;
+                        if ty != field_schema.ty {
+                            return Err(vec![AnalyzerError {
+                                code: "L002",
+                                message: format!("Type mismatch for desired state field '{}'", field_name),
+                                span: decl.span,
+                            }]);
+                        }
+                    }
+                }
                 Statement::Rule(rule) => {
                     let mut rule_locals = HashMap::new();
                     if let Some(param) = &rule.param {
@@ -436,7 +560,20 @@ impl Analyzer {
 
                     // Type check condition
                     match &rule.trigger {
-                        RuleTrigger::When(conds) => {
+                        RuleTrigger::When(conds) | RuleTrigger::Whenever(conds) => {
+                            // v2.1: Enforce 'global' keyword for implicit broadcasts (L067)
+                            if rule.param.is_none() && !rule.is_global {
+                                for cond in conds {
+                                    if self.is_broadcast_ref(&cond.expr) {
+                                        return Err(vec![AnalyzerError {
+                                            code: "L067",
+                                            message: "Implicit broadcast detected. This rule references an entity type in its condition but has no 'for' parameter. Use the 'global' keyword (e.g., 'global when ...') to confirm this is intended for the entire fleet.".to_string(),
+                                            span: rule.span,
+                                        }]);
+                                    }
+                                }
+                            }
+
                             // L035: Enforce maximum of 3 AND clauses
                             if conds.len() > 3 {
                                 return Err(vec![AnalyzerError {
@@ -448,14 +585,15 @@ impl Analyzer {
                                     span: rule.span,
                                 }]);
                             }
+                            let entity_ctx = rule.param.as_ref().map(|p| p.entity.as_str());
                             for cond in conds {
                                 let ty = self
-                                    .infer_type(&cond.expr, None, locals_ref)
+                                    .infer_type(&cond.expr, entity_ctx, locals_ref)
                                     .map_err(|e| vec![e])?;
 
                                 if let Some(becomes_expr) = &cond.becomes {
                                     let b_ty = self
-                                        .infer_type(becomes_expr, None, locals_ref)
+                                        .infer_type(becomes_expr, entity_ctx, locals_ref)
                                         .map_err(|e| vec![e])?;
                                     if ty != b_ty {
                                         return Err(vec![AnalyzerError {
@@ -569,8 +707,14 @@ impl Analyzer {
                     }
 
                     // Type check actions
+                    let entity_ctx = rule.param.as_ref().map(|p| p.entity.as_str());
                     for action in &rule.actions {
-                        self.check_action(action, rule.span, locals_ref)?;
+                        self.check_action(action, rule.span, entity_ctx, locals_ref)?;
+                    }
+                    if let Some(on_clear) = &rule.on_clear {
+                        for action in on_clear {
+                            self.check_action(action, rule.span, entity_ctx, locals_ref)?;
+                        }
                     }
                 }
                 Statement::Fn(decl) => {
@@ -1290,12 +1434,13 @@ impl Analyzer {
         &mut self,
         action: &Action,
         rule_span: Span,
+        entity_ctx: Option<&str>,
         locals: Option<&HashMap<String, LuminaType>>,
     ) -> Result<(), Vec<AnalyzerError>> {
         match action {
             Action::Show(expr) => {
                 // v1.8: L050 — Secret values cannot be displayed
-                let ty = self.infer_type(expr, None, locals).map_err(|e| vec![e])?;
+                let ty = self.infer_type(expr, entity_ctx, locals).map_err(|e| vec![e])?;
                 if ty == LuminaType::Secret {
                     return Err(vec![AnalyzerError {
                         code: "L050",
@@ -1368,7 +1513,7 @@ impl Analyzer {
                         }]
                     })?;
 
-                    let ty = self.infer_type(expr, None, locals).map_err(|e| vec![e])?;
+                    let ty = self.infer_type(expr, entity_ctx, locals).map_err(|e| vec![e])?;
                     if ty != field_schema.ty {
                         return Err(vec![AnalyzerError {
                             code: "L002",
@@ -1405,6 +1550,50 @@ impl Analyzer {
                 Ok(())
             }
             Action::Alert(_) => Ok(()),
+            Action::Provision { target, span }
+            | Action::Destroy { target, span }
+            | Action::Reconcile { target, span } => {
+                // v2.1: Validate target is a resource entity or an instance of one
+                let e_name = if let Some(schema_ent) = self.schema.get_entity(target) {
+                    // It's an entity type (broadcast)
+                    target.clone()
+                } else {
+                    // Check if it's an instance
+                    let inst_ty = self.instances.get(target).or_else(|| {
+                        locals.and_then(|l| l.get(target))
+                    }).ok_or_else(|| {
+                        vec![AnalyzerError {
+                            code: "L001",
+                            message: format!("Unknown resource target: {}", target),
+                            span: *span,
+                        }]
+                    })?;
+                    
+                    if let LuminaType::Entity(name) = inst_ty {
+                        name.clone()
+                    } else {
+                        return Err(vec![AnalyzerError {
+                            code: "L002",
+                            message: format!("'{}' is not an entity", target),
+                            span: *span,
+                        }]);
+                    }
+                };
+
+                let schema_ent = self.schema.get_entity(&e_name).unwrap();
+                if !schema_ent.is_external {
+                     return Err(vec![AnalyzerError {
+                        code: "L038",
+                        message: format!("'{}' is a local entity and cannot be provisioned. Only resource entities can be provisioned/destroyed.", target),
+                        span: *span,
+                    }]);
+                }
+                Ok(())
+            }
+            Action::Trace(expr) => {
+                self.infer_type(expr, entity_ctx, locals).map_err(|e| vec![e])?;
+                Ok(())
+            }
             Action::Write { target, value } => {
                 let entity_name = if let Some(Some(LuminaType::Entity(e))) =
                     locals.map(|l| l.get(&target.instance))
@@ -1429,7 +1618,7 @@ impl Analyzer {
                         }]);
                     }
                     if let Some(field_schema) = entity_schema.fields.get(&target.field) {
-                        let val_ty = self.infer_type(value, None, locals).map_err(|e| vec![e])?;
+                        let val_ty = self.infer_type(value, entity_ctx, locals).map_err(|e| vec![e])?;
                         if val_ty != field_schema.ty {
                             return Err(vec![AnalyzerError {
                                 code: "L002",
@@ -1456,6 +1645,73 @@ impl Analyzer {
                 }
                 Ok(())
             }
+            // v2.1: Iterate over instances in an action block
+            Action::For {
+                param,
+                entity,
+                actions,
+                span,
+            } => {
+                // Verify entity exists
+                if !self.schema.entities.contains_key(entity) {
+                    return Err(vec![AnalyzerError {
+                        code: "L001",
+                        message: format!("Unknown entity: {}", entity),
+                        span: *span,
+                    }]);
+                }
+
+                // Create new scope with the loop parameter
+                let mut loop_locals = locals.cloned().unwrap_or_default();
+                loop_locals.insert(param.clone(), LuminaType::Entity(entity.clone()));
+
+                // Analyze all actions in the loop body
+                let mut errors = vec![];
+                for action in actions {
+                    if let Err(mut e) = self.check_action(action, rule_span, Some(entity), Some(&loop_locals)) {
+                        errors.append(&mut e);
+                    }
+                }
+
+                if errors.is_empty() {
+                    Ok(())
+                } else {
+                    Err(errors)
+                }
+            }
+        }
+    }
+
+    /// v2.1: Helper to detect if an expression references an entity type name (broadcast)
+    fn is_broadcast_ref(&self, expr: &Expr) -> bool {
+        match expr {
+            Expr::Ident(name) => {
+                // If it's an entity name and NOT a local instance/variable
+                self.schema.entities.contains_key(name) && !self.instances.contains_key(name)
+            }
+            Expr::FieldAccess { obj, .. } => self.is_broadcast_ref(obj),
+            Expr::Binary { left, right, .. } => {
+                self.is_broadcast_ref(left) || self.is_broadcast_ref(right)
+            }
+            Expr::Unary { operand, .. } => self.is_broadcast_ref(operand),
+            Expr::If {
+                cond, then_, else_, ..
+            } => {
+                self.is_broadcast_ref(cond) || self.is_broadcast_ref(then_) || self.is_broadcast_ref(else_)
+            }
+            Expr::Call { args, .. } => args.iter().any(|arg| self.is_broadcast_ref(arg)),
+            Expr::InterpolatedString(segments) => segments.iter().any(|seg| {
+                if let StringSegment::Expr(e) = seg {
+                    self.is_broadcast_ref(e)
+                } else {
+                    false
+                }
+            }),
+            Expr::ListLiteral(elems) => elems.iter().any(|elem| self.is_broadcast_ref(elem)),
+            Expr::Index { list, index, .. } => {
+                self.is_broadcast_ref(list) || self.is_broadcast_ref(index)
+            }
+            _ => false,
         }
     }
 }
@@ -1531,7 +1787,7 @@ mod tests {
 
     #[test]
     fn test_valid_rule_with_becomes_condition() {
-        let source = "entity A { x: Boolean } rule test when A.x becomes true { show \"changed\" }";
+        let source = "entity A { x: Boolean } global rule test when A.x becomes true { show \"changed\" }";
         let res = analyze_source(source).expect("analysis should succeed");
         assert_eq!(res.program.statements.len(), 2);
     }

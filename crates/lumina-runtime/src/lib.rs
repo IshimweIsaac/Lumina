@@ -94,6 +94,16 @@ pub enum RuntimeError {
     },
     /// v2.0: Snapshot stack corrupted during rollback
     R019,
+    /// v2.1: Resource provisioning failed
+    R020 {
+        resource: String,
+        reason: String,
+    },
+    /// v2.1: Reconcile drift detected (read-only mode)
+    R021 {
+        resource: String,
+        reason: String,
+    },
 }
 
 impl RuntimeError {
@@ -118,6 +128,8 @@ impl RuntimeError {
             RuntimeError::R017 { .. } => "L066",
             RuntimeError::R018 { .. } => "R018",
             RuntimeError::R019 => "R019",
+            RuntimeError::R020 { .. } => "R020",
+            RuntimeError::R021 { .. } => "R021",
         }
     }
 
@@ -157,6 +169,12 @@ impl RuntimeError {
             RuntimeError::R017 { target, reason } => format!("Migration target '{target}' has insufficient capacity: {reason}"),
             RuntimeError::R018 { op, left, right } => format!("Type mismatch: cannot apply '{op}' to {left} and {right}"),
             RuntimeError::R019 => "Internal error: snapshot stack corrupted during rollback. This is a bug.".to_string(),
+            RuntimeError::R020 { resource, reason } => {
+                format!("R020: Provisioning failed for resource '{resource}': {reason}")
+            }
+            RuntimeError::R021 { resource, reason } => {
+                format!("R021: Drift detected for resource '{resource}': {reason}")
+            }
         }
     }
 }

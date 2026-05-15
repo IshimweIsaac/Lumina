@@ -1,0 +1,34 @@
+-- Lumina v2.1 "Architect's Forge"
+-- Fresh Docker Deployment
+
+-- 1. Define a Resource Entity (Real Docker Infrastructure)
+resource entity DockerNode provider "docker" {
+  name: Text
+  status: Text
+  image: Text
+  
+  ensure {
+    status: "running",
+    image: "nginx:alpine"
+  }
+}
+
+-- 2. Fresh Deployment (Lumina will create this!)
+let architect_node = DockerNode {
+  name: "lumina-architect-server",
+  status: "running",
+  image: "nginx:alpine"
+}
+
+-- 3. Self-Healing Rule
+rule "Self-Heal Docker" for (n: DockerNode)
+whenever (n.status != "running") {
+    trace "Architect: {n.name} is {n.status}. Ensuring desired state..."
+    provision n
+}
+
+-- 4. Fleet Audit
+global rule "Fleet Audit" every 10s {
+    trace "Architect: Auditing fleet..."
+    reconcile DockerNode
+}

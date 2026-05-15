@@ -51,6 +51,8 @@ pub struct Evaluator {
     pub reverse_refs: FxHashMap<String, rustc_hash::FxHashSet<(String, String)>>,
     pub dirty_instances: FxHashSet<String>,
     pub cluster_node: Option<Arc<Mutex<ClusterNode>>>,
+    pub trace_mode: bool,
+    pub start_time: Instant,
 }
 impl Evaluator {
     pub fn get_output(&self) -> &[String] {
@@ -96,6 +98,8 @@ impl Evaluator {
             reverse_refs: FxHashMap::default(),
             dirty_instances: FxHashSet::default(),
             cluster_node: None,
+            trace_mode: false,
+            start_time: Instant::now(),
         }
     }
 
@@ -658,6 +662,7 @@ impl Evaluator {
 
     fn apply_binop(&self, op: &BinOp, l: Value, r: Value) -> Result<Value, RuntimeError> {
         match op {
+
             BinOp::Add => match (&l, &r) {
                 (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
                 (Value::Text(a), Value::Text(b)) => Ok(Value::Text(format!("{}{}", a, b))),
@@ -812,7 +817,7 @@ impl Evaluator {
 
     pub fn exec_statement(&mut self, stmt: &Statement) -> Result<Vec<FiredEvent>, RuntimeError> {
         match stmt {
-            Statement::Entity(_) | Statement::Rule(_) => Ok(vec![]),
+            Statement::Entity(_) | Statement::Rule(_) | Statement::ResourceEntity(_) => Ok(vec![]),
             // Issue 001: External entities must create a default instance in the store
             Statement::ExternalEntity(decl) => {
                 let mut fields = FxHashMap::default();
@@ -1173,7 +1178,7 @@ impl Evaluator {
                 let mut dispatched = false;
                 for adapter in &mut self.adapters {
                     if adapter.entity_name() == entity_name {
-                        adapter.on_write(&actual_field, &val);
+                        adapter.on_write(&inst_name, &actual_field, &val);
                         dispatched = true;
                         break;
                     }
@@ -1186,6 +1191,150 @@ impl Evaluator {
                 } else {
                     self.apply_update(&inst_name, &actual_field, val)
                 }
+            }
+            // v2.1: Provision a resource entity instance
+            Action::Provision { target, .. } => {
+                let mut inst_name = target.clone();
+                if let Some(ctx_inst) = ctx {
+                    if let Some((ref param_name, _)) = self.rule_param_alias {
+                        if &inst_name == param_name {
+                            inst_name = ctx_inst.to_string();
+                        }
+                    }
+                }
+                let line = format!("[PROVISION] Creating resource: {}", inst_name);
+                println!("{}", line);
+                self.output.push(line);
+
+                let entity_name = self
+                    .instances
+                    .get(&inst_name)
+                    .cloned()
+                    .unwrap_or_else(|| inst_name.clone());
+                let desired = self.get_desired_state(&entity_name, &inst_name);
+                
+                for adapter in &mut self.adapters {
+                    if adapter.entity_name() == entity_name {
+                        adapter.provision(&inst_name, &desired).map_err(|e| RuntimeError::R020 {
+                            resource: inst_name.clone(),
+                            reason: e,
+                        })?;
+                        break;
+                    }
+                }
+
+                Ok(vec![FiredEvent {
+                    rule: ctx.unwrap_or("").to_string(),
+                    instance: inst_name,
+                    severity: "info".to_string(),
+                    message: "Resource provisioned".to_string(),
+                    ts: self.now,
+                }])
+            }
+            // v2.1: Destroy a resource entity instance
+            Action::Destroy { target, .. } => {
+                let mut inst_name = target.clone();
+                if let Some(ctx_inst) = ctx {
+                    if let Some((ref param_name, _)) = self.rule_param_alias {
+                        if &inst_name == param_name {
+                            inst_name = ctx_inst.to_string();
+                        }
+                    }
+                }
+                let line = format!("[DESTROY] Tearing down resource: {}", inst_name);
+                println!("{}", line);
+                self.output.push(line);
+
+                let entity_name = self
+                    .instances
+                    .get(&inst_name)
+                    .cloned()
+                    .unwrap_or_else(|| inst_name.clone());
+                for adapter in &mut self.adapters {
+                    if adapter.entity_name() == entity_name {
+                        adapter.destroy(&inst_name).map_err(|e| RuntimeError::R020 {
+                            resource: inst_name.clone(),
+                            reason: e,
+                        })?;
+                        break;
+                    }
+                }
+
+                Ok(vec![FiredEvent {
+                    rule: ctx.unwrap_or("").to_string(),
+                    instance: inst_name,
+                    severity: "warning".to_string(),
+                    message: "Resource destroyed".to_string(),
+                    ts: self.now,
+                }])
+            }
+            // v2.1: Reconcile desired vs actual state
+            Action::Reconcile { target, .. } => {
+                let mut inst_name = target.clone();
+                if let Some(ctx_inst) = ctx {
+                    if let Some((ref param_name, _)) = self.rule_param_alias {
+                        if &inst_name == param_name {
+                            inst_name = ctx_inst.to_string();
+                        }
+                    }
+                }
+                let line = format!("[RECONCILE] Checking drift for resource: {}", inst_name);
+                println!("{}", line);
+                self.output.push(line);
+
+                let entity_name = self
+                    .instances
+                    .get(&inst_name)
+                    .cloned()
+                    .unwrap_or_else(|| inst_name.clone());
+                for adapter in &mut self.adapters {
+                    if adapter.entity_name() == entity_name {
+                        adapter.reconcile(&inst_name).map_err(|e| RuntimeError::R021 {
+                            resource: inst_name.clone(),
+                            reason: e,
+                        })?;
+                        break;
+                    }
+                }
+
+                Ok(vec![FiredEvent {
+                    rule: ctx.unwrap_or("").to_string(),
+                    instance: inst_name,
+                    severity: "info".to_string(),
+                    message: "Resource reconciled".to_string(),
+                    ts: self.now,
+                }])
+            }
+            // v2.1: Trace debug output
+            Action::Trace(expr) => {
+                if self.trace_mode {
+                    let val = self.eval_expr(expr, ctx)?;
+                    let instance_str = ctx.unwrap_or("global");
+                    let line = format!("[TRACE] {} | value: {}", instance_str, val);
+                    println!("{}", line);
+                    self.output.push(line);
+                }
+                Ok(vec![])
+            }
+            Action::For {
+                param,
+                entity,
+                actions,
+                ..
+            } => {
+                let mut events = vec![];
+                // Get all instances of this entity using the correct store API
+                let instances = self.store.all_instances_of(&entity);
+
+                let old_alias = self.rule_param_alias.clone();
+                for inst_name in instances {
+                    self.rule_param_alias = Some((param.clone(), entity.clone()));
+                    for action in actions {
+                        events.extend(self.exec_action(action, Some(inst_name.as_str()))?);
+                    }
+                }
+                self.rule_param_alias = old_alias;
+                Ok(events)
             }
         }
     }
@@ -1320,7 +1469,7 @@ impl Evaluator {
         // Write-back to external entity adapters
         for a in &mut self.adapters {
             if a.entity_name() == entity_name {
-                a.on_write(field_name, &new_value);
+                a.on_write(instance_name, field_name, &new_value);
             }
         }
 
@@ -1380,19 +1529,42 @@ impl Evaluator {
     }
 
     fn evaluate_rules(&mut self, instance_name: &str) -> Result<Vec<FiredEvent>, RuntimeError> {
+        let prev_alias = self.rule_param_alias.clone();
+        if self.trace_mode && instance_name == "global" {
+            println!("[DEBUG-ENGINE] Starting evaluate_rules for 'global' with {} rules", self.rules.len());
+        }
         let mut all_events = Vec::new();
         let rules_clone = self.rules.clone();
         for rule in &rules_clone {
             // FIX Issue 6: Check if instance was deleted by a previous rule in this cycle
-            if self.store.get(instance_name).is_none() {
+            // v2.1: Allow "global" context for non-instance rules
+            if instance_name != "global" && self.store.get(instance_name).is_none() {
                 break; // Instance is gone, stop evaluating rules for it
             }
 
-            // Issue 003: Set parameter alias for this rule so eval_expr can resolve param names
             self.rule_param_alias = rule
                 .param
                 .as_ref()
                 .map(|p| (p.name.clone(), p.entity.clone()));
+
+            // v2.1: Enforce rule context isolation. 
+            let is_global_rule = rule.param.is_none();
+            let is_global_ctx = instance_name == "global";
+            
+            if self.trace_mode {
+                let skip = !is_global_rule && is_global_ctx;
+                if is_global_ctx {
+                    println!("[DEBUG-ENGINE] Checking Rule: '{}' (GlobalRule: {}, Skip: {})", rule.name, is_global_rule, skip);
+                } else if is_global_rule {
+                    println!("[DEBUG-ENGINE] Checking Global Rule in Instance Context: '{}' (Instance: {})", rule.name, instance_name);
+                }
+            }
+
+            // v2.1: Allow global rules to be evaluated in ANY context (instance or global).
+            // However, instance-specific rules (with params) should ONLY be evaluated in their own context.
+            if !is_global_rule && is_global_ctx {
+                continue;
+            }
 
             match &rule.trigger {
                 RuleTrigger::When(conditions) => {
@@ -1417,6 +1589,10 @@ impl Evaluator {
                                 .unwrap_or(false)
                         })
                     };
+
+                    if is_global_ctx && is_global_rule && self.trace_mode {
+                         println!("[DEBUG-ENGINE] Global Rule '{}' all_met: {}", rule.name, all_met);
+                    }
 
                     // E2 Fix: Rising Edge Detection for triggers.
                     // Only fire when condition transitions false→true.
@@ -1681,10 +1857,78 @@ impl Evaluator {
                     self.prev_fleet_all.insert(key, now_met);
                 }
                 RuleTrigger::Every(_) => {} // handled in tick()
+                // v2.1: Level-triggered rules — fire whenever condition is true (no edge detection)
+                RuleTrigger::Whenever(conditions) => {
+                    let active_key = (rule.name.clone(), instance_name.to_string());
+                    let all_met = conditions.iter().all(|c| {
+                        let result = rules::condition_is_met(self, c, instance_name, false);
+                        if self.trace_mode {
+                            match &result {
+                                Ok(val) => {
+                                    if is_global_ctx && is_global_rule {
+                                        println!("[DEBUG-ENGINE] Whenever '{}' condition result: {} (ctx={})", rule.name, val, instance_name);
+                                    }
+                                }
+                                Err(e) => {
+                                    println!("[DEBUG-ENGINE] Whenever '{}' condition ERROR: {:?} (ctx={})", rule.name, e, instance_name);
+                                }
+                            }
+                        }
+                        result.unwrap_or(false)
+                    });
+
+                    if is_global_ctx && is_global_rule && self.trace_mode {
+                        println!("[DEBUG-ENGINE] Global Whenever Rule '{}' all_met: {}", rule.name, all_met);
+                    }
+
+                    if all_met {
+                        let fire_key = format!("{}::{}", rule.name, instance_name);
+                        if self.fired_this_cycle.contains(&fire_key) {
+                            self.rule_active.insert(active_key, true);
+                            continue;
+                        }
+
+                        if let Some(cd) = &rule.cooldown {
+                            if !self.should_fire(&rule.name, instance_name, cd) {
+                                self.rule_active.insert(active_key, true);
+                                continue;
+                            }
+                        }
+                        self.record_firing(&rule.name, instance_name);
+                        self.fired_this_cycle.insert(fire_key);
+
+                        for action in &rule.actions {
+                            let evts = self.exec_action(action, Some(instance_name))?;
+                            all_events.extend(evts);
+                        }
+                        all_events.push(FiredEvent {
+                            rule: rule.name.clone(),
+                            instance: instance_name.to_string(),
+                            severity: "info".to_string(),
+                            message: format!("Level-triggered rule '{}' fired", rule.name),
+                            ts: self.now,
+                        });
+                        self.rule_active.insert(active_key, true);
+                    } else {
+                        // on_clear handling for whenever rules
+                        let was_active =
+                            self.rule_active.get(&active_key).copied().unwrap_or(false);
+                        if was_active {
+                            self.rule_active.insert(active_key, false);
+                            if let Some(clear_actions) = &rule.on_clear {
+                                let clear_actions = clear_actions.clone();
+                                for action in &clear_actions {
+                                    let evts = self.exec_action(action, Some(instance_name))?;
+                                    all_events.extend(evts);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-        // Issue 003: Clear parameter alias after processing all rules
-        self.rule_param_alias = None;
+        // Issue 003: Restore parameter alias after processing all rules
+        self.rule_param_alias = prev_alias;
         Ok(all_events)
     }
 
@@ -1696,6 +1940,10 @@ impl Evaluator {
         // Single batch recomputation of aggregates after initialization
         self.agg_store
             .recompute(&self.store, &self.schema, Some(&self.cluster_state));
+
+        // First, handle global rules once in a single pass
+        let global_evts = self.evaluate_rules("global")?;
+        all_events.extend(global_evts);
 
         let instance_names: Vec<String> = self.store.all().map(|(n, _)| n.clone()).collect();
         for name in instance_names {
@@ -1779,6 +2027,11 @@ impl Evaluator {
 
     /// Called periodically by the host — fires any elapsed for/every timers
     pub fn tick(&mut self) -> Result<Vec<FiredEvent>, RollbackResult> {
+        if self.trace_mode {
+            println!("[DEBUG-ENGINE] Tick started at t={}", self.now);
+        }
+        self.now = self.start_time.elapsed().as_secs_f64() * 1000.0;
+        self.fired_this_cycle.clear(); // v2.1 fix: Clear firing registry at start of tick
         self.sync_cluster_state();
         if let Err(e) = self.process_orchestration() {
             return Err(RollbackResult {
@@ -1798,10 +2051,7 @@ impl Evaluator {
             .iter_mut()
             .flat_map(|a| {
                 let ent_name = a.entity_name().to_string();
-                std::iter::from_fn(move || {
-                    a.poll().map(|(inst, f, v)| (ent_name.clone(), inst, f, v))
-                })
-                .collect::<Vec<_>>()
+                a.poll().into_iter().map(move |(inst, f, v)| (ent_name.clone(), inst, f, v))
             })
             .collect();
 
@@ -1867,6 +2117,10 @@ impl Evaluator {
                         }
                     }
                     RuleTrigger::Every(_) => false,
+                    RuleTrigger::Whenever(conditions) => conditions.iter().all(|c| {
+                        rules::condition_is_met(self, c, &timer.instance_name, false)
+                            .unwrap_or(false)
+                    }),
                 };
 
                 if still_true {
@@ -1919,6 +2173,25 @@ impl Evaluator {
             }
         }
 
+        // ── Global rule pass ──────────────────────────────────────────
+        // v2.1: Evaluate global rules once per tick to catch fleet-level triggers
+        if self.trace_mode {
+            println!("[DEBUG-ENGINE] Reached Global Pass Checkpoint");
+        }
+        match self.evaluate_rules("global") {
+            Ok(events) => all_events.extend(events),
+            Err(e) => {
+                return Err(RollbackResult {
+                    diagnostic: Diagnostic::from_runtime_error(
+                        e.code(),
+                        &e.message(),
+                        self.snapshots.current_version(),
+                        vec!["global_pass".to_string()],
+                    ),
+                });
+            }
+        }
+
         Ok(all_events)
     }
 
@@ -1966,6 +2239,32 @@ impl Evaluator {
             "stable": true,
             "version": self.snapshots.current_version()
         })
+    }
+
+    pub fn resolve_instance_name(&self, name: &str) -> String {
+        if let Some((ref param_name, _)) = self.rule_param_alias {
+            if name == param_name {
+                // If it's a rule param alias, we should find the context instance.
+                // In most cases, it's already handled by the caller, but this 
+                // ensures absolute resolution parity.
+                return name.to_string(); 
+            }
+        }
+        name.to_string()
+    }
+
+    pub fn get_desired_state(&self, entity_name: &str, instance_name: &str) -> std::collections::HashMap<String, Value> {
+        let mut desired = std::collections::HashMap::new();
+        if let Some(inst) = self.store.get(instance_name) {
+            if let Some(schema) = self.schema.get_entity(entity_name) {
+                for (name, idx) in &schema.field_indices {
+                    if let Some(val) = inst.get(*idx) {
+                        desired.insert(name.clone(), val.clone());
+                    }
+                }
+            }
+        }
+        desired
     }
 
     // ── List helpers ──────────────────────────────────────
@@ -2116,39 +2415,7 @@ impl Evaluator {
 
 impl Default for Evaluator {
     fn default() -> Self {
-        Self {
-            schema: Schema::new(),
-            graph: DependencyGraph::new(),
-            rules: Vec::new(),
-            store: EntityStore::new(),
-            snapshots: SnapshotStack::new(),
-            env: FxHashMap::default(),
-            instances: FxHashMap::default(),
-            derived_exprs: FxHashMap::default(),
-            functions: FxHashMap::default(),
-            timers: TimerHeap::new(),
-            adapters: Vec::new(),
-            prev_store: None,
-            fleet_state: FleetState::new(),
-            prev_fleet_any: FxHashMap::default(),
-            prev_fleet_all: FxHashMap::default(),
-            depth: 0,
-            fired_this_cycle: FxHashSet::default(),
-            output: Vec::new(),
-            prev_rule_conditions: FxHashMap::default(),
-            cooldown_map: FxHashMap::default(),
-            rule_active: FxHashMap::default(),
-            frequency_events: FxHashMap::default(),
-            agg_store: AggregateStore::new(),
-            cluster_state: FxHashMap::default(),
-            cluster_config: None,
-            now: 0.0,
-            rule_param_alias: None,
-            is_initializing: false,
-            reverse_refs: FxHashMap::default(),
-            dirty_instances: FxHashSet::default(),
-            cluster_node: None,
-        }
+        Self::new(Schema::new(), DependencyGraph::new(), vec![])
     }
 }
 
@@ -2288,7 +2555,7 @@ mod tests {
 
     #[test]
     fn test_rule_fires_on_becomes() {
-        let src = "entity S {\n  active: Boolean\n}\nrule activate when S.active becomes true {\n  show \"fired\"\n}";
+        let src = "entity S {\n  active: Boolean\n}\nglobal rule activate when S.active becomes true {\n  show \"fired\"\n}";
         let mut ev = build_eval(src);
         insert_instance(&mut ev, "S", "S", vec![("active", Value::Bool(false))]);
 
@@ -2343,7 +2610,7 @@ mod tests {
 
     #[test]
     fn test_rule_does_not_fire_without_transition() {
-        let src = "entity S {\n  active: Boolean\n}\nrule activate when S.active becomes true {\n  show \"fired\"\n}";
+        let src = "entity S {\n  active: Boolean\n}\nglobal rule activate when S.active becomes true {\n  show \"fired\"\n}";
         let mut ev = build_eval(src);
         insert_instance(&mut ev, "S", "S", vec![("active", Value::Bool(true))]);
         // Commit so prev_fields = fields (active=true already)
@@ -2355,7 +2622,7 @@ mod tests {
 
     #[test]
     fn test_adapter_poll_triggers_rule() {
-        let src = "entity Sensor {\n  reading: Number\n  isCritical := reading > 90\n}\nrule overheat when Sensor.isCritical becomes true {\n  show \"overheating\"\n}";
+        let src = "entity Sensor {\n  reading: Number\n  isCritical := reading > 90\n}\nglobal rule overheat when Sensor.isCritical becomes true {\n  show \"overheating\"\n}";
         let mut ev = build_eval(src);
         insert_instance(
             &mut ev,
@@ -2433,10 +2700,10 @@ entity Battery {
     fn test_cascading_cleanup_issue_6() {
         let source = r#"
             entity Resource { status: Text }
-            rule cleanup when Resource.status == "deleted" becomes true {
+            global rule cleanup when Resource.status == "deleted" becomes true {
                 delete Resource
             }
-            rule log_deleted when Resource.status == "deleted" becomes true {
+            global rule log_deleted when Resource.status == "deleted" becomes true {
                 update Resource.status to "forgotten"
             }
         "#;

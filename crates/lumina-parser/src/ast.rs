@@ -26,6 +26,7 @@ impl Program {
 pub enum Statement {
     Entity(EntityDecl),
     ExternalEntity(ExternalEntityDecl),
+    ResourceEntity(ResourceEntityDecl),
     Let(LetStmt),
     Rule(RuleDecl),
     Action(Action),
@@ -97,6 +98,17 @@ pub struct ClusterDecl {
     pub peers: Vec<String>,
     pub quorum: u32,
     pub election_timeout: Duration,
+    pub span: Span,
+}
+
+// ── Resource entity declaration (v2.1) ───────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResourceEntityDecl {
+    pub name: String,
+    pub provider: String,
+    pub fields: Vec<Field>,
+    pub desired_state: Vec<(String, Expr)>,
     pub span: Span,
 }
 
@@ -216,6 +228,7 @@ pub struct RuleDecl {
     pub actions: Vec<Action>,
     pub cooldown: Option<Duration>,
     pub on_clear: Option<Vec<Action>>,
+    pub is_global: bool,
     pub span: Span,
 }
 
@@ -228,6 +241,7 @@ pub struct RuleParam {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RuleTrigger {
     When(Vec<Condition>),
+    Whenever(Vec<Condition>),
     Any(FleetCondition),
     All(FleetCondition),
     Every(Duration),
@@ -307,6 +321,30 @@ pub enum Action {
     },
     Delete(String),
     Alert(AlertAction),
+    /// v2.1: Provision a resource entity instance
+    Provision {
+        target: String,
+        span: Span,
+    },
+    /// v2.1: Destroy a resource entity instance
+    Destroy {
+        target: String,
+        span: Span,
+    },
+    /// v2.1: Reconcile desired vs actual state
+    Reconcile {
+        target: String,
+        span: Span,
+    },
+    /// v2.1: Output debug trace info for a rule
+    Trace(Expr),
+    /// v2.1: Iterate over instances in an action block
+    For {
+        param: String,
+        entity: String,
+        actions: Vec<Action>,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

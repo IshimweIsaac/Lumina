@@ -20,6 +20,7 @@ This directory is the **single source of truth** for writing, debugging, and arc
 | Use clusters, FFI, external entities, secrets| [08-advanced-features.md](08-advanced-features.md)            |
 | Check if something is supported or broken    | [09-known-limitations.md](09-known-limitations.md)            |
 | Architect a full project from scratch        | [10-project-templates.md](10-project-templates.md)            |
+| Install, update, or use the CLI              | [11-cli-reference.md](11-cli-reference.md)                    |
 
 ---
 
@@ -31,15 +32,29 @@ Lumina is a **Distributed Reactive Language (DRL)** for agentless infrastructure
 
 Lumina source files use the `.lum` extension. Comments start with `--`.
 
-## Running Lumina
+## CLI Quick Start
 
 ```bash
+# Install Lumina
+curl -fsSL https://lumina-lang.web.app/install.sh | sh && . ~/.lumina/env
+
 # Run a file
 lumina run myfile.lum
+
+# Type-check without running
+lumina check myfile.lum
+
+# Format source code
+lumina fmt myfile.lum
 
 # Start the interactive REPL
 lumina repl
 
-# Run with live temporal triggers (every/for timers tick in real-time)
-lumina run --live myfile.lum
+# Update to the latest version
+lumina update
+
+# Check if an update is available
+lumina update --check
 ```
+
+See [11-cli-reference.md](11-cli-reference.md) for the full command reference.

@@ -224,6 +224,7 @@ mod tests {
                 actions: vec![],
                 cooldown: None,
                 on_clear: None,
+                is_global: false,
                 span: Span::default(),
             },
             RuleDecl {
@@ -238,6 +239,7 @@ mod tests {
                 actions: vec![],
                 cooldown: None,
                 on_clear: None,
+                is_global: false,
                 span: Span::default(),
             },
         ];

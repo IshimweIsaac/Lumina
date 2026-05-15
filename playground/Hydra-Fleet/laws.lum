@@ -1,0 +1,20 @@
+import "entities.lum"
+
+-- LAW 0: Global Reconciliation
+global rule "Fleet Sync" every 5s {
+  reconcile Container
+}
+
+-- LAW 1: Self-Healing (Global)
+rule "Self-Healing" for (s: Container)
+whenever (s.status == "stopped" and s.name != "hydra-app-02") {
+  show "HYDRA: {s.name} (Tier: {s.tier}) went down! Re-initializing..."
+  update s.status = "running"
+  provision s
+}
+
+-- LAW 4: Verification Trace
+rule "Audit" for (s: Container)
+when (s.verified == true) {
+  show "AUDIT: {s.name} verified in {s.tier} tier."
+}

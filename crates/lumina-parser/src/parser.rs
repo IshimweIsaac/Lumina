@@ -141,9 +141,10 @@ impl Parser {
     fn parse_statement(&mut self) -> Result<Statement, ParseError> {
         match self.current() {
             Token::KwExternal => self.parse_external_entity(),
+            Token::KwResource => self.parse_resource_entity(),
             Token::KwEntity   => self.parse_entity(),
             Token::KwLet      => self.parse_let(),
-            Token::KwRule     => self.parse_rule(),
+            Token::KwGlobal | Token::KwRule => self.parse_rule(),
             Token::KwShow | Token::KwUpdate
             | Token::KwCreate | Token::KwDelete => {
                 Ok(Statement::Action(self.parse_action()?))
@@ -158,6 +159,61 @@ impl Parser {
                 self.current_span(),
             )),
         }
+    }
+
+    // ── resource entity (v2.1) ────────────────────────────
+
+    fn parse_resource_entity(&mut self) -> Result<Statement, ParseError> {
+        let start = self.current_span();
+        self.advance(); // consume 'resource'
+        self.expect(&Token::KwEntity)?;
+        let name = self.expect_ident("resource entity name")?;
+
+        // Optional provider: resource entity DockerContainer provider "docker" { ... }
+        let provider = if !self.is_at_end() && self.check(&Token::KwProvider) {
+            self.advance();
+            self.expect_text("provider name")?
+        } else {
+            "default".to_string()
+        };
+
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+
+        let mut fields = vec![];
+        let mut desired_state = vec![];
+
+        while !self.check(&Token::RBrace) && !self.is_at_end() {
+            // Check for desired_state block: ensure { field: value, ... }
+            if self.check(&Token::KwEnsure) {
+                self.advance();
+                self.expect(&Token::LBrace)?;
+                self.skip_newlines();
+                while !self.check(&Token::RBrace) && !self.is_at_end() {
+                    let fname = self.expect_ident("desired state field")?;
+                    self.expect(&Token::Colon)?;
+                    let expr = self.parse_expr(0)?;
+                    desired_state.push((fname, expr));
+                    if self.check(&Token::Comma) {
+                        self.advance();
+                    }
+                    self.skip_newlines();
+                }
+                self.expect(&Token::RBrace)?;
+            } else {
+                fields.push(self.parse_field()?);
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+
+        Ok(Statement::ResourceEntity(ResourceEntityDecl {
+            name,
+            provider,
+            fields,
+            desired_state,
+            span: start,
+        }))
     }
 
     fn parse_import(&mut self) -> Result<Statement, ParseError> {
@@ -613,7 +669,19 @@ impl Parser {
 
     fn parse_rule(&mut self) -> Result<Statement, ParseError> {
         let start = self.current_span();
-        self.advance(); // 'rule'
+        let mut is_global = false;
+
+        // Handle 'global' prefix (v2.1) or standard 'rule'
+        if self.check(&Token::KwGlobal) {
+            self.advance();
+            is_global = true;
+            // 'rule' keyword is optional after 'global', but encouraged
+            if self.check(&Token::KwRule) {
+                self.advance();
+            }
+        } else if self.check(&Token::KwRule) {
+            self.advance();
+        }
 
         // Rule name: accept both identifier and string literal
         let name = match self.current().clone() {
@@ -646,7 +714,17 @@ impl Parser {
 
         self.skip_newlines();
 
-        // Parse trigger: when/and or every (BEFORE the opening brace)
+        // v2.1: Optional cooldown BEFORE the trigger (flexible placement)
+        let mut cooldown = if self.check(&Token::Cooldown) {
+            self.advance();
+            Some(self.parse_duration()?)
+        } else {
+            None
+        };
+
+        self.skip_newlines();
+
+        // Parse trigger: when/whenever/and or every (BEFORE the opening brace)
         let trigger = if self.check(&Token::KwWhen) {
             self.advance();
             // Check for fleet-level triggers: "when any" or "when all"
@@ -666,12 +744,31 @@ impl Parser {
                 }
                 RuleTrigger::When(conds)
             }
+        } else if self.check(&Token::KwWhenever) {
+            // v2.1: Level-triggered rule — fires if condition is already true
+            self.advance();
+            if self.check(&Token::KwAny) {
+                self.advance();
+                RuleTrigger::Any(self.parse_fleet_condition()?)
+            } else if self.check(&Token::KwAll) {
+                self.advance();
+                RuleTrigger::All(self.parse_fleet_condition()?)
+            } else {
+                let mut conds = vec![self.parse_condition()?];
+                self.skip_newlines();
+                while self.check(&Token::KwAnd) {
+                    self.advance();
+                    conds.push(self.parse_condition()?);
+                    self.skip_newlines();
+                }
+                RuleTrigger::Whenever(conds)
+            }
         } else if self.check(&Token::KwEvery) {
             self.advance();
             RuleTrigger::Every(self.parse_duration()?)
         } else {
             return Err(ParseError::new(
-                "expected 'when' or 'every' in rule",
+                "expected 'when', 'whenever', or 'every' in rule",
                 self.current_span(),
             ));
         };
@@ -708,13 +805,11 @@ impl Parser {
             None
         };
 
-        // Optional cooldown (after body/on clear)
-        let cooldown = if self.check(&Token::Cooldown) {
+        // v2.1: Optional cooldown AFTER body/on clear (flexible placement)
+        if cooldown.is_none() && self.check(&Token::Cooldown) {
             self.advance();
-            Some(self.parse_duration()?)
-        } else {
-            None
-        };
+            cooldown = Some(self.parse_duration()?);
+        }
 
         Ok(Statement::Rule(RuleDecl {
             name,
@@ -723,6 +818,7 @@ impl Parser {
             actions,
             cooldown,
             on_clear,
+            is_global,
             span: start,
         }))
     }
@@ -1194,6 +1290,58 @@ impl Parser {
                     payload,
                     span,
                 }))
+            }
+            // v2.1: provision <target>
+            Token::KwProvision => {
+                let span = self.current_span();
+                self.advance();
+                let target = self.expect_ident("resource target")?;
+                Ok(Action::Provision { target, span })
+            }
+            // v2.1: reconcile <target>
+            Token::KwReconcile => {
+                let span = self.current_span();
+                self.advance();
+                let target = self.expect_ident("resource target")?;
+                Ok(Action::Reconcile { target, span })
+            }
+            // v2.1: terminate/destroy <target>
+            Token::KwTerminate | Token::KwDestroy => {
+                let span = self.current_span();
+                self.advance();
+                let target = self.expect_ident("resource target")?;
+                Ok(Action::Destroy { target, span })
+            }
+            // v2.1: trace <expr>
+            Token::KwTrace => {
+                self.advance();
+                Ok(Action::Trace(self.parse_expr(0)?))
+            }
+            // v2.1: for (param: Entity) { actions }
+            Token::KwFor => {
+                let span = self.current_span();
+                self.advance();
+                self.expect(&Token::LParen)?;
+                let param = self.expect_ident("parameter name")?;
+                self.expect(&Token::Colon)?;
+                let entity = self.expect_ident("entity name")?;
+                self.expect(&Token::RParen)?;
+                self.expect(&Token::LBrace)?;
+                self.skip_newlines();
+
+                let mut actions = vec![];
+                while !self.check(&Token::RBrace) && !self.is_at_end() {
+                    actions.push(self.parse_action()?);
+                    self.skip_newlines();
+                }
+                self.expect(&Token::RBrace)?;
+
+                Ok(Action::For {
+                    param,
+                    entity,
+                    actions,
+                    span,
+                })
             }
             _ => Err(ParseError::new(
                 format!("expected action keyword, got {:?}", self.current()),

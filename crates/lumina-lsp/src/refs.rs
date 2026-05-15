@@ -72,6 +72,16 @@ pub fn symbol_at_position(prog: &Program, src: &str, pos: Position) -> Option<St
                     return Some(name);
                 }
             }
+            Statement::ResourceEntity(e) => {
+                if let Some(name) = check_name_at(src, &e.name, line, col) {
+                    return Some(name);
+                }
+                for f in &e.fields {
+                    if let Some(name) = symbol_in_field(f, src, line, col) {
+                        return Some(name);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -155,6 +165,12 @@ fn collect_from_statement(stmt: &Statement, name: &str, uri: &Url, locs: &mut Ve
                 locs.push(span_to_location(&a.span, &a.over, uri));
             }
         }
+        Statement::ResourceEntity(e) => {
+            if e.name == name {
+                locs.push(span_to_location(&e.span, &e.name, uri));
+            }
+            collect_from_fields(&e.fields, name, uri, locs);
+        }
         Statement::Import(_)
         | Statement::Action(_)
         | Statement::PluginImport(_)
@@ -191,7 +207,7 @@ fn collect_from_fields(fields: &[Field], name: &str, uri: &Url, locs: &mut Vec<L
 
 fn collect_from_trigger(trigger: &RuleTrigger, name: &str, uri: &Url, locs: &mut Vec<Location>) {
     match trigger {
-        RuleTrigger::When(conditions) => {
+        RuleTrigger::When(conditions) | RuleTrigger::Whenever(conditions) => {
             for cond in conditions {
                 collect_from_expr(&cond.expr, name, uri, locs);
                 if let Some(b) = &cond.becomes {
@@ -228,6 +244,27 @@ fn collect_from_action(action: &Action, name: &str, uri: &Url, locs: &mut Vec<Lo
             collect_from_expr(&a.message, name, uri, locs);
             if let Some(s) = &a.source {
                 collect_from_expr(s, name, uri, locs);
+            }
+        }
+        Action::Provision { target, span }
+        | Action::Destroy { target, span }
+        | Action::Reconcile { target, span } => {
+            if target == name {
+                locs.push(span_to_location(span, name, uri));
+            }
+        }
+        Action::Trace(e) => collect_from_expr(e, name, uri, locs),
+        Action::For {
+            param,
+            entity,
+            actions,
+            span,
+        } => {
+            if param == name || entity == name {
+                locs.push(span_to_location(span, name, uri));
+            }
+            for action in actions {
+                collect_from_action(action, name, uri, locs);
             }
         }
     }
@@ -358,7 +395,7 @@ fn symbol_in_field(f: &Field, src: &str, line: u32, col: u32) -> Option<String> 
 
 fn symbol_in_trigger(trigger: &RuleTrigger, src: &str, line: u32, col: u32) -> Option<String> {
     match trigger {
-        RuleTrigger::When(conditions) => {
+        RuleTrigger::When(conditions) | RuleTrigger::Whenever(conditions) => {
             for c in conditions {
                 if let Some(name) = symbol_in_expr(&c.expr, src, line, col) {
                     return Some(name);

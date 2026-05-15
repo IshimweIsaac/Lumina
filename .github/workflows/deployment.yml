@@ -1,0 +1,150 @@
+name: Production Deployment
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  build:
+    name: Build (${{ matrix.binary }})
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: lumina-linux-x64
+            use_zig: false
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary: lumina-linux-arm64
+            use_zig: true # Easier cross-compile for arm64 linux
+          - os: ubuntu-latest
+            target: aarch64-apple-darwin
+            binary: lumina-macos-arm64
+            use_zig: true
+          - os: ubuntu-latest
+            target: x86_64-apple-darwin
+            binary: lumina-macos-x64
+            use_zig: true
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: lumina-windows-x64
+            use_zig: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Zig & cargo-zigbuild
+        if: ${{ matrix.use_zig }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y zig
+          cargo install cargo-zigbuild
+
+      - name: Build Lumina (Standard)
+        if: ${{ !matrix.use_zig }}
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p lumina-cli
+          cargo build --release --target ${{ matrix.target }} -p lumina-lsp
+
+      - name: Build Lumina (Zig)
+        if: ${{ matrix.use_zig }}
+        run: |
+          cargo zigbuild --release --target ${{ matrix.target }} -p lumina-cli
+          cargo zigbuild --release --target ${{ matrix.target }} -p lumina-lsp
+
+      - name: Prepare Artifacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Find the built binaries
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            CLI_BIN="target/${{ matrix.target }}/release/lumina-cli.exe"
+            LSP_BIN="target/${{ matrix.target }}/release/lumina-lsp.exe"
+            cp "$CLI_BIN" "dist/${{ matrix.binary }}.exe"
+            cp "$LSP_BIN" "dist/${{ matrix.binary }}-lsp.exe"
+            # Checksums
+            sha256sum "dist/${{ matrix.binary }}.exe" | cut -d' ' -f1 > "dist/${{ matrix.binary }}.exe.sha256"
+            sha256sum "dist/${{ matrix.binary }}-lsp.exe" | cut -d' ' -f1 > "dist/${{ matrix.binary }}-lsp.exe.sha256"
+          else
+            CLI_BIN="target/${{ matrix.target }}/release/lumina-cli"
+            LSP_BIN="target/${{ matrix.target }}/release/lumina-lsp"
+            cp "$CLI_BIN" "dist/${{ matrix.binary }}"
+            cp "$LSP_BIN" "dist/${{ matrix.binary }}-lsp"
+            # Checksums
+            sha256sum "dist/${{ matrix.binary }}" | cut -d' ' -f1 > "dist/${{ matrix.binary }}.sha256"
+            sha256sum "dist/${{ matrix.binary }}-lsp" | cut -d' ' -f1 > "dist/${{ matrix.binary }}-lsp.sha256"
+            
+            # Create tarball for Homebrew
+            cd dist
+            tar -czf "${{ matrix.binary }}.tar.gz" "${{ matrix.binary }}" "${{ matrix.binary }}-lsp"
+            sha256sum "${{ matrix.binary }}.tar.gz" | cut -d' ' -f1 > "${{ matrix.binary }}.tar.gz.sha256"
+            cd ..
+          fi
+
+      - name: Upload Internal Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary }}
+          path: dist/*
+          retention-days: 1
+
+  deploy:
+    name: Deploy to Production
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-dist
+          merge-multiple: true
+
+      - name: Upload to Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          chmod +x scripts/upload-binaries.sh
+          for file in all-dist/*; do
+            filename=$(basename "$file")
+            ./scripts/upload-binaries.sh "$file" "$filename"
+          done
+
+      - name: Build Website
+        run: |
+          cd website
+          npm install
+          npm run build
+
+      - name: Prepare Website Assets
+        run: |
+          # Copy install scripts to website root
+          cp install.sh website/dist/
+          cp install.ps1 website/dist/
+          # Copy binaries to website dist for Homebrew tarballs
+          cp -r all-dist/* website/dist/
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUMINA_LANG }}
+          channelId: live
+          projectId: lumina-lang
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: all-dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -24,6 +24,9 @@ mod loader;
 use crate::loader::ModuleLoader;
 use std::path::Path;
 
+/// Canonical version string derived from Cargo.toml — single source of truth.
+const VERSION: &str = concat!("v", env!("CARGO_PKG_VERSION"));
+
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -36,6 +39,7 @@ async fn main() {
         Some("query") => cmd_query(&args),
         Some("provider") => cmd_provider(&args),
         Some("setup") => cmd_setup(),
+        Some("update") => cmd_update(&args),
         Some("uninstall") => cmd_uninstall(),
         Some("cluster") => cmd_cluster(&args),
         Some("get") => {
@@ -55,14 +59,14 @@ async fn main() {
         }
 
         Some("version") | Some("--version") | Some("-v") => {
-            println!("Lumina v2.0.0: The Cluster Release");
+            println!("Lumina {}: The Architect Release", VERSION);
             std::process::exit(0);
         }
         _ => {
-            eprintln!("Lumina v2.0.0: The Cluster Release");
+            eprintln!("Lumina {}: The Architect Release", VERSION);
             eprintln!();
             eprintln!("Usage:");
-            eprintln!("  lumina run <file.lum>       Run a Lumina program");
+            eprintln!("  lumina run <file.lum>       Run a Lumina program (--trace for debug)");
             eprintln!("  lumina check <file.lum>     Type-check without running");
             eprintln!("  lumina get documentation    Output master documentation for AI agents");
             eprintln!("  lumina fmt <file.lum>       Format source code");
@@ -71,6 +75,7 @@ async fn main() {
             eprintln!("  lumina cluster <cmd>        Cluster management (start, status, join)");
             eprintln!("  lumina repl                 Start interactive REPL");
             eprintln!("  lumina setup                Automated IDE & environment setup");
+            eprintln!("  lumina update               Update Lumina to the latest version");
             eprintln!("  lumina uninstall            Remove Lumina from your system");
             std::process::exit(1);
         }
@@ -122,7 +127,7 @@ fn cmd_cluster(args: &[String]) {
             }
 
             println!("──────────────────────────────────────────────────");
-            println!("  Lumina Cluster Node — Sovereignty v2.0.0  ");
+            println!("  Lumina Cluster Node — Sovereignty {}  ", VERSION);
             println!("──────────────────────────────────────────────────");
             println!("  Node ID:     {}", config.node_id);
             println!("  Peers:       {:?}", config.peers);
@@ -153,7 +158,7 @@ fn cmd_cluster(args: &[String]) {
             }
         }
         Some("status") => {
-            println!("Lumina Sovereign Cluster Status (v2.0.0)");
+            println!("Lumina Sovereign Cluster Status ({})", VERSION);
             println!("──────────────────────────────────────────────────");
 
             // In a real deployment, this would query a running node via IPC.
@@ -175,7 +180,7 @@ fn cmd_cluster(args: &[String]) {
             println!("  Start a node first: lumina cluster start <spec.lum> <node_id>");
         }
         _ => {
-            eprintln!("Lumina Cluster Management (v2.0.0)");
+            eprintln!("Lumina Cluster Management ({})", VERSION);
             eprintln!("  start <spec> [node_id]   Start a cluster node");
             eprintln!("  status                   Show cluster status");
             eprintln!("  join <address>            Join an existing cluster");
@@ -564,15 +569,20 @@ fn cmd_run(args: &[String]) {
         std::process::exit(1);
     });
 
-    // Parse flags: --node-id <id>
+    // Parse flags: --node-id <id>, --trace
     let mut node_id = None;
+    let mut trace_mode = false;
     for i in 0..args.len() {
         if args[i] == "--node-id" && i + 1 < args.len() {
             node_id = Some(args[i + 1].as_str());
         }
+        if args[i] == "--trace" {
+            trace_mode = true;
+        }
     }
 
     let mut evaluator = build_evaluator(&analyzed, node_id);
+    evaluator.trace_mode = trace_mode;
 
     // Validate that all external entities have adapters
     let warnings = evaluator.validate_adapters();
@@ -667,7 +677,7 @@ fn cmd_repl() {
     use crate::repl::{ReplResult, ReplSession};
     use std::io::{self, BufRead, Write};
 
-    println!("Lumina v2.0.0 REPL — type Lumina expressions and statements");
+    println!("Lumina {} REPL — type Lumina expressions and statements", VERSION);
     println!("Type ':help' to see inspector commands\n");
 
     let mut session = ReplSession::new();
@@ -822,5 +832,294 @@ fn cmd_provider(args: &[String]) {
             eprintln!("  lumina provider list              List installed providers");
             std::process::exit(1);
         }
+    }
+}
+
+// ── Self-Update ────────────────────────────────────────────────────────────
+
+fn cmd_update(args: &[String]) {
+    let force = args.iter().any(|a| a == "--force");
+    let check_only = args.iter().any(|a| a == "--check");
+
+    println!("Lumina {} — Update", VERSION);
+    println!("─────────────────────────");
+
+    // 1. Query GitHub Releases API for the latest version
+    print!("  Checking for updates... ");
+    std::io::stdout().flush().ok();
+
+    let api_url = "https://api.github.com/repos/IshimweIsaac/Lumina/releases/latest";
+    let json = match curl_get_string(api_url) {
+        Ok(s) => s,
+        Err(e) => {
+            println!("✗");
+            eprintln!("  Failed to check for updates: {}", e);
+            eprintln!("  Check your internet connection or try again later.");
+            std::process::exit(1);
+        }
+    };
+
+    let latest_tag = match parse_latest_tag(&json) {
+        Some(t) => t,
+        None => {
+            println!("✗");
+            eprintln!("  Could not determine the latest version from the GitHub API response.");
+            eprintln!("  This may mean there are no published releases yet.");
+            std::process::exit(1);
+        }
+    };
+
+    // 2. Compare versions
+    if latest_tag == VERSION && !force {
+        println!("✓");
+        println!("  Already up to date ({}).", VERSION);
+        return;
+    }
+
+    if check_only {
+        if latest_tag == VERSION {
+            println!("✓");
+            println!("  Already up to date ({}).", VERSION);
+        } else {
+            println!("→ {}", latest_tag);
+            println!("  Update available: {} → {}", VERSION, latest_tag);
+            println!("  Run 'lumina update' to install it.");
+        }
+        return;
+    }
+
+    if latest_tag != VERSION {
+        println!("→ {}", latest_tag);
+        println!("  Updating: {} → {}", VERSION, latest_tag);
+    } else {
+        println!("↻");
+        println!("  Force-reinstalling {}...", VERSION);
+    }
+
+    // 3. Detect platform
+    let platform = detect_platform_update();
+    if platform.is_empty() {
+        eprintln!("  Unsupported platform. Please download manually from:");
+        eprintln!("  https://github.com/IshimweIsaac/Lumina/releases");
+        std::process::exit(1);
+    }
+
+    // 4. Determine install directory
+    let bin_dir = get_lumina_bin_dir();
+
+    // 5. Download and replace binaries
+    let base_url = "https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina";
+
+    let bins: &[(&str, &str)] = if cfg!(windows) {
+        &[
+            (&Box::leak(format!("lumina-{}.exe", platform).into_boxed_str()) as &str, "lumina.exe"),
+            (&Box::leak(format!("lumina-{}-lsp.exe", platform).into_boxed_str()) as &str, "lumina-lsp.exe"),
+        ]
+    } else {
+        // Use a leaked string so the borrow lives long enough.
+        // This is fine — cmd_update runs once then the process exits.
+        let cli_name: &'static str = Box::leak(format!("lumina-{}", platform).into_boxed_str());
+        let lsp_name: &'static str = Box::leak(format!("lumina-{}-lsp", platform).into_boxed_str());
+        &[
+            (cli_name, "lumina"),
+            (lsp_name, "lumina-lsp"),
+        ]
+    };
+
+    for (remote_name, local_name) in bins {
+        let url = format!("{}/{}", base_url, remote_name);
+        let dest = bin_dir.join(local_name);
+        let tmp = bin_dir.join(format!(".{}.tmp", local_name));
+
+        print!("  Downloading {}... ", local_name);
+        std::io::stdout().flush().ok();
+
+        // Download binary to temp file
+        if let Err(e) = curl_download(&url, &tmp) {
+            println!("✗");
+            eprintln!("  Failed to download {}: {}", remote_name, e);
+            let _ = fs::remove_file(&tmp);
+            std::process::exit(1);
+        }
+
+        // Download and verify checksum
+        let checksum_url = format!("{}/{}.sha256", base_url, remote_name);
+        match curl_get_string(&checksum_url) {
+            Ok(checksum_content) => {
+                let expected = checksum_content.split_whitespace().next().unwrap_or("");
+                if !expected.is_empty() {
+                    match compute_sha256(&tmp) {
+                        Ok(actual) if actual == expected => { /* checksum OK */ }
+                        Ok(actual) => {
+                            println!("✗");
+                            eprintln!("  Checksum verification failed for {}", local_name);
+                            eprintln!("    Expected: {}", expected);
+                            eprintln!("    Actual:   {}", actual);
+                            let _ = fs::remove_file(&tmp);
+                            std::process::exit(1);
+                        }
+                        Err(e) => {
+                            println!("✗");
+                            eprintln!("  Could not compute checksum for {}: {}", local_name, e);
+                            let _ = fs::remove_file(&tmp);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            Err(_) => {
+                // Checksum file not available — warn but continue
+                print!("(no checksum) ");
+            }
+        }
+
+        // Atomic replace: on Windows, rename current to .old first
+        #[cfg(windows)]
+        {
+            let old = bin_dir.join(format!(".{}.old", local_name));
+            let _ = fs::remove_file(&old); // clean up any previous .old
+            if dest.exists() {
+                let _ = fs::rename(&dest, &old);
+            }
+        }
+
+        if let Err(e) = fs::rename(&tmp, &dest) {
+            println!("✗");
+            eprintln!("  Failed to install {}: {}", local_name, e);
+            let _ = fs::remove_file(&tmp);
+            std::process::exit(1);
+        }
+
+        // Unix: chmod +x
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&dest, fs::Permissions::from_mode(0o755));
+        }
+
+        // macOS: remove quarantine
+        #[cfg(target_os = "macos")]
+        {
+            let _ = std::process::Command::new("xattr")
+                .args(&["-d", "com.apple.quarantine"])
+                .arg(&dest)
+                .output();
+        }
+
+        println!("✓");
+    }
+
+    // Clean up Windows .old files
+    #[cfg(windows)]
+    for (_, local_name) in bins {
+        let old = bin_dir.join(format!(".{}.old", local_name));
+        let _ = fs::remove_file(&old);
+    }
+
+    println!();
+    println!("  ✓ Lumina updated to {}.", latest_tag);
+    println!("  Run 'lumina --version' to verify.");
+}
+
+/// Detect the platform string matching the release binary naming convention.
+fn detect_platform_update() -> String {
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    match (os, arch) {
+        ("linux", "x86_64") => "linux-x64".to_string(),
+        ("linux", "aarch64") => "linux-arm64".to_string(),
+        ("macos", "x86_64") => "macos-x64".to_string(),
+        ("macos", "aarch64") => "macos-arm64".to_string(),
+        ("windows", "x86_64") => "windows-x64".to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Get the Lumina bin directory (~/.lumina/bin), falling back to the directory
+/// containing the currently running executable.
+fn get_lumina_bin_dir() -> std::path::PathBuf {
+    // Prefer LUMINA_HOME if set
+    if let Ok(home) = std::env::var("LUMINA_HOME") {
+        let p = std::path::PathBuf::from(home).join("bin");
+        if p.exists() {
+            return p;
+        }
+    }
+
+    // Standard location: ~/.lumina/bin
+    if let Some(home) = dirs_fallback() {
+        let p = home.join(".lumina").join("bin");
+        if p.exists() {
+            return p;
+        }
+    }
+
+    // Fallback: directory of the current executable
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+}
+
+/// Run curl and return stdout as a String.
+fn curl_get_string(url: &str) -> Result<String, String> {
+    let output = std::process::Command::new("curl")
+        .args(&["-fsSL", "--max-time", "15", "-H", "User-Agent: lumina-cli", url])
+        .output()
+        .map_err(|e| format!("curl not found: {}", e))?;
+
+    if output.status.success() {
+        String::from_utf8(output.stdout)
+            .map_err(|e| format!("invalid UTF-8 in response: {}", e))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+/// Download a file via curl.
+fn curl_download(url: &str, dest: &std::path::Path) -> Result<(), String> {
+    let output = std::process::Command::new("curl")
+        .args(&["-fsSL", "--max-time", "120", "-H", "User-Agent: lumina-cli"])
+        .arg(url)
+        .arg("-o")
+        .arg(dest)
+        .output()
+        .map_err(|e| format!("curl not found: {}", e))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+/// Parse the "tag_name" field from a GitHub API JSON response.
+fn parse_latest_tag(json: &str) -> Option<String> {
+    // Use serde_json since it's already a dependency
+    let v: serde_json::Value = serde_json::from_str(json).ok()?;
+    v.get("tag_name")?.as_str().map(|s| s.to_string())
+}
+
+/// Compute SHA256 hex digest of a file.
+fn compute_sha256(path: &std::path::Path) -> Result<String, String> {
+    // Use sha256sum / shasum command (same approach as install.sh)
+    let output = if cfg!(target_os = "macos") {
+        std::process::Command::new("shasum")
+            .args(&["-a", "256"])
+            .arg(path)
+            .output()
+    } else {
+        std::process::Command::new("sha256sum")
+            .arg(path)
+            .output()
+    };
+
+    match output {
+        Ok(o) if o.status.success() => {
+            let out = String::from_utf8_lossy(&o.stdout);
+            Ok(out.split_whitespace().next().unwrap_or("").to_string())
+        }
+        Ok(o) => Err(String::from_utf8_lossy(&o.stderr).to_string()),
+        Err(e) => Err(format!("could not run checksum command: {}", e)),
     }
 }

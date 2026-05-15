@@ -5,12 +5,12 @@
 
 ## **TABLE OF CONTENTS**
 
-- [Philosophical Foundations & The Vibe Coding Manifesto](#philosophical-foundations--the-vibe-coding-manifesto)
+- [Philosophical Foundations & The Reactive Orchestration Manifesto](#philosophical-foundations--the-reactive-orchestration-manifesto)
 - [Core Architecture: The Reactive Engine](#core-architecture-the-reactive-engine)
 - [LSL Language Specification & AST](#lsl-language-specification--ast)
 - [Diagnostic Encyclopedia (L-Codes & R-Codes)](#diagnostic-encyclopedia-l-codes--r-codes)
 - [Cluster Networking, Consensus & The Truth Log](#cluster-networking-consensus--the-truth-log)
-- [The Anthology of Vibe Coding (Patterns 1-150)](#the-anthology-of-vibe-coding-patterns)
+- [The Anthology of Reactive Patterns (Patterns 1-150)](#the-anthology-of-reactive-patterns)
 - [Developer Integration: FFI & Providers](#developer-integration-ffi--providers)
 - [Platform Support: WASM, HCL & IDE](#platform-support-wasm-hcl--ide)
 - [Advanced Orchestration & Case Studies](#advanced-orchestration--case-studies)
@@ -18,7 +18,7 @@
 
 ---
 
-## **PHILOSOPHICAL FOUNDATIONS & THE VIBE CODING MANIFESTO**
+## **PHILOSOPHICAL FOUNDATIONS & THE REACTIVE ORCHESTRATION MANIFESTO**
 
 ### The Core Axiom: The One Rule
 Lumina is a **Distributed Reactive Language** (DRL) designed for agentless infrastructure orchestration. It is governed by a single, unbreakable rule:
@@ -28,10 +28,10 @@ Lumina is a **Distributed Reactive Language** (DRL) designed for agentless infra
 - **IaC (The Past)**: Procedural scripts (Ansible, Chef) or provisioning plans (Terraform) that describe *how to get* to a state. They are fragile and prone to configuration drift.
 - **IaT (Lumina)**: Continuous models that describe *what is true*. Lumina doesn't "run" a script; it maintains a **Continuous State DAG**. If a node fails, the rest of the cluster still knows the "truth" and reacts atomically.
 
-### The Vibe Coding Principles
+### The Reactive Orchestration Principles
 1. **Truth is Sovereign**: The current state is the only authority. We do not trust cached intentions.
 2. **Logic follows the DAG**: Complexity is managed through Directed Acyclic Graphs. Any cycle is a fatal instability (Error L004).
-3. **Latency is the Signal**: High latency is a "Vibe" that signals stress. We move workloads away from friction and toward flow.
+3. **Latency is the Signal**: High latency is a signal that indicates system stress. We move workloads away from friction and toward flow.
 4. **Reactivity is Atomic**: A change in one part of the system results in an atomic transition for all dependents, or a total rollback.
 5. **Decentralization is Resilience**: The cluster is a mesh of equals. If the majority survives, the Truth survives.
 6. **Automation is Self-Defense**: Infrastructure should defend itself against thermal spikes and breaches without human permission.
@@ -48,7 +48,7 @@ The Lumina engine transforms raw text into a high-performance reactive state mac
 1.  **`lumina-lexer` (O(1) Tokenizer)**: Uses `logos` for zero-copy tokenization. Comments are treated as trivia but preserved for LSP support.
 2.  **`lumina-parser` (Pratt Parsing)**: A hand-written recursive descent parser that handles operator precedence via binding power. It features "Panic Mode" error recovery to show multiple syntax errors in one pass.
 3.  **`lumina-analyzer` (The Semantic Heart)**: Performs scope mapping and DAG generation. It runs **Kahn's Algorithm** for topological sorting and cycle detection.
-4.  **`lumina-diagnostics` (The UX)**: Provides Rust-style error snippets with help injection for "Vibe Coding" suggestions.
+4.  **`lumina-diagnostics` (The UX)**: Provides Rust-style error snippets with help injection for architectural suggestions.
 5.  **`lumina-runtime` (Vectorized Evaluator)**: The execution engine.
 
 ### Runtime Internals: Memory & Recomputation
@@ -127,7 +127,7 @@ Every state transition is cryptographically chained: `Hash_N = Blake3(Hash_{N-1}
 
 ---
 
-## **THE ANTHOLOGY OF VIBE CODING (PATTERNS 1-150)**
+## **THE ANTHOLOGY OF REACTIVE PATTERNS (PATTERNS 1-150)**
 
 ### Resilience & Self-Healing
 *   **Pattern 1: Basic Health**: `when s.temp > 80 becomes true { alert severity: "warning", message: "Server {s.id} hot!" }`.
@@ -214,7 +214,7 @@ Define tests using `test`, `setup`, `action`, and `assert` blocks. LTS supports 
 ### Future Roadmap: Lumina v3.0
 - **eBPF Integration**: Moving triggers into the Linux kernel for zero context-switch packet-level reactivity.
 - **Edge Federation**: Global-scale backplane for sub-millisecond state sharing between clusters.
-- **Natural Language "Vibe" Compiler**: Describe logic in natural language to generate LSL.
+- **Natural Language Logic Compiler**: Describe logic in natural language to generate LSL.
 
 ---
 **[DOCUMENT END]**

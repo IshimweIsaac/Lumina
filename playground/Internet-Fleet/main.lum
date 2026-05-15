@@ -1,0 +1,50 @@
+resource entity DockerNode provider "docker" {
+  name: Text
+  status: Text
+  role: Text
+  port: Number
+  verified: Boolean
+}
+
+-- Gateway is mapped to Port 8080 on your machine
+let gateway = DockerNode { 
+  name: "internet-gateway", 
+  status: "unknown", 
+  role: "gateway",
+  port: 8080,
+  verified: false
+}
+
+let worker_1 = DockerNode { 
+  name: "compute-worker-01", 
+  status: "unknown", 
+  role: "worker",
+  port: 0, -- Internal only
+  verified: false
+}
+
+rule "Internet Deployment" when (gateway.status == "unknown") {
+  trace ">>> LAUNCHING INTERNET FLEET"
+  update gateway.status = "starting"
+  update worker_1.status = "starting"
+  
+  provision gateway
+  provision worker_1
+}
+
+rule "Self-Heal" for (n: DockerNode) cooldown 10s
+whenever (n.status == "stopped") {
+  trace "Architect: {n.name} went dark. Restoring connection..."
+  update n.status = "running"
+}
+
+rule "Verification Audit" for (n: DockerNode) 
+when (n.verified == true) {
+  trace "AUDIT: {n.name} has been verified and synchronized."
+}
+
+global rule "Public Status" every 5s {
+  for (n: DockerNode) {
+    trace "[{n.role}] {n.name} | Port: {n.port} | Status: {n.status}"
+  }
+}
