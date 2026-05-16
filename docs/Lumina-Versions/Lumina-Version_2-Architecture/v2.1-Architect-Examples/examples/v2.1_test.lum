@@ -1,0 +1,33 @@
+-- Lumina v2.1 Verification
+import LSL::sensor::Ping
+import LSL::sensor::Process
+
+-- 1. Configure sensors
+let google_ping = Ping { 
+    target: "8.8.8.8",
+    status: "unknown"
+}
+
+let bash_proc = Process {
+    proc_name: "bash",
+    status: "unknown"
+}
+
+-- 2. Level-triggered rule (whenever)
+rule "Network Watch" whenever (google_ping.status == "offline") {
+    trace "Network is DOWN! (Level-triggered)"
+} on clear {
+    trace "Network is BACK! (On Clear)"
+}
+
+-- 3. Process Watch
+rule "Process Watch" whenever (bash_proc.running == true) {
+    trace "Bash is running: {bash_proc.cpu_percent}% CPU, {bash_proc.memory_mb} MB"
+}
+
+-- 4. Global rule for auditing
+global rule "System Audit" every 5s {
+    trace "Auditing sensors..."
+    show google_ping.status
+    show bash_proc.status
+}

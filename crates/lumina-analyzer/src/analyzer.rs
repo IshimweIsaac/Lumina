@@ -106,12 +106,14 @@ impl Analyzer {
                             "LSL::power::UPS",
                             "LSL::power::Generator",
                             "LSL::docker::Container",
+                            "LSL::sensor::Ping",
+                            "LSL::sensor::Process",
                         ];
                         if !known_namespaces.contains(&path.as_str()) {
                             self.errors.push(AnalyzerError {
                                 code: "L054",
                                 message: format!(
-                                    "Unknown LSL schema '{}'. Available: datacenter, network, k8s, power, docker.",
+                                    "Unknown LSL schema '{}'. Available: datacenter, network, k8s, power, docker, sensor.",
                                     path
                                 ),
                                 span: decl.span,
@@ -141,6 +143,43 @@ impl Analyzer {
                             self.schema.register_field(&entity_name, "status", &LuminaType::Text);
                             self.schema.register_field(&entity_name, "verified", &LuminaType::Boolean);
                             self.schema.register_field(&entity_name, "tier", &LuminaType::Text);
+                        } else if path == "LSL::sensor::Ping" {
+                            let entity_name = "Ping".to_string();
+                            let mut schema_ent = crate::types::EntitySchema {
+                                name: entity_name.clone(),
+                                fields: std::collections::HashMap::new(),
+                                field_indices: std::collections::HashMap::new(),
+                                field_names: Vec::new(),
+                                is_external: true,
+                                sync_path: String::new(),
+                                sync_strategy: crate::types::SyncStrategy::Realtime,
+                                sync_on: None,
+                                poll_interval: None,
+                            };
+                            self.schema.entities.insert(entity_name.clone(), schema_ent);
+                            self.schema.register_field(&entity_name, "target", &LuminaType::Text);
+                            self.schema.register_field(&entity_name, "up", &LuminaType::Boolean);
+                            self.schema.register_field(&entity_name, "status", &LuminaType::Text);
+                            self.schema.register_field(&entity_name, "latency_ms", &LuminaType::Number);
+                        } else if path == "LSL::sensor::Process" {
+                            let entity_name = "Process".to_string();
+                            let mut schema_ent = crate::types::EntitySchema {
+                                name: entity_name.clone(),
+                                fields: std::collections::HashMap::new(),
+                                field_indices: std::collections::HashMap::new(),
+                                field_names: Vec::new(),
+                                is_external: true,
+                                sync_path: String::new(),
+                                sync_strategy: crate::types::SyncStrategy::Realtime,
+                                sync_on: None,
+                                poll_interval: None,
+                            };
+                            self.schema.entities.insert(entity_name.clone(), schema_ent);
+                            self.schema.register_field(&entity_name, "proc_name", &LuminaType::Text);
+                            self.schema.register_field(&entity_name, "running", &LuminaType::Boolean);
+                            self.schema.register_field(&entity_name, "cpu_percent", &LuminaType::Number);
+                            self.schema.register_field(&entity_name, "memory_mb", &LuminaType::Number);
+                            self.schema.register_field(&entity_name, "status", &LuminaType::Text);
                         }
                     } else if !self.allow_imports && !decl.path.starts_with("LSL::") {
                         self.errors.push(AnalyzerError {

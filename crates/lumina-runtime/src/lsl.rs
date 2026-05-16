@@ -23,6 +23,7 @@ impl LslRegistry {
 
         registry.register_power();
         registry.register_docker();
+        registry.register_sensors();
         registry
     }
 
@@ -635,6 +636,98 @@ impl LslRegistry {
                     }),
                     Field::Stored(StoredField {
                         name: "tier".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                ],
+                span,
+            },
+        );
+    }
+    
+    // ── Sensor schemas ──────────────────────────────────────
+
+    fn register_sensors(&mut self) {
+        let span = Span {
+            start: 0,
+            end: 0,
+            line: 0,
+            col: 0,
+        };
+        let meta = FieldMetadata {
+            doc: None,
+            range: None,
+            affects: vec![],
+        };
+
+        // LSL::sensor::Ping
+        self.schemas.insert(
+            "LSL::sensor::Ping".into(),
+            EntityDecl {
+                name: "Ping".into(),
+                fields: vec![
+                    Field::Stored(StoredField {
+                        name: "target".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "up".into(),
+                        ty: LuminaType::Boolean,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "status".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "latency_ms".into(),
+                        ty: LuminaType::Number,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                ],
+                span,
+            },
+        );
+
+        // LSL::sensor::Process
+        self.schemas.insert(
+            "LSL::sensor::Process".into(),
+            EntityDecl {
+                name: "Process".into(),
+                fields: vec![
+                    Field::Stored(StoredField {
+                        name: "proc_name".into(),
+                        ty: LuminaType::Text,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "running".into(),
+                        ty: LuminaType::Boolean,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "cpu_percent".into(),
+                        ty: LuminaType::Number,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "memory_mb".into(),
+                        ty: LuminaType::Number,
+                        metadata: meta.clone(),
+                        span,
+                    }),
+                    Field::Stored(StoredField {
+                        name: "status".into(),
                         ty: LuminaType::Text,
                         metadata: meta.clone(),
                         span,

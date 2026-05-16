@@ -191,6 +191,10 @@ impl crate::adapter::LuminaAdapter for DockerAdapter {
         Ok(())
     }
 
+    fn reconcile(&mut self, instance: &str, desired: &HashMap<String, Value>) -> Result<(), String> {
+        self.provision(instance, desired)
+    }
+
     fn destroy(&mut self, instance: &str) -> Result<(), String> {
         let options = Some(RemoveContainerOptions {
             force: true,

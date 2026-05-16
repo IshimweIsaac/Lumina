@@ -24,7 +24,7 @@ pub trait LuminaAdapter: Send + Sync {
         Ok(())
     }
 
-    fn reconcile(&mut self, _instance: &str) -> Result<(), String> {
+    fn reconcile(&mut self, _instance: &str, _desired: &std::collections::HashMap<String, Value>) -> Result<(), String> {
         Ok(())
     }
 }

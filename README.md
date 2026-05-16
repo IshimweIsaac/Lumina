@@ -5,7 +5,7 @@ Lumina is a **Distributed Reactive Language (DRL)** for high-availability infras
 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Lumina-v2.0.0-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Lumina-v2.1.0-green.svg)](CHANGELOG.md)
 
 ---
 
@@ -96,6 +96,7 @@ lumina run hello.lum
 ## Project Structure
 
 - **[`crates/`](./crates/)**: The core engine (Lexer, Parser, Analyzer, Runtime).
+- **[`docs/Lumina-Versions/VERSION_MAP.md`](./docs/Lumina-Versions/VERSION_MAP.md)**: Project history and example archives (**Version_1-Core** vs **Version_2-Architecture**).
 - **[`docs/knowledge/`](./docs/knowledge/)**: High-fidelity AI training suite and deep-dives.
 - **[`examples/`](./examples/)**: Runnable architectures for IoT, Infrastructure, and Security.
 - **[`extensions/`](./extensions/)**: VS Code language support.
@@ -105,10 +106,10 @@ lumina run hello.lum
 
 ## Documentation
 
-- **[Mental Model](./docs/knowledge/01-mental-model.md)**: Transitioning from procedural to reactive thinking.
-- **[Syntax Reference](./docs/knowledge/02-syntax-reference.md)**: Exhaustive guide to the Lumina grammar.
-- **[Patterns Cookbook](./docs/knowledge/06-patterns-cookbook.md)**: 14 complete, runnable infrastructure patterns.
-- **[FFI & Embedding](./docs/knowledge/08-advanced-features.md)**: Using Lumina from other languages.
+- **[`docs/`](./docs/README.md)**: Official documentation portal (Tutorials, Reference, Ops).
+- **[Syntax Reference](./docs/Lumina-Versions/Lumina-Version_2-Architecture/core/02-syntax-reference.md)**: Exhaustive guide to the Lumina grammar (Version_2-Architecture).
+- **[Patterns Cookbook](./docs/Lumina-Versions/Lumina-Version_2-Architecture/core/06-patterns-cookbook.md)**: 14 complete, runnable infrastructure patterns.
+- **[FFI & Embedding](./docs/Lumina-Versions/Lumina-Version_2-Architecture/core/08-advanced-features.md)**: Using Lumina from other languages.
 
 ---
 

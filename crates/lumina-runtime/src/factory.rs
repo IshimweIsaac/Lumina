@@ -84,6 +84,30 @@ pub fn build_evaluator(analyzed: &AnalyzedProgram) -> Evaluator {
                     
                     #[cfg(target_arch = "wasm32")]
                     ev.register_adapter(Box::new(StaticAdapter::new("Container")));
+                } else if decl.path == "LSL::sensor::Ping" {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    ev.register_adapter(Box::new(crate::adapters::ping_adapter::PingAdapter::new("Ping")));
+                } else if decl.path == "LSL::sensor::Process" {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    ev.register_adapter(Box::new(crate::adapters::process_adapter::ProcessAdapter::new("Process")));
+                }
+            }
+            Statement::Let(decl) => {
+                if let LetValue::EntityInit(init) = &decl.value {
+                    if init.entity_name == "Ping" {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        for adapter in &mut ev.adapters {
+                            if adapter.entity_name() == "Ping" {
+                                if let Some(target) = init.fields.iter().find(|(n, _)| n == "target") {
+                                    if let Expr::Text(_t) = &target.1 {
+                                        // This is a bit of a hack since we don't have a downcast,
+                                        // but for v2.1 sensors we'll allow the factory to pre-config.
+                                        // In a real implementation, we'd use a registry of factories.
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             _ => {}

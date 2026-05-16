@@ -909,12 +909,21 @@ impl Evaluator {
                         let entity_schema = self.schema.get_entity(&entity_name).unwrap();
                         let mut instance =
                             Instance::new(&entity_name, entity_schema.field_names.len());
-                        for (name, val) in fields {
-                            if let Some(idx) = entity_schema.field_indices.get(&name) {
-                                instance.set(*idx, val);
+                        for (name, val) in &fields {
+                            if let Some(idx) = entity_schema.field_indices.get(name) {
+                                instance.set(*idx, val.clone());
                             }
                         }
                         self.store.insert(inst_name.clone(), instance);
+                        
+                        // v2.1: Notify adapters of the new instance fields so they can self-configure (e.g. sensors)
+                        for (name, val) in &fields {
+                            for a in &mut self.adapters {
+                                if a.entity_name() == entity_name {
+                                    a.on_write(&inst_name, name, val);
+                                }
+                            }
+                        }
                         // Compute derived fields for the new instance
                         self.propagate_derived(&inst_name, &entity_name)?;
                         if !self.is_initializing {
@@ -1059,12 +1068,21 @@ impl Evaluator {
 
                 let entity_schema = self.schema.get_entity(entity).unwrap();
                 let mut instance = Instance::new(entity, entity_schema.field_names.len());
-                for (name, val) in fv {
-                    if let Some(idx) = entity_schema.field_indices.get(&name) {
-                        instance.set(*idx, val);
+                for (name, val) in &fv {
+                    if let Some(idx) = entity_schema.field_indices.get(name) {
+                        instance.set(*idx, val.clone());
                     }
                 }
-                self.store.insert(inst_name, instance);
+                self.store.insert(inst_name.clone(), instance);
+
+                // v2.1: Notify adapters of the new instance fields
+                for (name, val) in &fv {
+                    for a in &mut self.adapters {
+                        if a.entity_name() == entity {
+                            a.on_write(&inst_name, name, val);
+                        }
+                    }
+                }
 
                 // Recompute aggregates to include the new instance
                 self.agg_store
@@ -1287,9 +1305,10 @@ impl Evaluator {
                     .get(&inst_name)
                     .cloned()
                     .unwrap_or_else(|| inst_name.clone());
+                let desired = self.get_desired_state(&entity_name, &inst_name);
                 for adapter in &mut self.adapters {
                     if adapter.entity_name() == entity_name {
-                        adapter.reconcile(&inst_name).map_err(|e| RuntimeError::R021 {
+                        adapter.reconcile(&inst_name, &desired).map_err(|e| RuntimeError::R021 {
                             resource: inst_name.clone(),
                             reason: e,
                         })?;

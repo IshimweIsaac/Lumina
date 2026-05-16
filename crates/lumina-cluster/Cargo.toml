@@ -1,6 +1,6 @@
 [package]
 name = "lumina-cluster"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
 description = "High-availability, peer-to-peer cluster orchestrator for Lumina v2.0"
 authors = ["Isaac <isaac@luminalang.dev>"]
@@ -11,6 +11,6 @@ serde_json = "1.0"
 tokio = { version = "1.28", features = ["full", "sync", "time"] }
 bytes = "1.4.0"
 parking_lot = "0.12.1"
-lumina-parser = { path = "../lumina-parser", version = "2.0.0" }
-lumina-analyzer = { path = "../lumina-analyzer", version = "2.0.0" }
+lumina-parser = { path = "../lumina-parser", version = "2.1.0" }
+lumina-analyzer = { path = "../lumina-analyzer", version = "2.1.0" }
 rustc-hash = "1.1"

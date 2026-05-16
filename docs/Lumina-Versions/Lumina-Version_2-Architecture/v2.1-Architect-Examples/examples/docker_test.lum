@@ -1,0 +1,20 @@
+-- Docker/Podman Connectivity Test
+import LSL::docker::Container
+
+-- Instantiate a container instance
+let my_web = Container {
+    name: "lumina-nginx",
+    image: "nginx:alpine",
+    status: "missing",
+    verified: false
+}
+
+-- Rule to auto-provision when missing
+rule "Auto Provision" whenever (my_web.status == "missing") {
+    provision my_web
+}
+
+-- Rule to report status
+rule "Report" every 5s {
+    show my_web.status
+}
