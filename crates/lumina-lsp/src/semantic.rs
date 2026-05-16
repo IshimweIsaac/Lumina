@@ -70,7 +70,7 @@ pub fn get_semantic_tokens(prog: &Program, src: &str) -> Vec<SemanticToken> {
         "within",
         "now",
         "prev",
-        // v2.0 keywords
+        // v2.1 keywords
         "cluster",
         "node_id",
         "peers",

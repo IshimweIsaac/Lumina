@@ -55,7 +55,7 @@ rm -f Lumina-v*-x64-Setup.exe LuminaSetup.exe
 makensis -DTARGET="$TARGET" lumina.nsi
 
 # 4. Finalize
-INSTALLER="Lumina-v2.0.0-x64-Setup.exe"
+INSTALLER="Lumina-v2.1.0-x64-Setup.exe"
 if [ -f "$INSTALLER" ]; then
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}[SUCCESS] Windows Installer created: $INSTALLER${NC}"

@@ -20,7 +20,7 @@ if ($Arch -eq 9) {
     Write-ErrorMsg "Unsupported platform architecture ($Arch). Please download manually."
 }
 
-Write-Info "Installing Lumina v2.0.0 (The Cluster Release) for $Platform..."
+Write-Info "Installing Lumina v2.1.0 (Architect) for $Platform..."
 
 if (-not (Test-Path $BIN_DIR)) {
     New-Item -ItemType Directory -Path $BIN_DIR -Force | Out-Null

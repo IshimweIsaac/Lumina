@@ -89,7 +89,7 @@ pub struct ProviderConfigEntry {
     pub span: Span,
 }
 
-// ── Cluster declaration (v2.0) ─────────────────────────────────────────
+// ── Cluster declaration (v2.1) ─────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterDecl {
@@ -412,24 +412,24 @@ pub enum Expr {
         field: String,
         span: Span,
     },
-    /// v2.0: Access cluster state — `cluster.{node_id}.{field}` or `cluster.all.{field}`
+    /// v2.1: Access cluster state — `cluster.{node_id}.{field}` or `cluster.all.{field}`
     ClusterAccess {
         node_id: String,
         field: String,
         span: Span,
     },
-    /// v2.0: Orchestration — `migrate(workloads, to: target)`
+    /// v2.1: Orchestration — `migrate(workloads, to: target)`
     Migrate {
         workloads: Box<Expr>,
         target: Box<Expr>,
         span: Span,
     },
-    /// v2.0: Orchestration — `evacuate(entities)`
+    /// v2.1: Orchestration — `evacuate(entities)`
     Evacuate {
         entities: Box<Expr>,
         span: Span,
     },
-    /// v2.0: Orchestration — `deploy(spec)`
+    /// v2.1: Orchestration — `deploy(spec)`
     Deploy {
         spec: Box<Expr>,
         span: Span,
@@ -507,7 +507,7 @@ pub struct AggregateDecl {
     pub span: Span,
 }
 
-/// v2.0: Scope for aggregate computation
+/// v2.1: Scope for aggregate computation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregateScope {
     /// Local node only (v1.x default)

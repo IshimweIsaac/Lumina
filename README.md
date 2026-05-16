@@ -5,7 +5,7 @@ Lumina is a **Distributed Reactive Language (DRL)** for high-availability infras
 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Lumina-v2.1.0-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Lumina--green.svg)](CHANGELOG.md)
 
 ---
 
@@ -22,22 +22,22 @@ Lumina is **declarative-reactive**. You define the *state* you want, and the eng
 ```lumina
 -- Define a self-healing server rack
 entity Server {
-    cpu_temp: Number
-    is_online: Boolean
-    is_hot := cpu_temp > 80
+  cpu_temp: Number
+  is_online: Boolean
+  is_hot := cpu_temp > 80
 }
 
 aggregate RackStats over Server {
-    avg_temp := avg(cpu_temp)
-    critical_count := count(is_hot)
+  avg_temp := avg(cpu_temp)
+  critical_count := count(is_hot)
 }
 
 rule "Emergency Cooling"
 when RackStats.critical_count > 2 {
-    alert severity: "critical", message: "Fleet overheating: {RackStats.avg_temp}C"
+  alert severity: "critical", message: "Fleet overheating: {RackStats.avg_temp}C"
 }
 on clear {
-    show "Thermal levels stabilized."
+  show "Thermal levels stabilized."
 }
 ```
 
@@ -48,7 +48,7 @@ on clear {
 ### ⚡ Distributed Reactivity
 A high-performance reactive engine written in Rust. Every state change is a transaction—updates either propagate fully through the graph or roll back entirely.
 
-### 🌐 Sovereign Clustering
+### 🌐 Architecting
 Native cluster networking with UDP gossip, leader election, and state mesh synchronization. No external database or message broker required.
 
 ### 🔌 Universal Embedding
@@ -79,7 +79,7 @@ iwr https://lumina-lang.web.app/install.ps1 -useb | iex
 Create `hello.lum`:
 ```lumina
 entity World {
-    status: Text
+  status: Text
 }
 let w = World { status: "Quiet" }
 rule "Greet" when World.status becomes "Loud" { show "Hello, Lumina!" }
@@ -96,8 +96,7 @@ lumina run hello.lum
 ## Project Structure
 
 - **[`crates/`](./crates/)**: The core engine (Lexer, Parser, Analyzer, Runtime).
-- **[`docs/Lumina-Versions/VERSION_MAP.md`](./docs/Lumina-Versions/VERSION_MAP.md)**: Project history and example archives (**Version_1-Core** vs **Version_2-Architecture**).
-- **[`docs/knowledge/`](./docs/knowledge/)**: High-fidelity AI training suite and deep-dives.
+- **[`docs/`](./docs/)**: Official documentation portal.
 - **[`examples/`](./examples/)**: Runnable architectures for IoT, Infrastructure, and Security.
 - **[`extensions/`](./extensions/)**: VS Code language support.
 - **[`website/`](./website/)**: The interactive WASM playground.
@@ -106,10 +105,10 @@ lumina run hello.lum
 
 ## Documentation
 
-- **[`docs/`](./docs/README.md)**: Official documentation portal (Tutorials, Reference, Ops).
-- **[Syntax Reference](./docs/Lumina-Versions/Lumina-Version_2-Architecture/core/02-syntax-reference.md)**: Exhaustive guide to the Lumina grammar (Version_2-Architecture).
-- **[Patterns Cookbook](./docs/Lumina-Versions/Lumina-Version_2-Architecture/core/06-patterns-cookbook.md)**: 14 complete, runnable infrastructure patterns.
-- **[FFI & Embedding](./docs/Lumina-Versions/Lumina-Version_2-Architecture/core/08-advanced-features.md)**: Using Lumina from other languages.
+- **[`docs/`](./docs/README.md)**: Documentation Portal.
+- **[Core Reference](./docs/guides/core_reference.md)**: Exhaustive guide to Lumina syntax and standard library.
+- **[Tutorials](./docs/guides/tutorials.md)**: Quickstarts and setup guides.
+- **[Version Map](./docs/VERSION_MAP.md)**: Explore the history and patch notes of the language.
 
 ---
 

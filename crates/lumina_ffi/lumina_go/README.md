@@ -1,6 +1,6 @@
 # Lumina Go Wrapper
 
-This is the Go package for Lumina v2.0.0, interacting with the `lumina_ffi` shared library via `cgo`.
+This is the Go package for Lumina v2.1.0, interacting with the `lumina_ffi` shared library via `cgo`.
 
 ## Prerequisites
 Build the FFI library first:

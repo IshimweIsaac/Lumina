@@ -1,4 +1,4 @@
--- Lumina v2.0 Sovereignty & Cluster Spec Test
+-- Lumina v2.1 Architect Spec Test
 cluster {
   node_id: "node-1"
   peers: ["node-2", "node-3"]

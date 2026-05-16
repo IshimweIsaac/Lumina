@@ -11,7 +11,7 @@ pub struct Schema {
 pub struct EntitySchema {
     pub name: String,
     pub fields: HashMap<String, FieldSchema>,
-    /// v2.0: Optimized field mapping for O(1) access
+    /// v2.1: Optimized field mapping for O(1) access
     pub field_indices: HashMap<String, usize>,
     pub field_names: Vec<String>,
     pub is_external: bool,

@@ -831,7 +831,7 @@ impl Parser {
         self.expect(&Token::Over)?;
         let over = self.expect_ident("entity name")?;
 
-        // v2.0: Optional scope — `over cluster` or `over region["name"]`
+        // v2.1: Optional scope — `over cluster` or `over region["name"]`
         let scope = if self.check(&Token::KwCluster) {
             self.advance();
             AggregateScope::Cluster
@@ -920,7 +920,7 @@ impl Parser {
         }))
     }
 
-    // ── cluster (v2.0) ────────────────────────────────────
+    // ── cluster (v2.1) ────────────────────────────────────
 
     fn parse_cluster(&mut self) -> Result<Statement, ParseError> {
         let span = self.current_span();
@@ -1536,7 +1536,7 @@ impl Parser {
                     span,
                 })
             }
-            // v2.0: cluster.{node_id}.{field} access
+            // v2.1: cluster.{node_id}.{field} access
             Token::KwCluster => {
                 self.advance(); // consume 'cluster'
                 self.expect(&Token::Dot)?;
@@ -1549,7 +1549,7 @@ impl Parser {
                     span,
                 })
             }
-            // v2.0: migrate(workloads, to: target)
+            // v2.1: migrate(workloads, to: target)
             Token::KwMigrate => {
                 self.advance();
                 self.expect(&Token::LParen)?;
@@ -1568,7 +1568,7 @@ impl Parser {
                     span,
                 })
             }
-            // v2.0: evacuate(entities)
+            // v2.1: evacuate(entities)
             Token::KwEvacuate => {
                 self.advance();
                 self.expect(&Token::LParen)?;
@@ -1579,7 +1579,7 @@ impl Parser {
                     span,
                 })
             }
-            // v2.0: deploy(spec)
+            // v2.1: deploy(spec)
             Token::KwDeploy => {
                 self.advance();
                 self.expect(&Token::LParen)?;

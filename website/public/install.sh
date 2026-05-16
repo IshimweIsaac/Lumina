@@ -51,7 +51,7 @@ if [ -z "$PLATFORM" ]; then
 fi
 
 # --- Download & Verify ──────────────────────────────────
-log_info "Installing Lumina v2.0.0 for $PLATFORM..."
+log_info "Installing Lumina v2.1.0 for $PLATFORM..."
 mkdir -p "$BIN_DIR"
 
 download_binary() {

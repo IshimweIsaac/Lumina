@@ -2,22 +2,23 @@
 
 Welcome to the official documentation for **Lumina**.
 
-## 🏗️ [Lumina-Version_2-Architecture](Lumina-Versions/Lumina-Version_2-Architecture/)
-The current generation of Lumina, focusing on cluster mesh and infrastructure orchestration.
-- [v2.1 Architect Reference](Lumina-Versions/Lumina-Version_2-Architecture/core/01-mental-model.md)
-- [v2.0 Cluster Guide](Lumina-Versions/Lumina-Version_2-Architecture/lumina-v2.0/README.md)
-- [Tutorials & Getting Started](Lumina-Versions/Lumina-Version_2-Architecture/tutorials/getting-started.md)
+## 🏗️ Version 2: Architect
+The current generation of Lumina, featuring cluster mesh and distributed infrastructure orchestration.
+- [ Architect Release Notes](Version2/v2.1/.1/index.md)
+- [Core Reference](guides/core_reference.md)
+- [Tutorials & Getting Started](guides/tutorials.md)
+- [Operations & Cluster Guide](guides/operations.md)
 
-## 📦 [Lumina-Version_1-Core](Lumina-Versions/Lumina-Version_1-Core/)
+## 📦 Version 1: Core (Legacy)
 The legacy generation of Lumina, focusing on the original single-node reactive engine.
-- [Historical Archive (v1.3 - v1.9)](Lumina-Versions/Lumina-Version_1-Core/)
-- [v1 Examples](Lumina-Versions/Lumina-Version_1-Core/v1-Classic-Examples/)
+- [Historical Archive ( - )](Version1/)
 
 ---
 
 ### Navigation
-- [**Full Version Map**](Lumina-Versions/VERSION_MAP.md)
-- [Language Specification](spec/SPEC.md)
-- [Developer Roadmap](dev/roadmap.md)
+- [**Full Version Map**](VERSION_MAP.md)
+- [Language Specification](guides/language_spec.md)
+- [Developer Roadmap](guides/developer_guide.md)
+- [The Lumina Book](book.md)
 
-**Current Version: 2.1.0-Architect (Version_2-Architecture)**
+**Current Version: 2.1.1-Architect**

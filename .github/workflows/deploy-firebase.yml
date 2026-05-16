@@ -83,7 +83,7 @@ jobs:
         run: |
           cd installers/windows
           makensis /DTARGET=${{ matrix.target }} lumina.nsi
-          mv Lumina-v2.0.0-x64-Setup.exe ../../dist/
+          mv Lumina-v2.1.0-x64-Setup.exe ../../dist/
 
       - name: Upload Binary Artifacts
         uses: actions/upload-artifact@v4

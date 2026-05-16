@@ -56,43 +56,43 @@ pub enum RuntimeError {
         rule: String,
         reason: String,
     },
-    /// v2.0: Quorum lost — cluster cannot commit writes
+    /// v2.1: Quorum lost — cluster cannot commit writes
     R011 {
         reason: String,
     },
-    /// v2.0: Node isolated — operating in read-only mode
+    /// v2.1: Node isolated — operating in read-only mode
     R012 {
         reason: String,
     },
-    /// v2.0: WAL replication lag exceeds threshold
+    /// v2.1: WAL replication lag exceeds threshold
     R013 {
         reason: String,
     },
-    /// v2.0: Cross-node entity reference unresolvable
+    /// v2.1: Cross-node entity reference unresolvable
     R014 {
         node: String,
         entity: String,
     },
-    /// v2.0: Orchestration write target unreachable
+    /// v2.1: Orchestration write target unreachable
     R015 {
         target: String,
     },
-    /// v2.0: Cluster aggregate computation timeout
+    /// v2.1: Cluster aggregate computation timeout
     R016 {
         reason: String,
     },
-    /// v2.0: Migration target has insufficient capacity
+    /// v2.1: Migration target has insufficient capacity
     R017 {
         target: String,
         reason: String,
     },
-    /// v2.0: Type mismatch in binary/unary operation (replaces silent coercion)
+    /// v2.1: Type mismatch in binary/unary operation (replaces silent coercion)
     R018 {
         op: String,
         left: String,
         right: String,
     },
-    /// v2.0: Snapshot stack corrupted during rollback
+    /// v2.1: Snapshot stack corrupted during rollback
     R019,
     /// v2.1: Resource provisioning failed
     R020 {

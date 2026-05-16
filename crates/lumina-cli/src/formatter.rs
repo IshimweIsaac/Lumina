@@ -1,4 +1,4 @@
-//! Lumina v2.0 — Opinionated Code Formatter
+//! Lumina v2.1 — Opinionated Code Formatter
 //!
 //! Pretty-prints a parsed AST back to canonical Lumina source code.
 //! Enforces consistent indentation (2 spaces), spacing, and ordering.
@@ -444,7 +444,7 @@ fn format_expr(expr: &Expr) -> String {
         }
         Expr::Duration(d) => format_duration(d),
         Expr::Prev { field, .. } => format!("prev({})", field),
-        // v2.0 expressions
+        // v2.1 expressions
         Expr::ClusterAccess { node_id, field, .. } => format!("cluster.{}.{}", node_id, field),
         Expr::Migrate {
             workloads, target, ..

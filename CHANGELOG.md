@@ -1,7 +1,7 @@
 This document tracks the completion of the final stages of Lumina, transforming the project from a raw engine into a **Reactive Target Infrastructure** ecosystem.
 
 > [!IMPORTANT]
-> Starting with v2.0, Lumina transitions into a **Sovereign Cluster Runtime**, enabling distributed state resolution across decentralized nodes.
+> Starting with v2.1, Lumina transitions into a **Architect Runtime**, enabling distributed state resolution across decentralized nodes.
 
 ## Phase 11: v2.1 "The Architect Release" [PLANNING]
 - **Reactive Provisioning**: Introduction of `resource entity` (e.g., `AWS::EC2`, `Docker::Container`) for direct infrastructure management.
@@ -13,7 +13,7 @@ This document tracks the completion of the final stages of Lumina, transforming 
 - **Vibe-Flexible Parser**: Decoupled keyword ordering for `cooldown`, `every`, and `for` modifiers.
 - **Observability**: New `trace` action for real-time rule evaluation debugging.
 
-## Phase 10: v2.0 "The Cluster Release" [COMPLETED]
+## Phase 10: v2.1 "Architect" [COMPLETED]
 - **Clustering Engine**: Implementation of `lumina cluster` for distributed node management.
 - **Gossip Protocol**: Real-world UDP socket transport (`UdpTransport`) for decentralized node discovery, peer health monitoring, and message routing.
 - **Election System**: Raft-inspired leader election with quorum-based promotion.

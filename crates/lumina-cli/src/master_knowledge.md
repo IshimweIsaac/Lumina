@@ -148,7 +148,7 @@ on clear {
 
 The `becomes true` is critical: the rule fires **once** when the value transitions from false to true, not every time the engine evaluates it while it's true.
 
-### Tier 4: The Cluster Mesh — The Network (v2.0)
+### Tier 4: The Cluster Mesh — The Network (v2.1)
 
 State isn't confined to a single node. Lumina supports multi-node clusters with native UDP gossip, leader election, and workload migration.
 
@@ -198,7 +198,7 @@ This means: **Lumina state is either fully consistent or unchanged.** There is n
 
 ---
 
-# Lumina Syntax Reference (v2.0-GOLD)
+# Lumina Syntax Reference (v2.1)
 
 This is the exhaustive syntax reference for every Lumina construct. Every example here is valid, runnable code.
 
@@ -748,7 +748,7 @@ Sync strategies:
 
 ---
 
-## Cluster Configuration (v2.0)
+## Cluster Configuration (v2.1)
 
 ```lumina
 cluster {
@@ -761,7 +761,7 @@ cluster {
 
 ---
 
-## Orchestration Actions (v2.0)
+## Orchestration Actions (v2.1)
 
 ```lumina
 -- Migrate workloads to a specific node
@@ -2651,7 +2651,7 @@ Cluster networking, external entities, FFI integration, and secrets.
 
 ---
 
-## Cluster Configuration (v2.0)
+## Cluster Configuration (v2.1)
 
 Lumina supports multi-node clusters with native UDP gossip, leader election, and workload migration.
 
@@ -2698,7 +2698,7 @@ migrate([instance1, instance2], to: "node-2")
 -- Evacuate ALL instances of entity types to alive peers
 evacuate("Server")
 
--- Deploy (simplified in v2.0 — spec is evaluated, leader broadcasts)
+-- Deploy (simplified in v2.1 — spec is evaluated, leader broadcasts)
 deploy("deployment-spec")
 ```
 
@@ -2724,7 +2724,7 @@ aggregate LocalStats over Server {
     avg_temp := avg(cpu_temp)
 }
 
--- Cluster-wide (v2.0)
+-- Cluster-wide (v2.1)
 -- Computed by exchanging pre-aggregates via gossip
 -- The scope is set in the AST but uses the default Local scope in syntax
 ```
@@ -2949,7 +2949,7 @@ Using an unknown namespace raises L054.
 
 ---
 
-# Lumina Known Limitations (v2.0-GOLD)
+# Lumina Known Limitations (v2.1)
 
 This document lists what does NOT work, what is partially implemented, and what will cause AI hallucinations if assumed to exist. **Read this before generating code.**
 
@@ -2974,10 +2974,10 @@ For more complex trend detection, use a stored field and accumulate deltas in a 
 
 ### ❌ `update` uses `=`, not `to`
 
-The EBNF spec (`SPEC.md`) still mentions `update path 'to' expr`. The v2.0-GOLD standard uses `=`:
+The EBNF spec (`SPEC.md`) still mentions `update path 'to' expr`. The v2.1 standard uses `=`:
 
 ```lumina
--- ✅ Correct (v2.0):
+-- ✅ Correct (v2.1):
 update server1.cpu_temp = 90
 
 -- ⚠️ Legacy (may still parse but not recommended):
@@ -3099,7 +3099,7 @@ Rules only execute on the local node. A rule on node-1 cannot directly trigger a
 
 ## Features Mentioned in Old Docs That Don't Exist
 
-These features appear in the old `master_knowledge.md` or pattern descriptions but are **NOT implemented** in the v2.0 runtime:
+These features appear in the old `master_knowledge.md` or pattern descriptions but are **NOT implemented** in the v2.1 runtime:
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -3836,7 +3836,7 @@ Print the version string.
 
 ```bash
 lumina --version
-# Output: Lumina v2.0.0: The Cluster Release
+# Output: Lumina v2.1.0: Architect
 ```
 
 Also available as `lumina version` and `lumina -v`.

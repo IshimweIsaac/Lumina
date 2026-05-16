@@ -158,7 +158,7 @@ fn cmd_cluster(args: &[String]) {
             }
         }
         Some("status") => {
-            println!("Lumina Sovereign Cluster Status ({})", VERSION);
+            println!("Lumina Architect Status ({})", VERSION);
             println!("──────────────────────────────────────────────────");
 
             // In a real deployment, this would query a running node via IPC.
@@ -364,7 +364,7 @@ fn download_vsix(url: &str, dest: &std::path::Path) -> Result<(), String> {
 }
 
 fn cmd_uninstall() {
-    println!("Lumina v2.0 — Uninstaller");
+    println!("Lumina v2.1 — Uninstaller");
     println!("─────────────────────────");
 
     // 1. Uninstall IDE extensions
@@ -815,7 +815,7 @@ fn cmd_provider(args: &[String]) {
             println!("   }}");
         }
         Some("list") => {
-            println!("Lumina v2.0 — Installed Providers");
+            println!("Lumina v2.1 — Installed Providers");
             println!("─────────────────────────────────");
             println!("  (none installed)");
             println!();
@@ -825,7 +825,7 @@ fn cmd_provider(args: &[String]) {
             println!("  • modbus     — Facility-level cooling & power (Modbus TCP)");
         }
         _ => {
-            eprintln!("Lumina v2.0 — Provider Management");
+            eprintln!("Lumina v2.1 — Provider Management");
             eprintln!();
             eprintln!("Usage:");
             eprintln!("  lumina provider install <name>   Install a provider from the registry");

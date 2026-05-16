@@ -210,7 +210,7 @@ impl Analyzer {
                     self.instances
                         .insert(decl.name.clone(), LuminaType::Entity(decl.name.clone()));
 
-                    // v2.0 Fix: Register aggregate fields into the schema as a
+                    // v2.1 Fix: Register aggregate fields into the schema as a
                     // virtual entity so that FieldAccess (e.g. ClusterAvg.avg_cpu)
                     // resolves correctly instead of panicking on unwrap().
                     for agg_field in &decl.fields {
@@ -254,7 +254,7 @@ impl Analyzer {
                     }
                 }
                 Statement::Cluster(decl) => {
-                    // v2.0: Validate cluster configuration
+                    // v2.1: Validate cluster configuration
                     if decl.node_id.is_empty() {
                         self.errors.push(AnalyzerError {
                             code: "L060",

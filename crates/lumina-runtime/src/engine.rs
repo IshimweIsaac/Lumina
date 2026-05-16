@@ -546,7 +546,7 @@ impl Evaluator {
                     })
             }
             Expr::ClusterAccess { node_id, field, .. } => {
-                // v2.0: Access cluster state.
+                // v2.1: Access cluster state.
                 if let Some(node_state) = self.cluster_state.get(node_id) {
                     if let Some(val) = node_state.get(field) {
                         return Ok(val.clone());
@@ -650,7 +650,7 @@ impl Evaluator {
                 Ok(Value::Bool(true))
             }
             Expr::Deploy { spec, .. } => {
-                // Deploy: evaluation of spec (simplified for v2.0)
+                // Deploy: evaluation of spec (simplified for v2.1)
                 let _s = self.eval_expr(spec, ctx)?;
                 // In a real system, the leader would broadcast WorkloadDeploy
                 Ok(Value::Bool(true))
@@ -975,7 +975,7 @@ impl Evaluator {
                 Ok(vec![])
             }
             Statement::Cluster(decl) => {
-                // v2.0: Store cluster configuration for use by the CLI cluster commands
+                // v2.1: Store cluster configuration for use by the CLI cluster commands
                 let config = lumina_cluster::ClusterConfig::from_decl(decl);
                 self.output.push(format!(
                     "Cluster configured: node='{}' peers={} quorum={}",

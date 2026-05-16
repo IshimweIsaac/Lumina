@@ -72,7 +72,7 @@ The Abstract Syntax Tree is the definitive representation of an LSL program.
 - **Expression Nodes**: `BinaryExpression` (arithmetic), `CallExpression` (built-ins like `trend()`), `MemberExpression` (field access).
 - **Orchestration Nodes**: Native primitives like `migrate()`, `evacuate()`, and `deploy()`.
 
-### Syntax Invariants (v2.0-GOLD)
+### Syntax Invariants (v2.1)
 - **Variable Declaration**: Use `let` for dynamic instances: `let n = LoopNode { iteration: 0 }`.
 - **The Update Operator**: Always use `=` for mutations: `update n.iteration = n.iteration + 1`. (The `to` keyword is legacy).
 - **Reactive Loops**: Loops are feedback cycles. Use a temporal trigger (`every 1s`) to push state and a conditional trigger (`when n.val > 100`) to reset.
@@ -146,7 +146,7 @@ Every state transition is cryptographically chained: `Hash_N = Blake3(Hash_{N-1}
 *   **Pattern 105: Green Migration**: Moves low-priority workloads to datacenters with current peak renewable output.
 *   **Pattern 130: Autonomous Power Shedding**: Shuts down dev clusters when UPS enters "On Battery" mode.
 
-### Cloud Orchestration (v2.0-GOLD)
+### Cloud Orchestration (v2.1)
 *   **Pattern 69: Flash Crowd Scaler**: Uses `trend(Site.traffic, 5m)` to deploy extra servers *before* the site overloads.
 *   **Pattern 91: Ghost Instance Handoff**: `migrate(i, to: min(cluster.nodes.cpu))`—workloads "flow" to nodes with least resistance.
 *   **Pattern 150: The Sovereign Overlord**: Coordinates full datacenter evacuation (GSLB shift + workload migration) during regional disasters.

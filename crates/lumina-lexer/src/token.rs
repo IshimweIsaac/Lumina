@@ -121,7 +121,7 @@ pub enum Token {
     #[token("endpoint")]
     KwEndpoint,
 
-    // ── v2.0 Keywords ────────────────────────────────────────
+    // ── v2.1 Keywords ────────────────────────────────────────
     #[token("cluster")]
     KwCluster,
     #[token("node_id")]

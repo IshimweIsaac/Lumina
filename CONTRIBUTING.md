@@ -2,7 +2,7 @@
 
 Welcome to the Lumina Systems team. Lumina is built for rigorous safety, deterministic reactions, and temporal stability. Because it is used as a backend reactive engine, we employ strict developmental methodologies.
 
-This document serves as the deep technical guide for contributing to the Lumina v2.0.0 codebase.
+This document serves as the deep technical guide for contributing to the Lumina v2.1.0 codebase.
 
 ---
 

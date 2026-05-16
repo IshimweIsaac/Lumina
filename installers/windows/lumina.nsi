@@ -1,4 +1,4 @@
-; Lumina v2.0.0 Modern Installer Script
+; Lumina v2.1.0 Modern Installer Script
 !include "MUI2.nsh"
 !include "EnvVarUpdate.nsh"
 

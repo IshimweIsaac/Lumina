@@ -2,7 +2,7 @@
 name = "lumina-cluster"
 version = "2.1.0"
 edition = "2021"
-description = "High-availability, peer-to-peer cluster orchestrator for Lumina v2.0"
+description = "High-availability, peer-to-peer cluster orchestrator for Lumina v2.1"
 authors = ["Isaac <isaac@luminalang.dev>"]
 
 [dependencies]

@@ -12,9 +12,9 @@ pub struct StateSlot {
 pub struct Instance {
     pub entity_name: String,
     pub slots: Vec<StateSlot>,
-    /// v2.0: Monotonically increasing version for state mesh conflict resolution
+    /// v2.1: Monotonically increasing version for state mesh conflict resolution
     pub version: u64,
-    /// v2.0: The peer ID that last mutated this instance (None if local)
+    /// v2.1: The peer ID that last mutated this instance (None if local)
     pub source_node: Option<String>,
 }
 
