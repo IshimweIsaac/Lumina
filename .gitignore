@@ -26,6 +26,9 @@ dist/
 .npm
 package-lock.json
 
+# VS Code Extension
+extensions/lumina-vscode/out/
+
 # Firebase tools
 .firebase/
 firebase-debug.log
