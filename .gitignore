@@ -42,3 +42,16 @@ firebase-debug.log
 # Built Binaries
 bin/
 
+# Commercial & Strategic Files (DO NOT OPEN SOURCE)
+docs/VERSION_MAP.md
+docs/Version2/v2.2/
+docs/Version2/v2.3/
+docs/Version2/v2.4/
+docs/Version2/v2.5/
+docs/Version2/v2.6/
+docs/Version2/v2.7/
+docs/Version2/v2.8/
+docs/Version2/v2.9/
+docs/Version2/v3.0/
+scripts/upload-binaries.sh
+website/
