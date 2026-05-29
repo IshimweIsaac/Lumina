@@ -108,7 +108,7 @@ Build alerting systems that auto-resolve. Use the `on clear` block to send recov
 
 *  **[Installation Guide](guides/distribution.md)**: Setup the `lumina` CLI.
 *  **[Zero-to-Hero Curriculum](book/zero-to-hero.md)**: Your first 5 minutes with the language.
-*  **[Interactive Playground](https://lumina-lang.web.app/playground)**: Test your mental model in a live simulation.
+*  **[Interactive Playground](https://lumina.rw/playground)**: Test your mental model in a live simulation.
 
 ---
 
@@ -129,14 +129,14 @@ The easiest way to install Lumina is via the one-line installer script. It autom
 
 **Linux / macOS:**
 ```bash
-curl -fsSL https://lumina-lang.web.app/install.sh | sh
+curl -fsSL https://lumina.rw/install.sh | sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://lumina-lang.web.app/install.ps1 | iex
+irm https://lumina.rw/install.ps1 | iex
 ```
-*(Or using curl: `curl.exe -fsSL https://lumina-lang.web.app/install.ps1 | powershell -noprofile -c -`)*
+*(Or using curl: `curl.exe -fsSL https://lumina.rw/install.ps1 | powershell -noprofile -c -`)*
 
 ## 2. Homebrew (macOS)
 

@@ -2,7 +2,7 @@
 
 Bring the "Describe what is true" experience to your favorite editor. This official extension provides first-class support for the Lumina language, including syntax highlighting, snippets, and deep integration with the Lumina Language Server (LSP).
 
-![Lumina Banner](https://lumina-lang.web.app/logo.png)
+![Lumina Banner](https://lumina.rw/logo.png)
 
 ## Features
 
@@ -21,7 +21,7 @@ Lumina works best when the `lumina` CLI and `lumina-lsp` are in your PATH.
 brew install luminalang/core/lumina
 
 # Linux/macOS (Shell)
-curl -fsSL https://lumina-lang.web.app/install.sh | sh
+curl -fsSL https://lumina.rw/install.sh | sh
 ```
 
 ### 2. Install the Extension
@@ -54,7 +54,7 @@ This extension provides the following settings:
 
 Lumina is a reactive, declarative language specifically designed for the IoT and Infrastructure age. Instead of writing code that *does* things, you write code that *describes* what is true.
 
-Learn more at [lumina-lang.web.app](https://lumina-lang.web.app).
+Learn more at [lumina.rw](https://lumina.rw).
 
 ---
 Developed with ❤️ by the Lumina Team.

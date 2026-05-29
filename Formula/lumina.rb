@@ -1,14 +1,14 @@
 class Lumina < Formula
   desc "Declarative reactive language for IoT and infrastructure monitoring"
-  homepage "https://lumina-lang.web.app"
+  homepage "https://lumina.rw"
   version "2.0.0"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://lumina-lang.web.app/lumina-macos-arm64.tar.gz"
+      url "https://lumina.rw/lumina-macos-arm64.tar.gz"
       sha256 "PLACEHOLDER_ARM64"
     else
-      url "https://lumina-lang.web.app/lumina-macos-x64.tar.gz"
+      url "https://lumina.rw/lumina-macos-x64.tar.gz"
       sha256 "PLACEHOLDER_X64"
     end
   end

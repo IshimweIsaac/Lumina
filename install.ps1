@@ -67,7 +67,7 @@ if (Test-Path $LuminaExe) {
     Write-Success "Setup complete! Start coding:"
     Write-Host "  Run:   lumina run your-program.lum"
     Write-Host "  Check: lumina check your-program.lum"
-    Write-Host "  Docs:  https://lumina-lang.web.app/docs"
+    Write-Host "  Docs:  https://lumina.rw/docs"
     Write-Host ""
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     Write-Host "  Please RESTART your terminal to use Lumina,"

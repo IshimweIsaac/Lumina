@@ -107,7 +107,7 @@ Lumina is designed to be accessible everywhere. This guide explains how to insta
 
 For most developers on Linux or macOS, the easiest way to install Lumina is using the official shell script:
 ```bash
-curl -sSL https://lumina-lang.web.app/install.sh | bash
+curl -sSL https://lumina.rw/install.sh | bash
 ```
 This script automatically detects your OS and architecture, fetches the latest binary, and adds it to your path.
 

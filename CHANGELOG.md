@@ -12,6 +12,7 @@ This document tracks the completion of the final stages of Lumina, transforming 
 - **Robust Runtime**: Implemented **Snapshot Iterators** to resolve `R001` crashes and **Sync Storm Throttling** for DAG stability.
 - **Vibe-Flexible Parser**: Decoupled keyword ordering for `cooldown`, `every`, and `for` modifiers.
 - **Observability**: New `trace` action for real-time rule evaluation debugging.
+- **AWS Adapter Platform**: Native integration for 7 core AWS services (EC2, S3, RDS, Lambda, DynamoDB, SQS, SNS) via Cargo feature flags.
 
 ## Phase 10: v2.1 "Architect" [COMPLETED]
 - **Clustering Engine**: Implementation of `lumina cluster` for distributed node management.
@@ -64,4 +65,4 @@ This document tracks the completion of the final stages of Lumina, transforming 
 - Provided production-ready `Dockerfile` and `docker-compose.yml` for IoT edge testing and isolated environments.
 
 ## Phase 8: Firebase Deployment [LIVE]
-- All assets (Website, `.deb`, `install.sh`, VS Code extension) deployed to `lumina-lang.web.app`.
+- All assets (Website, `.deb`, `install.sh`, VS Code extension) deployed to `lumina.rw`.

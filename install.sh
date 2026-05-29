@@ -1,7 +1,7 @@
 #!/bin/sh
 #
-# Lumina Toolchain Installer -- lumina-lang.web.app
-# Usage: curl -fsSL https://lumina-lang.web.app/install.sh | sh && . ~/.lumina/env
+# Lumina Toolchain Installer -- lumina.rw
+# Usage: curl -fsSL https://lumina.rw/install.sh | sh && . ~/.lumina/env
 #
 
 set -e
@@ -52,7 +52,7 @@ fi
 
 # --- Download & Verify ──────────────────────────────────
 # --- Download & Verify ──────────────────────────────────
-log_info "Installing Lumina v2.1.0 (Architect) for $PLATFORM..."
+log_info "Installing Lumina v2.1.2 (Cloud-Native) for $PLATFORM..."
 mkdir -p "$BIN_DIR"
 
 download_binary() {
@@ -160,7 +160,7 @@ if [ -x "$BIN_DIR/lumina" ]; then
     log_success "Setup complete! Start coding:"
     echo "  Run:   lumina run your-program.lum"
     echo "  Check: lumina check your-program.lum"
-    echo "  Docs:  https://lumina-lang.web.app/docs"
+    echo "  Docs:  https://lumina.rw/docs"
     echo ""
     echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo "${BOLD}  Run this to activate Lumina in your current terminal:${RESET}"
@@ -168,7 +168,7 @@ if [ -x "$BIN_DIR/lumina" ]; then
     echo "    ${GREEN}. ~/.lumina/env${RESET}"
     echo ""
     echo "  Or if you installed with the full command, it's already active:"
-    echo "    curl -fsSL https://lumina-lang.web.app/install.sh | sh ${GREEN}&& . ~/.lumina/env${RESET}"
+    echo "    curl -fsSL https://lumina.rw/install.sh | sh ${GREEN}&& . ~/.lumina/env${RESET}"
     echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 fi
 
