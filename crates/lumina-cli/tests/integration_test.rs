@@ -96,7 +96,7 @@ fn test_on_clear_fires_when_condition_recovers() {
             "  temp: Number\n",
             "}\n",
             "let s1 = Sensor { temp: 20 }\n",
-            "rule overheat\n",
+            "global rule overheat\n",
             "when Sensor.temp > 40 {\n",
             "  show \"ALERT: overheating\"\n",
             "} on clear {\n",

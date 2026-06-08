@@ -1,0 +1,70 @@
+-- Lumina AWS Architecture Example
+-- This file provisions a complete microservice foundation in AWS
+-- containing a PostgreSQL database, an SQS job queue, and an S3 bucket for assets.
+
+-- 1. Define an RDS PostgreSQL Database
+resource entity AppDB provider "aws-rds" {
+  db_name: Text
+  engine: Text
+  instance_class: Text
+  allocated_storage: Number
+  master_username: Text
+  master_password: Text
+  status: Text
+  
+  ensure {
+    db_name: "lumina_playground_db"
+    engine: "postgres"
+    instance_class: "db.t4g.micro"
+    allocated_storage: 20
+    master_username: "postgres"
+    master_password: "supersecretpassword123"
+  }
+}
+
+-- 2. Define an SQS Job Queue
+resource entity JobQueue provider "aws-sqs" {
+  queue_name: Text
+  delay_seconds: Number
+  visibility_timeout: Number
+  status: Text
+  
+  ensure {
+    queue_name: "lumina-playground-queue"
+    delay_seconds: 0
+    visibility_timeout: 30
+  }
+}
+
+-- 3. Define an S3 Asset Bucket
+resource entity AssetBucket provider "aws-s3" {
+  bucket_name: Text
+  aws_region: Text
+  versioning: Boolean
+  status: Text
+  
+  ensure {
+    bucket_name: "lumina-playground-assets-12345"
+    aws_region: "us-east-1"
+    versioning: true
+  }
+}
+
+-- 4. Instantiate the entities
+let db = AppDB { db_name: "lumina_playground_db", engine: "postgres", instance_class: "db.t4g.micro", allocated_storage: 20, master_username: "postgres", master_password: "supersecretpassword123", status: "pending" }
+let queue = JobQueue { queue_name: "lumina-playground-queue", delay_seconds: 0, visibility_timeout: 30, status: "pending" }
+let bucket = AssetBucket { bucket_name: "lumina-playground-assets-12345", aws_region: "us-east-1", versioning: true, status: "pending" }
+
+-- 5. Execute provisioning on startup
+rule "Provision Infrastructure" when true {
+  provision db
+  provision queue
+  provision bucket
+}
+
+-- 6. Self-healing: Reconcile drift every 5 minutes
+rule "Ensure Infrastructure State" every 5m {
+  reconcile db
+  reconcile queue
+  reconcile bucket
+}

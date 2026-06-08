@@ -46,6 +46,9 @@ firebase-debug.log
 bin/
 
 # Commercial & Strategic Files (DO NOT OPEN SOURCE)
+SPRINTS.md
+agents/
+agents/.env
 docs/VERSION_MAP.md
 docs/Version2/v2.2/
 docs/Version2/v2.3/

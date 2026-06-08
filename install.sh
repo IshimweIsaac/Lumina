@@ -52,7 +52,7 @@ fi
 
 # --- Download & Verify ──────────────────────────────────
 # --- Download & Verify ──────────────────────────────────
-log_info "Installing Lumina v2.1.2 (Cloud-Native) for $PLATFORM..."
+log_info "Installing Lumina v2.1.3 (Cloud-Native) for $PLATFORM..."
 mkdir -p "$BIN_DIR"
 
 download_binary() {

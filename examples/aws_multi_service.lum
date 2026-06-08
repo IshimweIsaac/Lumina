@@ -1,0 +1,47 @@
+-- Lumina v2.1.2 AWS Adapter Platform Example
+-- Provisions a database, a queue, and an S3 bucket together
+
+resource entity AppDB provider "aws-rds" {
+  db_name: Text
+  engine: Text
+  instance_class: Text
+  status: Text
+  desired_state: {
+    db_name: "lumina_production_db"
+    engine: "postgres"
+    instance_class: "db.t4g.micro"
+    allocated_storage: 20
+    master_username: "postgres"
+    master_password: "supersecretpassword123"
+  }
+}
+
+resource entity JobQueue provider "aws-sqs" {
+  queue_name: Text
+  delay_seconds: Number
+  status: Text
+  desired_state: {
+    queue_name: "lumina-job-queue"
+    delay_seconds: 0
+    visibility_timeout: 30
+  }
+}
+
+resource entity AssetBucket provider "aws-s3" {
+  bucket_name: Text
+  region: Text
+  status: Text
+  desired_state: {
+    bucket_name: "lumina-app-assets"
+    region: "us-east-1"
+    versioning: true
+  }
+}
+
+let db = AppDB { db_name: "lumina_production_db", engine: "postgres", instance_class: "db.t4g.micro", status: "pending" }
+let queue = JobQueue { queue_name: "lumina-job-queue", delay_seconds: 0, status: "pending" }
+let bucket = AssetBucket { bucket_name: "lumina-app-assets", region: "us-east-1", status: "pending" }
+
+provision db
+provision queue
+provision bucket

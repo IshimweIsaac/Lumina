@@ -3,6 +3,10 @@ This document tracks the completion of the final stages of Lumina, transforming 
 > [!IMPORTANT]
 > Starting with v2.1, Lumina transitions into a **Architect Runtime**, enabling distributed state resolution across decentralized nodes.
 
+## Phase 12: v2.1.3 "Proxmox / Bare-Metal Adapter" [COMPLETED]
+- **Proxmox Virtual Environment**: Native support for provisioning and destroying Proxmox VMs via REST API.
+- **Drift Detection**: Implemented drift detection with self-signed TLS support.
+
 ## Phase 11: v2.1 "The Architect Release" [PLANNING]
 - **Reactive Provisioning**: Introduction of `resource entity` (e.g., `AWS::EC2`, `Docker::Container`) for direct infrastructure management.
 - **Level-Triggered Rules**: Added `whenever` and `ensure` keywords to fix "Transition Blindness" and enable continuous state enforcement.

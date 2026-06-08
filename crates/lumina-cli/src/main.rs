@@ -27,6 +27,8 @@ use std::path::Path;
 /// Canonical version string derived from Cargo.toml — single source of truth.
 const VERSION: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
+include!(concat!(env!("OUT_DIR"), "/docs_bundle.rs"));
+
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -44,14 +46,20 @@ async fn main() {
         Some("cluster") => cmd_cluster(&args),
         Some("get") => {
             if args.get(2) == Some(&"documentation".to_string()) {
-                let content = include_str!("master_knowledge.md");
-                match fs::write("master_knowledge.md", content) {
-                    Ok(_) => println!("Successfully created 'master_knowledge.md' in the current directory. Your AI can now ingest it."),
-                    Err(e) => {
-                        eprintln!("Error creating documentation file: {}", e);
+                for (rel_path, content) in DOCS {
+                    let path = std::path::Path::new(rel_path);
+                    if let Some(parent) = path.parent() {
+                        if let Err(e) = fs::create_dir_all(parent) {
+                            eprintln!("Error creating directory {}: {}", parent.display(), e);
+                            std::process::exit(1);
+                        }
+                    }
+                    if let Err(e) = fs::write(path, content) {
+                        eprintln!("Error writing file {}: {}", path.display(), e);
                         std::process::exit(1);
                     }
                 }
+                println!("Successfully extracted the entire documentation structure into the current directory.");
                 return;
             }
             eprintln!("Unknown command: Lumina get {}", args.get(2).unwrap_or(&"".to_string()));
@@ -844,27 +852,25 @@ fn cmd_update(args: &[String]) {
     println!("Lumina {} — Update", VERSION);
     println!("─────────────────────────");
 
-    // 1. Query GitHub Releases API for the latest version
+    // 1. Query Supabase Storage for the latest version
     print!("  Checking for updates... ");
     std::io::stdout().flush().ok();
 
-    let api_url = "https://api.github.com/repos/IshimweIsaac/Lumina/releases/latest";
-    let json = match curl_get_string(api_url) {
-        Ok(s) => s,
+    let api_url = "https://woijupkxzzakmkneyxwk.supabase.co/storage/v1/object/public/Lumina/version.txt";
+    let latest_tag = match curl_get_string(api_url) {
+        Ok(s) => {
+            let tag = s.trim().to_string();
+            if tag.is_empty() {
+                println!("✗");
+                eprintln!("  Failed to check for updates: version descriptor is empty.");
+                std::process::exit(1);
+            }
+            tag
+        }
         Err(e) => {
             println!("✗");
             eprintln!("  Failed to check for updates: {}", e);
             eprintln!("  Check your internet connection or try again later.");
-            std::process::exit(1);
-        }
-    };
-
-    let latest_tag = match parse_latest_tag(&json) {
-        Some(t) => t,
-        None => {
-            println!("✗");
-            eprintln!("  Could not determine the latest version from the GitHub API response.");
-            eprintln!("  This may mean there are no published releases yet.");
             std::process::exit(1);
         }
     };
@@ -1093,12 +1099,6 @@ fn curl_download(url: &str, dest: &std::path::Path) -> Result<(), String> {
     }
 }
 
-/// Parse the "tag_name" field from a GitHub API JSON response.
-fn parse_latest_tag(json: &str) -> Option<String> {
-    // Use serde_json since it's already a dependency
-    let v: serde_json::Value = serde_json::from_str(json).ok()?;
-    v.get("tag_name")?.as_str().map(|s| s.to_string())
-}
 
 /// Compute SHA256 hex digest of a file.
 fn compute_sha256(path: &std::path::Path) -> Result<String, String> {

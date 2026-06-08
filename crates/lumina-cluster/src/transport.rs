@@ -2,6 +2,7 @@ use crate::gossip::{GossipLayer, GossipMessage, GossipMessageKind};
 use serde_json;
 use std::net::SocketAddr;
 use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::net::UdpSocket;
 use tokio::time::{self, Duration};
 
@@ -30,6 +31,12 @@ impl UdpTransport {
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub async fn start(self) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn start(self) -> Result<(), std::io::Error> {
         let socket = UdpSocket::bind(self.bind_addr).await?;
         let socket = Arc::new(socket);

@@ -1,0 +1,27 @@
+-- Lumina v2.1.3 Proxmox Adapter Example
+resource entity ProxmoxVM provider "proxmox" {
+  proxmox_url: Text
+  api_token: Text
+  node: Text
+  source_vmid: Number
+  vmid: Number
+
+  ensure {
+    proxmox_url: "https://localhost:8006"
+    api_token: "dummy_token=123"
+    node: "pve"
+    source_vmid: 100
+    vmid: 101
+  }
+}
+
+let vm = ProxmoxVM {
+  proxmox_url: "https://localhost:8006"
+  api_token: "dummy_token=123"
+  node: "pve"
+  source_vmid: 100
+  vmid: 101
+}
+
+provision vm
+reconcile vm

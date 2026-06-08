@@ -1,0 +1,26 @@
+-- Basic test for provisioning an S3 bucket
+resource entity TestBucket provider "aws-s3" {
+  bucket_name: Text
+  region: Text
+  versioning: Bool
+  status: Text
+  desired_state: {
+    bucket_name: "lumina-test-provisioning-bucket-12345"
+    region: "us-east-1"
+    versioning: false
+  }
+}
+
+let bucket = TestBucket {
+  bucket_name: "lumina-test-provisioning-bucket-12345"
+  region: "us-east-1"
+  versioning: false
+  status: "pending"
+}
+
+provision bucket
+
+-- Add a rule to verify it was created
+whenever bucket.status == "active" {
+  trace "Bucket provisioning successful!"
+}

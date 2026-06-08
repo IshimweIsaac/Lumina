@@ -5,6 +5,6 @@ entity Person {
   isAdult := age >= 18
 }
 
-rule bad_update when Person.age > 10 becomes true {
+global rule bad_update when Person.age > 10 becomes true {
   update Person.isAdult to true
 }

@@ -5,7 +5,7 @@ Lumina is a **Distributed Reactive Language (DRL)** for high-availability infras
 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Lumina-v2.1.2-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Lumina-v2.1.3-green.svg)](CHANGELOG.md)
 
 ---
 
