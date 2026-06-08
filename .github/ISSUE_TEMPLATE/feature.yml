@@ -1,0 +1,64 @@
+name: Feature Request
+description: Propose a new feature or capability for Lumina
+title: "[Feature] "
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to propose a feature for Lumina!
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of the feature you'd like.
+      placeholder: Describe the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What needs to be true for this feature to be considered complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected-crates
+    attributes:
+      label: Affected Crates
+      description: Which crates are involved?
+      multiple: true
+      options:
+        - lumina-lexer
+        - lumina-parser
+        - lumina-analyzer
+        - lumina-runtime
+        - lumina-cli
+        - lumina-lsp
+        - lumina-wasm
+        - lumina-cluster
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Target Version
+      description: Which version should this land in?
+      placeholder: e.g., v2.1.4
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or references.
+    validations:
+      required: false

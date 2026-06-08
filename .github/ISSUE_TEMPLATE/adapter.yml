@@ -1,0 +1,61 @@
+name: Adapter Request
+description: Request a new infrastructure adapter for Lumina
+title: "[Adapter] "
+labels: ["type:adapter"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Request support for a new cloud provider, platform, or infrastructure service.
+
+  - type: input
+    id: provider
+    attributes:
+      label: Provider / Platform
+      description: Which cloud provider or platform is this for?
+      placeholder: e.g., DigitalOcean, Hetzner, Linode
+    validations:
+      required: true
+
+  - type: textarea
+    id: services
+    attributes:
+      label: Services to Support
+      description: Which specific services should the adapter cover?
+      placeholder: |
+        - Compute (Droplets)
+        - Block Storage
+        - Load Balancers
+    validations:
+      required: true
+
+  - type: dropdown
+    id: auth-method
+    attributes:
+      label: Authentication Method
+      description: How does this provider authenticate?
+      options:
+        - API Key / Token
+        - OAuth2
+        - Service Account / IAM
+        - Certificate / mTLS
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Target Version
+      description: Which Lumina version should this land in?
+      placeholder: e.g., v2.1.6
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Links to API docs, SDK references, or existing adapters to use as reference.
+    validations:
+      required: false

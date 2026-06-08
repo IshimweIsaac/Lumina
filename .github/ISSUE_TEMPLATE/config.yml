@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://lumina.rw
+    about: Read the Lumina documentation and guides
+  - name: Version Map
+    url: https://github.com/IshimweIsaac/Lumina/blob/main/docs/VERSION_MAP.md
+    about: View the full Lumina version roadmap
