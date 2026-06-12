@@ -1,54 +1,93 @@
-# Build artifacts
-/target/
-/crates/lumina-wasm/pkg/
+# ═══════════════════════════════════════════════════════════════
+#  Lumina .gitignore
+#  Last updated: v2.1.3
+# ═══════════════════════════════════════════════════════════════
 
-# Editor files
+# ─── Build Artifacts ──────────────────────────────────────────
+/target/
+crates/lumina-wasm/pkg/
+
+# ─── Editor & IDE ─────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
+.cursorrules
 
-# OS files
+# ─── OS Files ─────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Temporary
+# ─── Temporary & Cache ────────────────────────────────────────
 /tmp/
+*.log
+.pytest_cache/
 
-# Python
+# ─── Python ───────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
 venv/
-.env
+.venv/
 
-# Javascript
+# ─── Javascript / Node ───────────────────────────────────────
 node_modules/
 dist/
 .npm
 package-lock.json
 
-# VS Code Extension
+# ─── VS Code Extension ───────────────────────────────────────
 extensions/lumina-vscode/out/
 
-# Firebase tools
+# ─── Firebase ─────────────────────────────────────────────────
 .firebase/
 firebase-debug.log
 .firebaserc
 
-# Platform Binaries
+# ─── Platform Binaries & Installers ──────────────────────────
 *.vsix
 *.deb
 *.exe
 *.msi
+*.pkg
 *.tar.gz
 *.zip
-
-# Built Binaries
 bin/
 
-# Commercial & Strategic Files (DO NOT OPEN SOURCE)
+# ─── Secrets & Environment Variables ─────────────────────────
+# CRITICAL: Never commit these
+.env
+.env.local
+.env.production
+.gitignore
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+google-services.json
+firebase-adminsdk*.json
+
+# ─── Supabase (contains project ref & pooler URLs) ───────────
+supabase/
+
+# ─── AI Tool Configurations ──────────────────────────────────
+# Local AI assistant configs — not part of the project
+config.json
+
+# ─── Generated / Scratch Files ───────────────────────────────
+# These are auto-generated or one-off files, not source
+.intentionally-empty-file.o
+README_extracted.txt
+README_summarize.txt
+tests/stress_results.json
+test.lum
+
+# ─── Commercial & Strategic Files (DO NOT OPEN SOURCE) ───────
 SPRINTS.md
 agents/
-agents/.env
 docs/VERSION_MAP.md
 docs/Version2/v2.2/
 docs/Version2/v2.3/
@@ -61,4 +100,3 @@ docs/Version2/v2.9/
 docs/Version2/v3.0/
 scripts/upload-binaries.sh
 website/
-supabase/

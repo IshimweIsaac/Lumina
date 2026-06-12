@@ -2,7 +2,7 @@
 
 Welcome to the Lumina Systems team. Lumina is built for rigorous safety, deterministic reactions, and temporal stability. Because it is used as a backend reactive engine, we employ strict developmental methodologies.
 
-This document serves as the deep technical guide for contributing to the Lumina v2.1.0 codebase.
+This document serves as the deep technical guide for contributing to the Lumina codebase (current version: see `VERSION` file in project root).
 
 ---
 
@@ -91,10 +91,38 @@ If you add a new mutating operation, it must follow the snapshot/restore pattern
 
 Run this full suite before any pull request:
 
-1. **Full workspace:** `cargo test --workspace`
-2. **CLI E2E:** `cargo build --release` && `cargo run -p lumina-cli -- run tests/spec/fleet.lum`
-3. **C FFI:** `cargo build --release -p lumina_ffi`
-4. **WASM target:** `cd crates/lumina-wasm && wasm-pack build --target web --release`
+```bash
+# Quick check (formatting + lint + tests)
+make check
+
+# Or individually:
+cargo fmt --all --check     # Verify formatting
+cargo clippy --all-features  # Lint
+cargo test --workspace       # All tests
+```
+
+Additional manual checks:
+1. **CLI E2E:** `cargo build --release` && `cargo run -p lumina-cli -- run tests/spec/fleet.lum`
+2. **C FFI:** `cargo build --release -p lumina_ffi`
+3. **WASM target:** `cd crates/lumina-wasm && wasm-pack build --target web --release`
+
+---
+
+## 6. Release Workflow
+
+Lumina uses a single `VERSION` file at the project root as the source of truth. To cut a new release:
+
+```bash
+# Preview what the release will change (dry-run, safe)
+make release V=2.1.4 NAME="Adapter Hardening"
+
+# Apply the version bump across all files
+make release-execute V=2.1.4 NAME="Adapter Hardening"
+```
+
+The release script (`scripts/release.sh`) automatically bumps version strings across all Cargo.toml files, package.json, install scripts, website HTML, README badges, and VERSION_MAP. See `SPRINTS.md` for the full Friday release checklist.
+
+---
 
 ## Engine Integrity
 By following these strict constraints, you help maintain Lumina as a fault-tolerant, mathematically sound engine. 

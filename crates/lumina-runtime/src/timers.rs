@@ -1,19 +1,4 @@
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::Instant;
-
-#[cfg(target_arch = "wasm32")]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Instant;
-
-#[cfg(target_arch = "wasm32")]
-impl Instant {
-    pub fn now() -> Self {
-        Instant
-    }
-    pub fn elapsed(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(0)
-    }
-}
+use web_time::Instant;
 use lumina_parser::ast::{RuleDecl, RuleTrigger};
 use rustc_hash::FxHashMap;
 

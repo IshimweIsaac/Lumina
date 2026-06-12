@@ -55,7 +55,7 @@ impl UdpTransport {
                             gossip_recv.receive(GossipMessage {
                                 sender: net_msg.sender,
                                 kind: net_msg.kind,
-                                timestamp: std::time::Instant::now(),
+                                timestamp: web_time::Instant::now(),
                             });
                         }
                     }

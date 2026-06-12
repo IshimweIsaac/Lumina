@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use crate::adapter::LuminaAdapter;
 use crate::value::Value;
+use crate::state_store::StateStore;
 
 pub struct ProxmoxAdapter {
     entity_name: String,
     client: reqwest::blocking::Client,
-    metadata_cache: std::collections::HashMap<String, (String, String, String, u32)>, // instance -> (url, token, node, vmid)
 }
 
 impl ProxmoxAdapter {
@@ -17,7 +17,6 @@ impl ProxmoxAdapter {
         Self { 
             entity_name, 
             client,
-            metadata_cache: std::collections::HashMap::new(),
         }
     }
 
@@ -49,7 +48,13 @@ impl LuminaAdapter for ProxmoxAdapter {
         let url = desired.get("proxmox_url").and_then(|v| v.as_text()).unwrap_or("https://localhost:8006");
         let token = desired.get("api_token").and_then(|v| v.as_text()).unwrap_or("");
         
-        self.metadata_cache.insert(instance.to_string(), (url.to_string(), token.to_string(), node.to_string(), new_vmid));
+        let mut store = StateStore::load();
+        let mut metadata = HashMap::new();
+        metadata.insert("url".to_string(), Value::Text(url.to_string()));
+        metadata.insert("token".to_string(), Value::Text(token.to_string()));
+        metadata.insert("node".to_string(), Value::Text(node.to_string()));
+        metadata.insert("vmid".to_string(), Value::Number(new_vmid as f64));
+        let _ = store.set_metadata(instance, metadata);
         
         // Check if exists first
         let status_endpoint = format!("/api2/json/nodes/{}/qemu/{}/status/current", node, new_vmid);
@@ -75,7 +80,13 @@ impl LuminaAdapter for ProxmoxAdapter {
     }
 
     fn destroy(&mut self, instance: &str) -> Result<(), String> {
-        if let Some((url, token, node, vmid)) = self.metadata_cache.get(instance).cloned() {
+        let mut store = StateStore::load();
+        if let Some(metadata) = store.get_metadata(instance).cloned() {
+            let url = metadata.get("url").and_then(|v| v.as_text()).unwrap_or("").to_string();
+            let token = metadata.get("token").and_then(|v| v.as_text()).unwrap_or("").to_string();
+            let node = metadata.get("node").and_then(|v| v.as_text()).unwrap_or("").to_string();
+            let vmid = metadata.get("vmid").and_then(|v| v.as_number()).unwrap_or(0.0) as u32;
+
             println!("\x1b[31m[DESTROYING] Removing Proxmox VM {}...\x1b[0m", vmid);
             
             // Stop it first
@@ -87,13 +98,13 @@ impl LuminaAdapter for ProxmoxAdapter {
             let resp = self.api_request(reqwest::Method::DELETE, &url, &token, &delete_endpoint)?;
             
             if resp.status().is_success() {
-                self.metadata_cache.remove(instance);
+                let _ = store.remove_metadata(instance);
                 Ok(())
             } else {
                 Err(format!("Failed to destroy VM: HTTP {}", resp.status()))
             }
         } else {
-            Err("Cannot destroy Proxmox VM: missing metadata in cache (was never provisioned/reconciled)".to_string())
+            Err("Cannot destroy Proxmox VM: missing metadata in state store (was never provisioned/reconciled)".to_string())
         }
     }
 

@@ -1,7 +1,7 @@
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
+use web_time::Instant;
 
 /// Types of gossip messages exchanged between nodes
 #[derive(Clone, Debug, Serialize, Deserialize)]

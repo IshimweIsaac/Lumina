@@ -10,6 +10,7 @@ pub mod snapshot;
 pub mod store;
 pub mod timers;
 pub mod value;
+pub mod state_store;
 
 pub use adapter::LuminaAdapter;
 pub use engine::Evaluator;
@@ -17,6 +18,7 @@ pub use lsl::LslRegistry;
 pub use snapshot::{Diagnostic, FiredEvent, PropResult, RollbackResult, Snapshot, SnapshotStack};
 pub use store::{EntityStore, Instance};
 pub use value::Value;
+pub use state_store::StateStore;
 
 #[derive(Debug)]
 pub enum RuntimeError {

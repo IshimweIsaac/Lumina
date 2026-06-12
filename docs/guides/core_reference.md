@@ -2125,7 +2125,33 @@ when System.isOverheating becomes false {
 
 
 ---
-
+ 
+## Pattern 15: IoT Battery Monitoring
+ 
+```lumina
+entity Moto {
+  battery: Number
+  isLowBattery := battery < 20
+}
+ 
+let bike = Moto { battery: 80 }
+ 
+rule "Low Battery" for (m: Moto)
+when Moto.isLowBattery becomes true {
+  show "Battery critically low!"
+}
+ 
+-- Battery drains...
+update bike.battery = 12
+```
+ 
+**Expected output:**
+```
+Battery critically low!
+```
+ 
+---
+ 
 <!-- Source: 07-error-encyclopedia.md -->
 
 # Lumina Error Encyclopedia

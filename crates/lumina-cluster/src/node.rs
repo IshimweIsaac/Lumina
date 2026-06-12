@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Instant;
+use web_time::Instant;
 
 /// Node lifecycle state
 #[derive(Debug, Clone, PartialEq)]

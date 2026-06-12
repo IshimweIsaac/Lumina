@@ -2,7 +2,7 @@ use crate::adapter::LuminaAdapter;
 use crate::value::Value;
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
-use std::time::Duration;
+use web_time::Duration;
 
 pub struct HttpPollAdapter {
     entity: String,

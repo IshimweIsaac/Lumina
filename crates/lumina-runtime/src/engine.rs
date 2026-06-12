@@ -13,7 +13,7 @@ use lumina_cluster::ClusterNode;
 use lumina_parser::ast::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use web_time::Instant;
 
 
 pub const MAX_DEPTH: usize = 100;
@@ -113,7 +113,7 @@ impl Evaluator {
     pub fn sync_cluster_state(&mut self) {
         if let Some(ref node_lock) = self.cluster_node {
             if let Ok(mut node) = node_lock.lock() {
-                node.tick(std::time::Instant::now());
+                node.tick(web_time::Instant::now());
                 let raw_mesh = node.collect_cluster_state();
                 for (node_id, fields) in raw_mesh {
                     // Don't overwrite local state with our own gossiped state in the cluster view
@@ -710,7 +710,7 @@ impl Evaluator {
                 (Value::Duration(a), Value::Duration(b)) => Ok(Value::Bool(a <= b)),
                 _ => Err(RuntimeError::R018 { op: "<=".into(), left: l.type_name().into(), right: r.type_name().into() }),
             },
-            BinOp::And | BinOp::Or => unreachable!(),
+                    BinOp::And | BinOp::Or => Err(RuntimeError::R018 { op: "logical".into(), left: "N/A".into(), right: "N/A".into() }),
         }
     }
 

@@ -1,3 +1,0 @@
-Lumina is a **Distributed Reactive Language (DRL)** for high-availability infrastructure orchestration. It replaces fragile, imperative, event-driven scripts with a **declarative-reactive** model where users define the desired infrastructure state.
-
-It uses a **Directed Acyclic Graph (DAG)** of dependencies to automatically propagate state changes and execute deterministic side-effects across a cluster. Built with a high-performance Rust engine, Lumina offers native clustering (without external databases), universal embedding (via C-FFI and WebAssembly), and a strong focus on developer experience.
