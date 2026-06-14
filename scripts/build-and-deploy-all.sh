@@ -6,7 +6,7 @@ set -e
 source "$HOME/.cargo/env"
 
 echo "=========================================================="
-echo "   Lumina OS Multi-Platform Build & Deploy Tool (v2.1.3)"
+echo "   Lumina OS Multi-Platform Build & Deploy Tool (v2.1.4)"
 echo "=========================================================="
 
 # Define Targets and remote naming
@@ -59,11 +59,16 @@ for entry in "${TARGETS[@]}"; do
 done
 
 # Upload version.txt so the CLI updater can see it
-echo "v2.1.3" > version.txt
+echo "v2.1.4" > version.txt
 echo "⬆️ Deploying version.txt to Supabase Storage..."
 ./scripts/upload-binaries.sh version.txt "version.txt"
 rm version.txt
 
+echo "⬆️ Deploying Website to Firebase Hosting..."
+(cd website && npm install && npm run build)
+npx -y firebase-tools@latest deploy --only hosting
+echo "✓ Successfully deployed Website to Firebase"
+
 echo "=========================================================="
-echo "🎉 All targets successfully compiled & deployed to Supabase!"
+echo "🎉 All targets and website successfully compiled & deployed!"
 echo "=========================================================="

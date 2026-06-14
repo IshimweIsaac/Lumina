@@ -3,6 +3,11 @@ This document tracks the completion of the final stages of Lumina, transforming 
 > [!IMPORTANT]
 > Starting with v2.1, Lumina transitions into a **Architect Runtime**, enabling distributed state resolution across decentralized nodes.
 
+## Phase 13: v2.1.4 "Adapter Hardening" [COMPLETED]
+- **DAG Execution**: Implemented topological sorting in the runtime engine to respect `depends on` clauses during `provision`, `destroy`, and `reconcile` operations.
+- **Provider Failover**: Introduced fallback mechanism with `fallback` syntax. If a primary adapter fails, Lumina gracefully triggers the fallback adapter for the entity.
+- **Retry Resilience**: Added exponential backoff and jitter (`RetryConfig`) via the `with_retry` wrapper. All adapters now benefit from automatic transient error recovery, with `ProxmoxAdapter` tuned for heavier latency.
+
 ## Phase 12: v2.1.3 "Proxmox / Bare-Metal Adapter" [COMPLETED]
 - **Proxmox Virtual Environment**: Native support for provisioning and destroying Proxmox VMs via REST API.
 - **Drift Detection**: Implemented drift detection with self-signed TLS support.

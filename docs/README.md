@@ -2,7 +2,7 @@
 
 Welcome to the official documentation for **Lumina** — the Distributed Reactive Language for state-driven infrastructure orchestration.
 
-> **Current Version: v2.1.3 — "The Proxmox & Bare-Metal Release"**
+> **Current Version: v2.1.4 — "The Proxmox & Bare-Metal Release"**
 
 ---
 
@@ -23,7 +23,7 @@ Welcome to the official documentation for **Lumina** — the Distributed Reactiv
 The current generation of Lumina — systematic replacement of every DevOps tool through infrastructure provisioning adapters.
 
 ### Latest Releases
-- [v2.1.3 — Proxmox & Bare-Metal Adapter](Version2/v2.1/v2.1.3/index.md) ✅ **CURRENT**
+- [v2.1.4 — Proxmox & Bare-Metal Adapter](Version2/v2.1/v2.1.4/index.md) ✅ **CURRENT**
 - [v2.1.2 — AWS Adapter Platform](Version2/v2.1/v2.1.2/index.md)
 - [v2.1.1 — Docker Adapter](Version2/v2.1/v2.1.1/index.md)
 

@@ -163,6 +163,12 @@ pub enum Token {
     #[token("destroy")]
     KwDestroy,
 
+    // ── v2.1.4 Keywords ──────────────────────────────────────
+    #[token("depends")]
+    KwDepends,
+    #[token("fallback")]
+    KwFallback,
+
     // ── Operators & punctuation ────────────────────────────
     #[token("::")]
     ColonColon,
@@ -319,6 +325,8 @@ impl Token {
             Token::KwTrace => "keyword 'trace'".to_string(),
             Token::KwTerminate => "keyword 'terminate'".to_string(),
             Token::KwDestroy => "keyword 'destroy'".to_string(),
+            Token::KwDepends => "keyword 'depends'".to_string(),
+            Token::KwFallback => "keyword 'fallback'".to_string(),
             Token::ColonColon => "'::'".to_string(),
 
             Token::ColonEq => "':='".to_string(),

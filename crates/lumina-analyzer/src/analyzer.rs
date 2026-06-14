@@ -1,4 +1,4 @@
-use crate::graph::DependencyGraph;
+use crate::graph::{DependencyGraph, ResourceDependencyGraph};
 use crate::types::{EntitySchema, FieldSchema, Schema};
 use lumina_lexer::token::Span;
 use lumina_parser::ast::*;
@@ -17,6 +17,10 @@ pub struct AnalyzedProgram {
     pub program: Program,
     pub schema: Schema,
     pub graph: DependencyGraph,
+    /// v2.1.4: Resource provisioning dependency graph
+    pub resource_deps: ResourceDependencyGraph,
+    /// v2.1.4: Fallback provider mappings (entity_name → fallback_provider)
+    pub fallback_providers: HashMap<String, String>,
     pub fn_defs: HashMap<String, FnDecl>,
     pub instances: HashMap<String, LuminaType>,
 }
@@ -24,6 +28,10 @@ pub struct AnalyzedProgram {
 pub struct Analyzer {
     schema: Schema,
     graph: DependencyGraph,
+    /// v2.1.4: Resource dependency graph
+    resource_deps: ResourceDependencyGraph,
+    /// v2.1.4: Fallback provider mappings
+    fallback_providers: HashMap<String, String>,
     pub errors: Vec<AnalyzerError>,
     pub allow_imports: bool,
     locals: HashMap<String, LuminaType>,
@@ -38,6 +46,8 @@ impl Analyzer {
         Self {
             schema: Schema::new(),
             graph: DependencyGraph::new(),
+            resource_deps: ResourceDependencyGraph::new(),
+            fallback_providers: HashMap::new(),
             errors: Vec::new(),
             allow_imports: true,
             locals: HashMap::new(),
@@ -60,6 +70,8 @@ impl Analyzer {
             program,
             schema: self.schema,
             graph: self.graph,
+            resource_deps: self.resource_deps,
+            fallback_providers: self.fallback_providers,
             fn_defs: self.fn_defs,
             instances: self.instances,
         })
@@ -288,6 +300,41 @@ impl Analyzer {
                 _ => {}
             }
         }
+
+        // v2.1.4: Validate resource dependency targets exist and check for cycles
+        for stmt in &program.statements {
+            if let Statement::ResourceEntity(decl) = stmt {
+                self.resource_deps.register(&decl.name);
+                for dep_target in &decl.depends_on {
+                    if !self.schema.entities.contains_key(dep_target) {
+                        self.errors.push(AnalyzerError {
+                            code: "L070",
+                            message: format!(
+                                "Unknown dependency target '{}' in resource entity '{}'. The 'depends on' clause must reference a previously defined resource entity.",
+                                dep_target, decl.name
+                            ),
+                            span: decl.span,
+                        });
+                    } else {
+                        self.resource_deps.add_dependency(&decl.name, dep_target);
+                    }
+                }
+            }
+        }
+
+        // Check for circular resource dependencies
+        if self.errors.is_empty() {
+            if let Err(cycle) = self.resource_deps.provision_order() {
+                self.errors.push(AnalyzerError {
+                    code: "L071",
+                    message: format!(
+                        "Circular resource dependency detected: {}. Resources cannot depend on each other in a cycle because Lumina would never be able to determine which to provision first.",
+                        cycle.chain.join(" → ")
+                    ),
+                    span: program.span,
+                });
+            }
+        }
     }
 
     fn register_resource_entity(&mut self, decl: &ResourceEntityDecl) {
@@ -356,6 +403,22 @@ impl Analyzer {
                 poll_interval: None,
             },
         );
+
+        // v2.1.4: Validate and register fallback provider
+        if let Some(ref fallback) = decl.fallback_provider {
+            if fallback == &decl.provider {
+                self.errors.push(AnalyzerError {
+                    code: "L072",
+                    message: format!(
+                        "Fallback provider '{}' is the same as the primary provider for resource entity '{}'. A fallback must be a different provider to provide actual redundancy.",
+                        fallback, decl.name
+                    ),
+                    span: decl.span,
+                });
+            } else {
+                self.fallback_providers.insert(decl.name.clone(), fallback.clone());
+            }
+        }
     }
 
     fn register_entity(&mut self, decl: &EntityDecl, is_external: bool) {

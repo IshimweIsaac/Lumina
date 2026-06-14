@@ -38,7 +38,13 @@ pub fn build_evaluator(analyzed: &AnalyzedProgram) -> Evaluator {
         }
     }
 
-    let mut ev = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), rules);
+    let mut ev = Evaluator::new(
+        analyzed.schema.clone(),
+        analyzed.graph.clone(),
+        analyzed.resource_deps.clone(),
+        analyzed.fallback_providers.clone(),
+        rules,
+    );
     ev.derived_exprs = derived;
 
     // Pass 2: Process external entities, functions, and aggregates

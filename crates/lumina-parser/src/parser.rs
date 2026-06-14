@@ -177,11 +177,20 @@ impl Parser {
             "default".to_string()
         };
 
+        // v2.1.4: Optional fallback provider: ... provider "aws-ec2" fallback "docker" { ... }
+        let fallback_provider = if !self.is_at_end() && self.check(&Token::KwFallback) {
+            self.advance();
+            Some(self.expect_text("fallback provider name")?)
+        } else {
+            None
+        };
+
         self.expect(&Token::LBrace)?;
         self.skip_newlines();
 
         let mut fields = vec![];
         let mut desired_state = vec![];
+        let mut depends_on = vec![];
 
         while !self.check(&Token::RBrace) && !self.is_at_end() {
             // Check for desired_state block: ensure { field: value, ... }
@@ -200,6 +209,15 @@ impl Parser {
                     self.skip_newlines();
                 }
                 self.expect(&Token::RBrace)?;
+            } else if self.check(&Token::KwDepends) {
+                // v2.1.4: depends on target1, target2
+                self.advance(); // consume 'depends'
+                self.expect(&Token::KwOn)?;
+                depends_on.push(self.expect_ident("dependency target")?);
+                while self.check(&Token::Comma) {
+                    self.advance();
+                    depends_on.push(self.expect_ident("dependency target")?);
+                }
             } else {
                 fields.push(self.parse_field()?);
             }
@@ -210,8 +228,10 @@ impl Parser {
         Ok(Statement::ResourceEntity(ResourceEntityDecl {
             name,
             provider,
+            fallback_provider,
             fields,
             desired_state,
+            depends_on,
             span: start,
         }))
     }

@@ -1,0 +1,38 @@
+-- Lumina v2.1.4 Integration Test: Multi-Provider Dependency and Fallback
+
+-- Define a network dependency that is provisioned first
+resource entity VPC provider "aws-vpc" {
+  cidr: Text
+  ensure {
+    cidr: "10.0.0.0/16"
+  }
+}
+
+-- Define a database that depends on the VPC
+resource entity DB_Server provider "aws-rds" {
+  size: Text
+  depends on VPC
+  ensure {
+    size: "db.t3.micro"
+  }
+}
+
+-- Define an application that depends on the DB, with a failover to Docker
+resource entity WebApp provider "aws-ec2" fallback "docker" {
+  image: Text
+  port: Number
+  depends on DB_Server
+  ensure {
+    image: "nginx:latest"
+    port: 80
+  }
+}
+
+-- Action block to test the provision chain
+rule AppDeployment {
+  every 1s
+  if !WebApp.running
+  then {
+    provision WebApp
+  }
+}

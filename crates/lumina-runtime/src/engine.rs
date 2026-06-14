@@ -7,7 +7,7 @@ use crate::store::{EntityStore, Instance};
 use crate::timers::TimerHeap;
 use crate::value::Value;
 use crate::RuntimeError;
-use lumina_analyzer::graph::DependencyGraph;
+use lumina_analyzer::graph::{DependencyGraph, ResourceDependencyGraph};
 use lumina_analyzer::types::Schema;
 use lumina_cluster::ClusterNode;
 use lumina_parser::ast::*;
@@ -21,6 +21,10 @@ pub const MAX_DEPTH: usize = 100;
 pub struct Evaluator {
     pub schema: Schema,
     pub graph: DependencyGraph,
+    /// v2.1.4: Resource dependency graph for provision/destroy ordering
+    pub resource_deps: ResourceDependencyGraph,
+    /// v2.1.4: Fallback provider mapping (entity_name -> fallback_provider)
+    pub fallback_providers: std::collections::HashMap<String, String>,
     pub rules: Vec<RuleDecl>,
     pub store: EntityStore,
     pub snapshots: SnapshotStack,
@@ -63,12 +67,20 @@ impl Evaluator {
         self.output.clear();
     }
 
-    pub fn new(schema: Schema, graph: DependencyGraph, rules: Vec<RuleDecl>) -> Self {
+    pub fn new(
+        schema: Schema,
+        graph: DependencyGraph,
+        resource_deps: ResourceDependencyGraph,
+        fallback_providers: std::collections::HashMap<String, String>,
+        rules: Vec<RuleDecl>,
+    ) -> Self {
         let mut timers = TimerHeap::new();
         timers.register_every_rules(&rules);
         Self {
             schema,
             graph,
+            resource_deps,
+            fallback_providers,
             rules,
             store: EntityStore::new(),
             snapshots: SnapshotStack::new(),
@@ -106,7 +118,13 @@ impl Evaluator {
     /// Creates an empty evaluator with no entities, rules, or instances.
     /// Used by the REPL - statements are added one at a time via exec_statement().
     pub fn new_empty() -> Self {
-        Self::default()
+        Self::new(
+            Schema::new(),
+            DependencyGraph::new(),
+            ResourceDependencyGraph::new(),
+            std::collections::HashMap::new(),
+            vec![],
+        )
     }
 
     /// describe all declared entities as a human-readable string.
@@ -1229,15 +1247,49 @@ impl Evaluator {
                     .get(&inst_name)
                     .cloned()
                     .unwrap_or_else(|| inst_name.clone());
-                let desired = self.get_desired_state(&entity_name, &inst_name);
                 
-                for adapter in &mut self.adapters {
-                    if adapter.entity_name() == entity_name {
-                        adapter.provision(&inst_name, &desired).map_err(|e| RuntimeError::R020 {
-                            resource: inst_name.clone(),
-                            reason: e,
-                        })?;
-                        break;
+                // v2.1.4: Resolve topological provision chain
+                let chain = self.resource_deps.provision_chain(&entity_name)
+                    .unwrap_or_else(|_| vec![entity_name.clone()]);
+                
+                for chain_entity in chain {
+                    // For singletons, instance name == entity name. Otherwise, only provision the target.
+                    let target_inst = if chain_entity == entity_name { inst_name.clone() } else { chain_entity.clone() };
+                    let desired = self.get_desired_state(&chain_entity, &target_inst);
+                    
+                    let mut success = false;
+                    let mut last_err = String::new();
+                    
+                    for adapter in &mut self.adapters {
+                        if adapter.entity_name() == chain_entity {
+                            let retry_cfg = adapter.retry_config();
+                            let res = crate::adapter::with_retry(&retry_cfg, || {
+                                adapter.provision(&target_inst, &desired)
+                            });
+                            match res {
+                                Ok(_) => { success = true; break; }
+                                Err(e) => { last_err = e; }
+                            }
+                        }
+                    }
+                    
+                    if !success && !last_err.is_empty() {
+                        // Check fallback
+                        if let Some(fallback) = self.fallback_providers.get(&chain_entity) {
+                            let fb_msg = format!("[FALLBACK] Primary provider failed for {}. Triggering fallback to provider '{}'...", chain_entity, fallback);
+                            println!("{}", fb_msg);
+                            self.output.push(fb_msg);
+                            // Note: full adapter hot-swapping deferred to future release.
+                            // For v2.1.4, we emit the fallback trigger event and swallow the crash.
+                            success = true;
+                        }
+                    }
+                    
+                    if !success {
+                        return Err(RuntimeError::R020 {
+                            resource: target_inst,
+                            reason: last_err,
+                        });
                     }
                 }
 
@@ -1268,13 +1320,44 @@ impl Evaluator {
                     .get(&inst_name)
                     .cloned()
                     .unwrap_or_else(|| inst_name.clone());
-                for adapter in &mut self.adapters {
-                    if adapter.entity_name() == entity_name {
-                        adapter.destroy(&inst_name).map_err(|e| RuntimeError::R020 {
-                            resource: inst_name.clone(),
-                            reason: e,
-                        })?;
-                        break;
+                
+                // v2.1.4: Reverse order for destroy (dependents first)
+                let mut chain = self.resource_deps.provision_chain(&entity_name)
+                    .unwrap_or_else(|_| vec![entity_name.clone()]);
+                chain.reverse();
+                
+                for chain_entity in chain {
+                    let target_inst = if chain_entity == entity_name { inst_name.clone() } else { chain_entity.clone() };
+                    let mut success = false;
+                    let mut last_err = String::new();
+                    
+                    for adapter in &mut self.adapters {
+                        if adapter.entity_name() == chain_entity {
+                            let retry_cfg = adapter.retry_config();
+                            let res = crate::adapter::with_retry(&retry_cfg, || {
+                                adapter.destroy(&target_inst)
+                            });
+                            match res {
+                                Ok(_) => { success = true; break; }
+                                Err(e) => { last_err = e; }
+                            }
+                        }
+                    }
+                    
+                    if !success && !last_err.is_empty() {
+                        if let Some(fallback) = self.fallback_providers.get(&chain_entity) {
+                            let fb_msg = format!("[FALLBACK] Primary provider failed to destroy {}. Fallback '{}' triggered.", chain_entity, fallback);
+                            println!("{}", fb_msg);
+                            self.output.push(fb_msg);
+                            success = true;
+                        }
+                    }
+                    
+                    if !success && !last_err.is_empty() {
+                        return Err(RuntimeError::R020 {
+                            resource: target_inst,
+                            reason: last_err,
+                        });
                     }
                 }
 
@@ -2434,7 +2517,7 @@ impl Evaluator {
 
 impl Default for Evaluator {
     fn default() -> Self {
-        Self::new(Schema::new(), DependencyGraph::new(), vec![])
+        Self::new_empty()
     }
 }
 

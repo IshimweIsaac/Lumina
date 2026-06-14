@@ -37,6 +37,15 @@ impl LuminaAdapter for ProxmoxAdapter {
         &self.entity_name
     }
 
+    fn retry_config(&self) -> crate::adapter::RetryConfig {
+        crate::adapter::RetryConfig {
+            max_retries: 5,
+            base_delay_ms: 1000,
+            max_delay_ms: 60_000,
+            jitter: true,
+        }
+    }
+
     fn poll(&mut self) -> Vec<(String, String, Value)> {
         vec![]
     }

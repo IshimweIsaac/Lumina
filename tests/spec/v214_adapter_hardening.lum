@@ -1,0 +1,27 @@
+-- Specification tests for v2.1.4 analyzer validations
+
+-- Test L070: Unknown dependency target (should fail if uncommented)
+-- resource entity BrokenDep {
+--   depends on NonExistent
+-- }
+
+-- Test L071: Circular dependencies (should fail if uncommented)
+-- resource entity A {
+--   depends on B
+-- }
+-- resource entity B {
+--   depends on A
+-- }
+
+-- Test L072: Fallback provider is the same as primary (should fail if uncommented)
+-- resource entity SameFallback provider "docker" fallback "docker" {
+-- }
+
+-- Valid definitions
+resource entity ValidDep provider "aws-ec2" fallback "docker" {
+  image: Text
+}
+
+resource entity ValidDepChild {
+  depends on ValidDep
+}

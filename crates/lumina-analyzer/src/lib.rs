@@ -58,6 +58,9 @@ fn help_for_code(code: &str) -> Option<String> {
         "L039" => Some("the write action was blocked because the security context (authenticated branch) evaluated to false".into()),
         "L053" => Some("every provider block must include an 'endpoint' configuration specifying where to connect".into()),
         "R004" => Some("verify your index value is within the bounds of the list".into()),
+        "L070" => Some("check that the dependency target names match the names of defined resource entities".into()),
+        "L071" => Some("break the circular dependency by removing one of the 'depends on' references in the cycle".into()),
+        "L072" => Some("use a different provider name for the fallback to ensure actual redundancy".into()),
         _ => None,
     }
 }

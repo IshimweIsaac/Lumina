@@ -107,8 +107,12 @@ pub struct ClusterDecl {
 pub struct ResourceEntityDecl {
     pub name: String,
     pub provider: String,
+    /// v2.1.4: Optional fallback provider for failover
+    pub fallback_provider: Option<String>,
     pub fields: Vec<Field>,
     pub desired_state: Vec<(String, Expr)>,
+    /// v2.1.4: Cross-provider dependency ordering
+    pub depends_on: Vec<String>,
     pub span: Span,
 }
 

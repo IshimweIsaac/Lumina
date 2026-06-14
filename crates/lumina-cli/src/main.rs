@@ -781,6 +781,8 @@ fn cmd_query(args: &[String]) {
     let mut evaluator = Evaluator::new(
         lumina_analyzer::types::Schema::new(),
         lumina_analyzer::graph::DependencyGraph::new(),
+        lumina_analyzer::graph::ResourceDependencyGraph::new(),
+        std::collections::HashMap::new(),
         vec![],
     );
     match evaluator.exec_statement(&program.statements[0]) {
