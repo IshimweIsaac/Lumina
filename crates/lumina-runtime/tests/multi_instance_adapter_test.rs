@@ -21,7 +21,13 @@ fn test_multi_instance_adapter_polling() {
     }
 
     // 2. Create an evaluator
-    let mut ev = Evaluator::new(schema, DependencyGraph::new(), vec![]);
+    let mut ev = Evaluator::new(
+        schema,
+        DependencyGraph::new(),
+        lumina_analyzer::graph::ResourceDependencyGraph::new(),
+        std::collections::HashMap::new(),
+        vec![],
+    );
 
     // 3. Insert two instances of the Sensor entity
     let mut inst1 = Instance::new("Sensor", 1);

@@ -2532,7 +2532,13 @@ mod tests {
     use lumina_lexer::token::Span;
 
     fn empty_eval() -> Evaluator {
-        Evaluator::new(Schema::new(), DependencyGraph::new(), vec![])
+        Evaluator::new(
+            Schema::new(),
+            DependencyGraph::new(),
+            lumina_analyzer::graph::ResourceDependencyGraph::new(),
+            std::collections::HashMap::new(),
+            vec![],
+        )
     }
 
     fn build_eval(source: &str) -> Evaluator {
@@ -2554,7 +2560,13 @@ mod tests {
                 _ => {}
             }
         }
-        let mut ev = Evaluator::new(analyzed.schema, analyzed.graph, rules);
+        let mut ev = Evaluator::new(
+            analyzed.schema,
+            analyzed.graph,
+            analyzed.resource_deps,
+            analyzed.fallback_providers,
+            rules,
+        );
         ev.derived_exprs = derived;
         ev.functions = analyzed.fn_defs.into_iter().collect();
         ev

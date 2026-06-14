@@ -33,7 +33,13 @@ async fn test_workload_migration() {
     let analyzed = analyze(program.clone(), source, "test.lum", true).unwrap();
 
     // Node 1 Setup
-    let mut ev1 = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), vec![]);
+    let mut ev1 = Evaluator::new(
+        analyzed.schema.clone(),
+        analyzed.graph.clone(),
+        analyzed.resource_deps.clone(),
+        analyzed.fallback_providers.clone(),
+        vec![],
+    );
     let config1 = ClusterConfig {
         node_id: "node1".to_string(),
         bind_addr: "127.0.0.1:9101".to_string(),
@@ -56,7 +62,13 @@ async fn test_workload_migration() {
     .unwrap();
 
     // Node 2 Setup
-    let mut ev2 = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), vec![]);
+    let mut ev2 = Evaluator::new(
+        analyzed.schema.clone(),
+        analyzed.graph.clone(),
+        analyzed.resource_deps.clone(),
+        analyzed.fallback_providers.clone(),
+        vec![],
+    );
     let config2 = ClusterConfig {
         node_id: "node2".to_string(),
         bind_addr: "127.0.0.1:9102".to_string(),

@@ -38,7 +38,13 @@ async fn test_cross_node_state_sync() {
     let analyzed = analyze(program.clone(), source, "test.lum", true).unwrap();
 
     // 2. Initialize Evaluator 1 (Node 1)
-    let mut ev1 = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), vec![]);
+    let mut ev1 = Evaluator::new(
+        analyzed.schema.clone(),
+        analyzed.graph.clone(),
+        analyzed.resource_deps.clone(),
+        analyzed.fallback_providers.clone(),
+        vec![],
+    );
     // Manually extract cluster decl for node1
     let decl1 = program
         .statements
@@ -70,7 +76,13 @@ async fn test_cross_node_state_sync() {
     .unwrap();
 
     // 3. Initialize Evaluator 2 (Node 2)
-    let mut ev2 = Evaluator::new(analyzed.schema.clone(), analyzed.graph.clone(), vec![]);
+    let mut ev2 = Evaluator::new(
+        analyzed.schema.clone(),
+        analyzed.graph.clone(),
+        analyzed.resource_deps.clone(),
+        analyzed.fallback_providers.clone(),
+        vec![],
+    );
     let decl2 = program
         .statements
         .iter()
