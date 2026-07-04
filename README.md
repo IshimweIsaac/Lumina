@@ -22,22 +22,22 @@ Lumina is **declarative-reactive**. You define the *state* you want, and the eng
 ```lumina
 -- Define a self-healing server rack
 entity Server {
-  cpu_temp: Number
-  is_online: Boolean
-  is_hot := cpu_temp > 80
+ cpu_temp: Number
+ is_online: Boolean
+ is_hot := cpu_temp > 80
 }
 
 aggregate RackStats over Server {
-  avg_temp := avg(cpu_temp)
-  critical_count := count(is_hot)
+ avg_temp := avg(cpu_temp)
+ critical_count := count(is_hot)
 }
 
 rule "Emergency Cooling"
 when RackStats.critical_count > 2 {
-  alert severity: "critical", message: "Fleet overheating: {RackStats.avg_temp}C"
+ alert severity: "critical", message: "Fleet overheating: {RackStats.avg_temp}C"
 }
 on clear {
-  show "Thermal levels stabilized."
+ show "Thermal levels stabilized."
 }
 ```
 
@@ -45,17 +45,17 @@ on clear {
 
 ## Core Pillars
 
-### ⚡ Distributed Reactivity
-A high-performance reactive engine written in Rust. Every state change is a transaction—updates either propagate fully through the graph or roll back entirely.
+### Distributed Reactivity
+A high-performance reactive engine written in Rust. Every state change is a transaction--updates either propagate fully through the graph or roll back entirely.
 
-### 🌐 Architecting
+### Architecting
 Native cluster networking with UDP gossip, leader election, and state mesh synchronization. No external database or message broker required.
 
-### 🔌 Universal Embedding
+### Universal Embedding
 Lumina runs everywhere. Embed it in C, Python, Go, or Node.js via the **C-FFI**, or run it in the browser at native speed via **WebAssembly**.
 
-### 🛠️ Developer Experience
-- **Human-Centric Diagnostics**: Error messages that don't just report bugs—they teach the language.
+### Developer Experience
+- **Human-Centric Diagnostics**: Error messages that don't just report bugs--they teach the language.
 - **LSP Support**: Full IDE integration for VS Code, VSCodium, Cursor, and Neovim.
 - **Stateful REPL**: Experiment with reactive logic in real-time.
 
@@ -84,7 +84,7 @@ npm install -g @lumina-lang/core
 Create `hello.lum`:
 ```lumina
 entity World {
-  status: Text
+ status: Text
 }
 let w = World { status: "Quiet" }
 rule "Greet" when World.status becomes "Loud" { show "Hello, Lumina!" }
@@ -102,16 +102,16 @@ lumina run hello.lum
 
 ### Core Engine
 - **[`crates/`](./crates/)**: The Rust workspace containing all core crates:
-  - [`lumina-lexer`](./crates/lumina-lexer/) — Tokenizer for Lumina source code.
-  - [`lumina-parser`](./crates/lumina-parser/) — Parser producing the AST from tokens.
-  - [`lumina-analyzer`](./crates/lumina-analyzer/) — Semantic analysis, type checking, and DAG construction.
-  - [`lumina-diagnostics`](./crates/lumina-diagnostics/) — Human-centric, teaching-style error reporting.
-  - [`lumina-runtime`](./crates/lumina-runtime/) — The reactive execution engine.
-  - [`lumina-cluster`](./crates/lumina-cluster/) — Distributed clustering: gossip protocol, leader election, and state mesh.
-  - [`lumina-cli`](./crates/lumina-cli/) — The `lumina` command-line interface.
-  - [`lumina-lsp`](./crates/lumina-lsp/) — Language Server Protocol implementation for IDE support.
-  - [`lumina-wasm`](./crates/lumina-wasm/) — WebAssembly compilation target for browser execution.
-  - [`lumina_ffi`](./crates/lumina_ffi/) — C-FFI bindings for embedding Lumina in other languages.
+ - [`lumina-lexer`](./crates/lumina-lexer/) -- Tokenizer for Lumina source code.
+ - [`lumina-parser`](./crates/lumina-parser/) -- Parser producing the AST from tokens.
+ - [`lumina-analyzer`](./crates/lumina-analyzer/) -- Semantic analysis, type checking, and DAG construction.
+ - [`lumina-diagnostics`](./crates/lumina-diagnostics/) -- Human-centric, teaching-style error reporting.
+ - [`lumina-runtime`](./crates/lumina-runtime/) -- The reactive execution engine.
+ - [`lumina-cluster`](./crates/lumina-cluster/) -- Distributed clustering: gossip protocol, leader election, and state mesh.
+ - [`lumina-cli`](./crates/lumina-cli/) -- The `lumina` command-line interface.
+ - [`lumina-lsp`](./crates/lumina-lsp/) -- Language Server Protocol implementation for IDE support.
+ - [`lumina-wasm`](./crates/lumina-wasm/) -- WebAssembly compilation target for browser execution.
+ - [`lumina_ffi`](./crates/lumina_ffi/) -- C-FFI bindings for embedding Lumina in other languages.
 
 ### Ecosystem
 - **[`website/`](./website/)**: The official Lumina website (Vite), including the interactive WASM playground and documentation pages.
